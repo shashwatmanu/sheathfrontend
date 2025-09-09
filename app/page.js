@@ -1,95 +1,216 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+
+import { useMemo, useState } from "react";
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+ 
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+  const [pdf, setPdf] = useState(null);
+  const [bank, setBank] = useState(null);
+  const [mis, setMis] = useState(null);
+  const [outstanding, setOutstanding] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+
+  const canSubmit = useMemo(
+    () => !!(pdf && bank && mis && outstanding && API_BASE),
+    [pdf, bank, mis, outstanding, API_BASE]
+  );
+
+  // Download helper for blob responses (when backend streams a file)
+  const downloadBlob = async (res) => {
+    const cd = res.headers.get("Content-Disposition") || "";
+    const match = /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
+    const suggested =
+      decodeURIComponent(match?.[1] || "") || match?.[2] || `recon_${Date.now()}.xlsx`;
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = suggested;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const runRecon = async () => {
+    if (!canSubmit) return;
+    setLoading(true);
+    setError("");
+    setResult(null);
+
+    try {
+      const fd = new FormData();
+      // Adjust field names if Kartik’s endpoint expects different keys
+      fd.append("pdf", pdf);
+      fd.append("bank1", bank);       // for multiple banks: append bank2, bank3, ...
+      fd.append("mis", mis);
+      fd.append("outstanding", outstanding);
+
+      const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/pdf-recon`;
+      const res = await fetch(endpoint, { method: "POST", body: fd });
+      const ctype = res.headers.get("Content-Type") || "";
+
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          if (ctype.includes("application/json")) {
+            const j = await res.json();
+            msg = j?.detail || j?.error || JSON.stringify(j);
+          } else {
+            msg = await res.text();
+          }
+        } catch (_) {}
+        throw new Error(msg);
+      }
+
+      if (ctype.includes("application/json")) {
+        const data = await res.json();
+        setResult(data);
+      } else {
+        await downloadBlob(res);
+        setResult({ ok: true, streamed: true });
+      }
+    } catch (e) {
+      setError(e?.message || "Upload failed");
+      setResult({ ok: false, error: e?.message || "Upload failed" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main style={{ padding: 24, maxWidth: 840, margin: "0 auto" }}>
+      <h1 style={{ marginBottom: 4 }}>Recon Uploader</h1>
+      <p style={{ color: "#555", marginTop: 0 }}>
+        Upload required documents and run reconciliation.
+      </p>
+
+      {!API_BASE && (
+        <div
+          style={{
+            background: "#fff3cd",
+            border: "1px solid #ffeeba",
+            padding: 8,
+            borderRadius: 6,
+            marginBottom: 12
+          }}
+        >
+          <strong>Note:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
+          Configure it in your hosting env.
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      )}
+
+      <div
+        style={{
+          border: "1px solid #eee",
+          borderRadius: 10,
+          padding: 16,
+          display: "grid",
+          gap: 12
+        }}
+      >
+        <div>
+          <label style={{ display: "block", fontWeight: 600 }}>PDF</label>
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => setPdf(e.target.files?.[0] || null)}
           />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          {pdf && <small>Selected: {pdf.name}</small>}
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontWeight: 600 }}>Bank (.xlsx)</label>
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => setBank(e.target.files?.[0] || null)}
           />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+          {bank && <small>Selected: {bank.name}</small>}
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontWeight: 600 }}>MIS (.xlsx)</label>
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => setMis(e.target.files?.[0] || null)}
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          {mis && <small>Selected: {mis.name}</small>}
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontWeight: 600 }}>
+            Outstanding (.xlsx)
+          </label>
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => setOutstanding(e.target.files?.[0] || null)}
+          />
+          {outstanding && <small>Selected: {outstanding.name}</small>}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            onClick={runRecon}
+            disabled={!canSubmit || loading}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              cursor: canSubmit && !loading ? "pointer" : "not-allowed"
+            }}
+          >
+            {loading ? "Running..." : "Run Recon"}
+          </button>
+          {error && <span style={{ color: "#c00" }}>Error: {error}</span>}
+        </div>
+      </div>
+
+      {result && (
+        <div
+          style={{
+            marginTop: 16,
+            border: "1px solid '#eee'",
+            borderRadius: 10,
+            padding: 12
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Result</h3>
+          <pre style={{ whiteSpace: "pre-wrap" }}>
+{JSON.stringify(result, null, 2)}
+          </pre>
+
+          {result?.ok && result?.artifacts?.consolidated_output && (
+            <p>
+              <a
+                href={result.artifacts.consolidated_output}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download consolidated output
+              </a>
+            </p>
+          )}
+          {result?.ok && result?.artifacts?.updated_outstanding && (
+            <p>
+              <a
+                href={result.artifacts.updated_outstanding}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download updated outstanding
+              </a>
+            </p>
+          )}
+        </div>
+      )}
+    </main>
   );
 }
