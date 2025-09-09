@@ -48,7 +48,7 @@ export default function Home() {
       const fd = new FormData();
       // Adjust field names if Kartik’s endpoint expects different keys
       fd.append("pdf", pdf);
-      fd.append("bank1", bank);       // for multiple banks: append bank2, bank3, ...
+      fd.append("bank1", bank);        // for multiple banks: append bank2, bank3, ...
       fd.append("mis", mis);
       fd.append("outstanding", outstanding);
 
