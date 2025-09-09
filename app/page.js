@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import "./globals.css";
+import React, { useMemo, useState } from "react";
+import { FileUpload } from "@/components/ui/file-upload.jsx";
+import { m } from "framer-motion";
 
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
- 
-
   const [pdf, setPdf] = useState(null);
   const [bank, setBank] = useState(null);
   const [mis, setMis] = useState(null);
   const [outstanding, setOutstanding] = useState(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -20,12 +20,14 @@ export default function Home() {
     [pdf, bank, mis, outstanding, API_BASE]
   );
 
-  // Download helper for blob responses (when backend streams a file)
   const downloadBlob = async (res) => {
     const cd = res.headers.get("Content-Disposition") || "";
-    const match = /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
+    const match =
+      /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
     const suggested =
-      decodeURIComponent(match?.[1] || "") || match?.[2] || `recon_${Date.now()}.xlsx`;
+      decodeURIComponent(match?.[1] || "") ||
+      match?.[2] ||
+      `recon_${Date.now()}.xlsx`;
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -43,16 +45,18 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResult(null);
-
     try {
       const fd = new FormData();
-      // Adjust field names if Kartik’s endpoint expects different keys
       fd.append("pdf", pdf);
-      fd.append("bank1", bank);        // for multiple banks: append bank2, bank3, ...
+      fd.append("bank1", bank);
       fd.append("mis", mis);
       fd.append("outstanding", outstanding);
 
-      const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/pdf-recon`;
+      const endpoint = `${API_BASE.replace(
+        /\/$/,
+        ""
+      )}/reconcile/pdf-recon`;
+
       const res = await fetch(endpoint, { method: "POST", body: fd });
       const ctype = res.headers.get("Content-Type") || "";
 
@@ -78,15 +82,39 @@ export default function Home() {
       }
     } catch (e) {
       setError(e?.message || "Upload failed");
-      setResult({ ok: false, error: e?.message || "Upload failed" });
+      setResult({
+        ok: false,
+        error: e?.message || "Upload failed",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ padding: 24, maxWidth: 840, margin: "0 auto" }}>
-      <h1 style={{ marginBottom: 4 }}>Recon Uploader</h1>
+    <>
+     <nav
+        style={{
+          background: "#111827",
+          color: "#fff",
+          padding: "12px 24px",
+          marginBottom: 24,
+          borderRadius: "0 0 8px 8px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        }}
+      >
+         <h1 style={{ margin: 0, fontSize: 20}}>RGCIRC</h1>
+        <h1 style={{ margin: 0, fontSize: 20}}>Recon Dashboard</h1>
+      </nav>
+    <main style={{ margin: "0 auto", maxWidth: 640}}>
+      {/* NAVBAR */}
+     
+      
+
+      
       <p style={{ color: "#555", marginTop: 0 }}>
         Upload required documents and run reconciliation.
       </p>
@@ -98,11 +126,11 @@ export default function Home() {
             border: "1px solid #ffeeba",
             padding: 8,
             borderRadius: 6,
-            marginBottom: 12
+            marginBottom: 12,
           }}
         >
-          <strong>Note:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
-          Configure it in your hosting env.
+          <strong>Note:</strong>{" "}
+          <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
         </div>
       )}
 
@@ -112,47 +140,81 @@ export default function Home() {
           borderRadius: 10,
           padding: 16,
           display: "grid",
-          gap: 12
+          gap: 12,
         }}
       >
         <div>
-          <label style={{ display: "block", fontWeight: 600 }}>PDF</label>
-          <input
-            type="file"
+          <label
+            style={{
+              display: "block",
+              fontWeight: 600,
+              marginBottom: 6,
+            }}
+          >
+            PDF
+          </label>
+          <FileUpload
             accept="application/pdf"
-            onChange={(e) => setPdf(e.target.files?.[0] || null)}
+            label="Select Advanced Account Statement (For UTR Mapping according to new RBI Guidelines)"
+            onChange={(files) => setPdf(files[0] || null)}
+            name="pdf"
           />
           {pdf && <small>Selected: {pdf.name}</small>}
         </div>
 
         <div>
-          <label style={{ display: "block", fontWeight: 600 }}>Bank (.xlsx)</label>
-          <input
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            onChange={(e) => setBank(e.target.files?.[0] || null)}
+          <label
+            style={{
+              display: "block",
+              fontWeight: 600,
+              marginBottom: 6,
+            }}
+          >
+            Bank (.xlsx)
+          </label>
+          <FileUpload
+            accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            label="Select Bank Account Statement"
+            onChange={(files) => setBank(files[0] || null)}
+            name="bank1"
           />
           {bank && <small>Selected: {bank.name}</small>}
         </div>
 
         <div>
-          <label style={{ display: "block", fontWeight: 600 }}>MIS (.xlsx)</label>
-          <input
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            onChange={(e) => setMis(e.target.files?.[0] || null)}
+          <label
+            style={{
+              display: "block",
+              fontWeight: 600,
+              marginBottom: 6,
+            }}
+          >
+            MIS (.xlsx)
+          </label>
+          <FileUpload
+            accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            label="Select MIS Extract"
+            onChange={(files) => setMis(files[0] || null)}
+            name="mis"
           />
           {mis && <small>Selected: {mis.name}</small>}
         </div>
 
         <div>
-          <label style={{ display: "block", fontWeight: 600 }}>
+          <label
+            style={{
+              display: "block",
+              fontWeight: 600,
+              marginBottom: 6,
+            }}
+          >
             Outstanding (.xlsx)
           </label>
-          <input
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            onChange={(e) => setOutstanding(e.target.files?.[0] || null)}
+          <FileUpload
+            accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            label="Select Outstanding Report"
+            onChange={(files) => setOutstanding(files[0] || null)}
+            name="outstanding"
           />
           {outstanding && <small>Selected: {outstanding.name}</small>}
         </div>
@@ -164,7 +226,10 @@ export default function Home() {
             style={{
               padding: "8px 14px",
               borderRadius: 8,
-              cursor: canSubmit && !loading ? "pointer" : "not-allowed"
+              cursor: canSubmit && !loading ? "pointer" : "not-allowed",
+              background: "#111827",
+              color: "#fff",
+              border: "none",
             }}
           >
             {loading ? "Running..." : "Run Recon"}
@@ -172,19 +237,20 @@ export default function Home() {
           {error && <span style={{ color: "#c00" }}>Error: {error}</span>}
         </div>
       </div>
+      
 
       {result && (
         <div
           style={{
             marginTop: 16,
-            border: "1px solid '#eee'",
+            border: "1px solid #eee",
             borderRadius: 10,
-            padding: 12
+            padding: 12,
           }}
         >
-          <h3 style={{ marginTop: 0 }}>Result</h3>
           <pre style={{ whiteSpace: "pre-wrap" }}>
-{JSON.stringify(result, null, 2)}
+            Matches found:{" "}
+            {JSON.stringify(result.summary?.matches_found, null, 2)}
           </pre>
 
           {result?.ok && result?.artifacts?.consolidated_output && (
@@ -198,6 +264,7 @@ export default function Home() {
               </a>
             </p>
           )}
+
           {result?.ok && result?.artifacts?.updated_outstanding && (
             <p>
               <a
@@ -212,5 +279,6 @@ export default function Home() {
         </div>
       )}
     </main>
+    </>
   );
 }
