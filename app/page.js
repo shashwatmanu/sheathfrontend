@@ -95,7 +95,7 @@ export default function Home() {
     <>
      <nav
         style={{
-          background: "#111827",
+          background: "#111111",
           color: "#fff",
           padding: "12px 24px",
           marginBottom: 24,
@@ -227,7 +227,7 @@ export default function Home() {
               padding: "8px 14px",
               borderRadius: 8,
               cursor: canSubmit && !loading ? "pointer" : "not-allowed",
-              background: "#111827",
+              background: "#111111",
               color: "#fff",
               border: "none",
             }}

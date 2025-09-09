@@ -136,7 +136,7 @@ export function FileUpload({
               openPicker();
             }}
             style={{
-              background: "#111827",
+              background: "#111111",
               color: "#fff",
               border: "none",
               borderRadius: 8,
