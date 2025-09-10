@@ -4,7 +4,6 @@ import "./globals.css";
 import React, { useMemo, useState } from "react";
 import { FileUpload } from "../components/ui/file-upload.tsx";
 import { Button } from "../components/ui/moving-border";
-import { WavyBackground } from "../components/ui/wavy-background";
 import { SparklesCore } from "../components/ui/sparkles";
 
 export default function Home() {
