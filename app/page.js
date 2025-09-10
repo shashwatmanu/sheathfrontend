@@ -5,6 +5,7 @@ import React, { useMemo, useState } from "react";
 import { FileUpload } from "../components/ui/file-upload.tsx";
 import { Button } from "../components/ui/moving-border";
 import { SparklesCore } from "../components/ui/sparkles";
+import { color } from "framer-motion";
 
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -106,6 +107,7 @@ export default function Home() {
        
         
         <h1 style={{ margin: 0, fontSize: 20, fontWeight:'bolder' }}>RGCIRC</h1>
+        <p style={{width:'300px', marginLeft:'3px', fontSize:'10px', alignSelf:'flex-end', fontWeight:'bold'}}>Recon Dashboard</p>
         <SparklesCore
           id="tsparticlesfullpage"
           background="transparent"
@@ -148,6 +150,8 @@ export default function Home() {
             display: "grid",
             gap: 16,
             gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            boxShadow: "rgba(100, 100, 111, 0.2) 0px 7px 29px 0px",
+            background: "#ffffffff",
           }}
         >
           <div>
@@ -218,7 +222,7 @@ export default function Home() {
             //   fontWeight: 600,
             // }}
             borderRadius="1.75rem"
-        className="bg-white dark:bg-slate-900 text-black dark:text-white border-neutral-200 dark:border-slate-800"
+        className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
           >
             {loading ? "Running..." : "Run Recon"}
           </Button>
