@@ -105,9 +105,10 @@ export default function Home() {
         }}
       >
        
-        
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight:'bolder' }}>RGCIRC</h1>
-        <p style={{width:'300px', marginLeft:'3px', fontSize:'10px', alignSelf:'flex-end', fontWeight:'bold'}}>Recon Dashboard</p>
+        <div style={{display:'flex', flexDirection:'column'}}>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight:'bolder', height:'24px'}}>RGCIRC</h1>
+        <p style={{width:'90px', fontSize:'10px' , fontWeight:'bold'}}>Recon Dashboard</p>
+        </div>
         <SparklesCore
           id="tsparticlesfullpage"
           background="transparent"
