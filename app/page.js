@@ -96,7 +96,7 @@ export default function Home() {
           color: "#fff",
           padding: "12px 24px",
           marginBottom: 24,
-          borderRadius: "0 0 8px 8px",
+          borderRadius: "0 0 6px 6px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -112,10 +112,10 @@ export default function Home() {
         <SparklesCore
           id="tsparticlesfullpage"
           background="transparent"
-          minSize={0.6}
-          maxSize={0.1}
+          minSize={0.1}
+          maxSize={0.8}
           particleDensity={100}
-          // className="w-full h-full"
+          className="w-full h-full"
           particleColor="#FFFFFF"
         />
         {/* <h1 style={{ margin: 0, fontSize: 20 }}>Recon Dashboard</h1> */}
@@ -123,7 +123,7 @@ export default function Home() {
       </nav>
 
       <main style={{ margin: "0 auto", maxWidth: 960 }}>
-        <p style={{ color: "#555", marginTop: 0 }}>
+        <p style={{ color: "#555", marginTop: 0 , marginBottom: 8}}>
           Upload required documents and run reconciliation.
         </p>
 
@@ -160,6 +160,7 @@ export default function Home() {
               Select Advanced Account Statement (.pdf)
             </label>
             <FileUpload
+            key="1"
               accept="application/pdf"
               label="Select Advanced Account Statement"
               onChange={(files) => setPdf(files[0] || null)}
@@ -173,6 +174,7 @@ export default function Home() {
              Select Bank Account Statement (.xlsx)
             </label>
             <FileUpload
+            key="2"
               accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               label="Select Bank Account Statement"
               onChange={(files) => setBank(files[0] || null)}
@@ -186,6 +188,7 @@ export default function Home() {
               Select MIS Extract (.xlsx)
             </label>
             <FileUpload
+            key="3"
               accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               label="Select MIS Extract"
               onChange={(files) => setMis(files[0] || null)}
@@ -199,6 +202,7 @@ export default function Home() {
               Select Outstanding Report (.xlsx)
             </label>
             <FileUpload
+            key="4"
               accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               label="Select Outstanding Report"
               onChange={(files) => setOutstanding(files[0] || null)}
