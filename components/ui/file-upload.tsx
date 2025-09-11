@@ -27,8 +27,10 @@ const secondaryVariant = {
 
 export const FileUpload = ({
   onChange,
+  accept,
 }: {
   onChange?: (files: File[]) => void;
+  accept?: string;
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,12 +44,24 @@ export const FileUpload = ({
     fileInputRef.current?.click();
   };
 
+  // Build accept config for react-dropzone
+  const buildAcceptConfig = (accept?: string) => {
+    if (!accept) return undefined;
+    const types = accept.split(",").map((t) => t.trim());
+    const config: Record<string, string[]> = {};
+    types.forEach((t) => {
+      config[t] = [];
+    });
+    return config;
+  };
+
   const { getRootProps, isDragActive } = useDropzone({
     multiple: false,
     noClick: true,
+    accept: buildAcceptConfig(accept),
     onDrop: handleFileChange,
     onDropRejected: (error) => {
-      console.log(error);
+      console.log("Rejected:", error);
     },
   });
 
@@ -62,12 +76,15 @@ export const FileUpload = ({
           ref={fileInputRef}
           id="file-upload-handle"
           type="file"
+          accept={accept} // 🔥 enforce allowed types for file picker
           onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
         />
+
         <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">
           <GridPattern />
         </div>
+
         <div className="flex flex-col items-center justify-center">
           <p className="relative z-20 font-sans font-bold text-neutral-700 dark:text-neutral-300 text-base">
             Upload file
@@ -120,12 +137,12 @@ export const FileUpload = ({
                       animate={{ opacity: 1 }}
                       layout
                     >
-                      modified{" "}
-                      {new Date(file.lastModified).toLocaleDateString()}
+                      modified {new Date(file.lastModified).toLocaleDateString()}
                     </motion.p>
                   </div>
                 </motion.div>
               ))}
+
             {!files.length && (
               <motion.div
                 layoutId="file-upload"
