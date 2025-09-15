@@ -12,31 +12,20 @@ import StepLabel from "@mui/material/StepLabel";
 import MuiButton from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 
-/**
- * Replace step.endpoint values to match your backend routes if needed.
- * Make sure MUI is installed:
- *   npm install @mui/material @emotion/react @emotion/styled
- */
-
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-  // files for each step (we keep them so users may pre-pick if they want)
   const [bankFile, setBankFile] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
   const [misFile, setMisFile] = useState(null);
   const [outstandingFile, setOutstandingFile] = useState(null);
 
-  // stepper state
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // store per-step results
-  // stepResults[index] = { ok:true, blobUrl?, filename?, json? } or { ok:false, error }
   const [stepResults, setStepResults] = useState({});
 
-  // Steps: change endpoints to match backend
   const steps = [
     { key: "bank", label: "Bank Account Statement", fieldName: "bank1", endpoint: "/reconcile/bank", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
     { key: "pdf", label: "Advanced Account Statement (PDF)", fieldName: "pdf", endpoint: "/reconcile/pdf", accept: ".pdf,application/pdf" },
@@ -44,7 +33,6 @@ export default function Home() {
     { key: "outstanding", label: "Outstanding Report", fieldName: "outstanding", endpoint: "/reconcile/outstanding", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
   ];
 
-  // helpers to get/set file for current step
   const getFileForIndex = (i) => {
     const m = { 0: bankFile, 1: pdfFile, 2: misFile, 3: outstandingFile };
     return m[i];
@@ -56,18 +44,20 @@ export default function Home() {
     if (i === 3) setOutstandingFile(f);
   };
 
-  // whether current step has a selected file
-  const hasFileForActiveStep = useMemo(() => !!getFileForIndex(activeStep), [activeStep, bankFile, pdfFile, misFile, outstandingFile]);
+  // ✅ FIXED: added all file states as dependencies
+  const hasFileForActiveStep = useMemo(
+    () => !!getFileForIndex(activeStep),
+    [activeStep, bankFile, pdfFile, misFile, outstandingFile]
+  );
 
-  // revoke any created blobUrls on unmount/reset
   useEffect(() => {
     return () => {
       Object.values(stepResults).forEach((r) => {
         if (r && r.blobUrl) URL.revokeObjectURL(r.blobUrl);
       });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [stepResults]); // ✅ added dependency
 
   const extractFilenameFromDisposition = (cdHeader) => {
     if (!cdHeader) return null;
@@ -78,7 +68,6 @@ export default function Home() {
   const saveStepResult = (idx, resultObj) =>
     setStepResults((prev) => ({ ...prev, [idx]: resultObj }));
 
-  // Single-step upload
   const uploadStep = async (index) => {
     setError("");
     setLoading(true);
@@ -131,10 +120,11 @@ export default function Home() {
         const data = await res.json();
         saveStepResult(index, { ok: true, json: data });
       } else {
-        // binary -> create blob url
         const blob = await res.blob();
         const cd = res.headers.get("Content-Disposition") || "";
-        const filename = extractFilenameFromDisposition(cd) || `recon_${steps[index].key}_${Date.now()}.xlsx`;
+        const filename =
+          extractFilenameFromDisposition(cd) ||
+          `recon_${steps[index].key}_${Date.now()}.xlsx`;
         const blobUrl = URL.createObjectURL(blob);
         saveStepResult(index, { ok: true, blobUrl, filename });
       }
@@ -150,7 +140,6 @@ export default function Home() {
     }
   };
 
-  // Next: upload current file; auto-advance to next step on success
   const handleNext = async () => {
     setError("");
     const ok = await uploadStep(activeStep);
@@ -165,7 +154,6 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    // revoke blob urls
     Object.values(stepResults).forEach((r) => {
       if (r && r.blobUrl) URL.revokeObjectURL(r.blobUrl);
     });
@@ -178,7 +166,6 @@ export default function Home() {
     setError("");
   };
 
-  // download stored blob
   const handleDownloadBlob = (blobUrl, filename) => {
     const a = document.createElement("a");
     a.href = blobUrl;
@@ -188,7 +175,6 @@ export default function Home() {
     a.remove();
   };
 
-  // current step config
   const currentStepCfg = steps[activeStep];
 
   return (
@@ -207,7 +193,14 @@ export default function Home() {
         }}
       >
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: "bolder" , height:'24px'}}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: "bolder",
+              height: "24px",
+            }}
+          >
             RGCIRC
           </h1>
           <p style={{ width: "90px", fontSize: "10px", fontWeight: "bold" }}>
@@ -225,8 +218,8 @@ export default function Home() {
         />
       </nav>
 
-      <main style={{ margin: "0 auto", maxWidth: 720 , marginTop:'80px'}}>
-        <p style={{ color: "#555", marginTop: 0, marginBottom: '40px' }}>
+      <main style={{ margin: "0 auto", maxWidth: 720, marginTop: "80px" }}>
+        <p style={{ color: "#555", marginTop: 0, marginBottom: "40px" }}>
           Upload one file per step. Choose file and click <strong>Next</strong>.
         </p>
 
@@ -238,10 +231,10 @@ export default function Home() {
               padding: 8,
               borderRadius: 6,
               marginBottom: 12,
-               
             }}
           >
-            <strong>Note:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
+            <strong>Note:</strong>{" "}
+            <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
           </div>
         )}
 
@@ -255,7 +248,6 @@ export default function Home() {
           </Stepper>
         </Box>
 
-        {/* Only show the current step's upload input */}
         <div
           style={{
             border: "1px solid #eee",
@@ -263,7 +255,6 @@ export default function Home() {
             padding: 20,
             boxShadow: "rgba(100, 100, 111, 0.2) 0px 7px 29px 0px",
             background: "#ffffffff",
-          
           }}
         >
           <div>
@@ -287,7 +278,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Controls */}
         <div
           style={{
             display: "flex",
@@ -298,7 +288,11 @@ export default function Home() {
             marginBottom: "8px",
           }}
         >
-          <MuiButton variant="text" disabled={activeStep === 0 || loading} onClick={handleBack}>
+          <MuiButton
+            variant="text"
+            disabled={activeStep === 0 || loading}
+            onClick={handleBack}
+          >
             Back
           </MuiButton>
 
@@ -309,7 +303,11 @@ export default function Home() {
               borderRadius="1.75rem"
               className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
             >
-              {loading ? "Uploading..." : activeStep === steps.length - 1 ? "Finish (Upload)" : "Next (Upload)"}
+              {loading
+                ? "Uploading..."
+                : activeStep === steps.length - 1
+                ? "Finish (Upload)"
+                : "Next (Upload)"}
             </FancyButton>
           </div>
 
@@ -320,7 +318,6 @@ export default function Home() {
           {error && <span style={{ color: "#c00" }}>Error: {error}</span>}
         </div>
 
-        {/* Per-step results (downloads / artifact links / json) */}
         <div style={{ marginTop: 16 }}>
           {Object.keys(stepResults).length > 0 && (
             <div
@@ -336,7 +333,14 @@ export default function Home() {
               {steps.map((s, idx) => {
                 const res = stepResults[idx];
                 return (
-                  <div key={s.key} style={{ marginTop: 12, padding: 8, borderBottom: "1px solid #f2f2f2" }}>
+                  <div
+                    key={s.key}
+                    style={{
+                      marginTop: 12,
+                      padding: 8,
+                      borderBottom: "1px solid #f2f2f2",
+                    }}
+                  >
                     <strong>
                       Step {idx + 1}: {s.label}
                     </strong>
@@ -347,7 +351,12 @@ export default function Home() {
                         <>
                           <div>Upload successful. File available to download:</div>
                           <div style={{ marginTop: 6 }}>
-                            <MuiButton onClick={() => handleDownloadBlob(res.blobUrl, res.filename)} variant="contained">
+                            <MuiButton
+                              onClick={() =>
+                                handleDownloadBlob(res.blobUrl, res.filename)
+                              }
+                              variant="contained"
+                            >
                               Download ({res.filename})
                             </MuiButton>
                           </div>
@@ -357,20 +366,30 @@ export default function Home() {
                       {res && res.ok && res.json && (
                         <>
                           <div>Upload successful. Response:</div>
-                          <pre style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>{JSON.stringify(res.json, null, 2)}</pre>
+                          <pre style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>
+                            {JSON.stringify(res.json, null, 2)}
+                          </pre>
 
                           {res.json?.artifacts && (
                             <div style={{ marginTop: 8 }}>
                               {res.json.artifacts.consolidated_output && (
                                 <div>
-                                  <a href={res.json.artifacts.consolidated_output} target="_blank" rel="noopener noreferrer">
+                                  <a
+                                    href={res.json.artifacts.consolidated_output}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
                                     Download consolidated output
                                   </a>
                                 </div>
                               )}
                               {res.json.artifacts.updated_outstanding && (
                                 <div>
-                                  <a href={res.json.artifacts.updated_outstanding} target="_blank" rel="noopener noreferrer">
+                                  <a
+                                    href={res.json.artifacts.updated_outstanding}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
                                     Download updated outstanding
                                   </a>
                                 </div>
@@ -382,7 +401,9 @@ export default function Home() {
 
                       {res && res.ok === false && (
                         <>
-                          <div style={{ color: "#c00" }}>Upload failed: {res.error}</div>
+                          <div style={{ color: "#c00" }}>
+                            Upload failed: {res.error}
+                          </div>
                         </>
                       )}
                     </div>
@@ -393,10 +414,11 @@ export default function Home() {
           )}
         </div>
 
-        {/* Final finished message */}
         {activeStep >= steps.length && (
           <div style={{ marginTop: 16 }}>
-            <Typography sx={{ mt: 2, mb: 1 }}>All steps completed — you're finished</Typography>
+            <Typography sx={{ mt: 2, mb: 1 }}>
+              All steps completed — you&apos;re finished
+            </Typography>
             <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
               <Box sx={{ flex: "1 1 auto" }} />
               <MuiButton onClick={handleReset}>Reset</MuiButton>
