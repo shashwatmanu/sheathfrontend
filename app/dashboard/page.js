@@ -25,12 +25,13 @@ export default function Home() {
   const [error, setError] = useState("");
 
   const [stepResults, setStepResults] = useState({});
+  const [fileResetKey, setFileResetKey] = useState(0); // ✅ Key to force reset FileUpload
 
   const steps = [
-    { key: "bank", label: "Bank Account Statement", fieldName: "bank1", endpoint: "/reconcile/bank", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
-    { key: "pdf", label: "Advanced Account Statement (PDF)", fieldName: "pdf", endpoint: "/reconcile/pdf", accept: ".pdf,application/pdf" },
-    { key: "mis", label: "MIS Extract", fieldName: "mis", endpoint: "/reconcile/mis", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
-    { key: "outstanding", label: "Outstanding Report", fieldName: "outstanding", endpoint: "/reconcile/outstanding", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
+    { key: "bank", label: "Bank Account Statement", fieldName: "bank1", endpoint: "/reconcile/bank", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel", downloadName: "bank_mdindia_filtered" },
+    { key: "pdf", label: "Advanced Account Statement (PDF)", fieldName: "pdf", endpoint: "/reconcile/pdf", accept: ".pdf,application/pdf", downloadName: "bank_x_advance_matches" },
+    { key: "mis", label: "MIS Extract", fieldName: "mis", endpoint: "/reconcile/mis", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel", downloadName: "matches_mapped_to_mis" },
+    { key: "outstanding", label: "Outstanding Report", fieldName: "outstanding", endpoint: "/reconcile/outstanding", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel", downloadName: "outstanding_matches" },
   ];
 
   const getFileForIndex = (i) => {
@@ -44,7 +45,6 @@ export default function Home() {
     if (i === 3) setOutstandingFile(f);
   };
 
-  // ✅ FIXED: added all file states as dependencies
   const hasFileForActiveStep = useMemo(
     () => !!getFileForIndex(activeStep),
     [activeStep, bankFile, pdfFile, misFile, outstandingFile]
@@ -55,9 +55,8 @@ export default function Home() {
       Object.values(stepResults).forEach((r) => {
         if (r && r.blobUrl) URL.revokeObjectURL(r.blobUrl);
       });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     };
-  }, [stepResults]); // ✅ added dependency
+  }, [stepResults]);
 
   const extractFilenameFromDisposition = (cdHeader) => {
     if (!cdHeader) return null;
@@ -124,7 +123,8 @@ export default function Home() {
         const cd = res.headers.get("Content-Disposition") || "";
         const filename =
           extractFilenameFromDisposition(cd) ||
-          `recon_${steps[index].key}_${Date.now()}.xlsx`;
+          step.downloadName ||
+          `recon_${step.key}_${Date.now()}.xlsx`;
         const blobUrl = URL.createObjectURL(blob);
         saveStepResult(index, { ok: true, blobUrl, filename });
       }
@@ -144,6 +144,10 @@ export default function Home() {
     setError("");
     const ok = await uploadStep(activeStep);
     if (ok) {
+      // ✅ reset file for the step
+      setFileForIndex(activeStep, null);
+      // ✅ increment key to force FileUpload reset
+      setFileResetKey((k) => k + 1);
       setActiveStep((s) => Math.min(s + 1, steps.length));
     }
   };
@@ -151,6 +155,7 @@ export default function Home() {
   const handleBack = () => {
     setError("");
     setActiveStep((s) => Math.max(0, s - 1));
+    setFileResetKey((k) => k + 1); // reset file input when going back too
   };
 
   const handleReset = () => {
@@ -164,6 +169,7 @@ export default function Home() {
     setStepResults({});
     setActiveStep(0);
     setError("");
+    setFileResetKey((k) => k + 1); // reset FileUpload
   };
 
   const handleDownloadBlob = (blobUrl, filename) => {
@@ -262,7 +268,9 @@ export default function Home() {
               {currentStepCfg?.label}
             </label>
 
+            {/* ✅ pass key to force reset */}
             <FileUpload
+              key={fileResetKey}
               accept={currentStepCfg?.accept}
               label={`Select ${currentStepCfg?.label}`}
               onChange={(files) => setFileForIndex(activeStep, files[0] || null)}
