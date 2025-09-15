@@ -1,60 +1,115 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { FileUpload } from "../../components/ui/file-upload.tsx";
-import { Button } from "../../components/ui/moving-border";
+import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
+
+import Box from "@mui/material/Box";
+import Stepper from "@mui/material/Stepper";
+import Step from "@mui/material/Step";
+import StepLabel from "@mui/material/StepLabel";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+
+/**
+ * Replace step.endpoint values to match your backend routes if needed.
+ * Make sure MUI is installed:
+ *   npm install @mui/material @emotion/react @emotion/styled
+ */
 
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  const [pdf, setPdf] = useState(null);
-  const [bank, setBank] = useState(null);
-  const [mis, setMis] = useState(null);
-  const [outstanding, setOutstanding] = useState(null);
+
+  // files for each step (we keep them so users may pre-pick if they want)
+  const [bankFile, setBankFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [misFile, setMisFile] = useState(null);
+  const [outstandingFile, setOutstandingFile] = useState(null);
+
+  // stepper state
+  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
 
-  const canSubmit = useMemo(
-    () => !!(pdf && bank && mis && outstanding && API_BASE),
-    [pdf, bank, mis, outstanding, API_BASE]
-  );
+  // store per-step results
+  // stepResults[index] = { ok:true, blobUrl?, filename?, json? } or { ok:false, error }
+  const [stepResults, setStepResults] = useState({});
 
-  const downloadBlob = async (res) => {
-    const cd = res.headers.get("Content-Disposition") || "";
-    const match =
-      /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
-    const suggested =
-      decodeURIComponent(match?.[1] || "") ||
-      match?.[2] ||
-      `recon_${Date.now()}.xlsx`;
+  // Steps: change endpoints to match backend
+  const steps = [
+    { key: "bank", label: "Bank Account Statement", fieldName: "bank1", endpoint: "/reconcile/bank", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
+    { key: "pdf", label: "Advanced Account Statement (PDF)", fieldName: "pdf", endpoint: "/reconcile/pdf", accept: ".pdf,application/pdf" },
+    { key: "mis", label: "MIS Extract", fieldName: "mis", endpoint: "/reconcile/mis", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
+    { key: "outstanding", label: "Outstanding Report", fieldName: "outstanding", endpoint: "/reconcile/outstanding", accept: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" },
+  ];
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = suggested;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  // helpers to get/set file for current step
+  const getFileForIndex = (i) => {
+    const m = { 0: bankFile, 1: pdfFile, 2: misFile, 3: outstandingFile };
+    return m[i];
+  };
+  const setFileForIndex = (i, f) => {
+    if (i === 0) setBankFile(f);
+    if (i === 1) setPdfFile(f);
+    if (i === 2) setMisFile(f);
+    if (i === 3) setOutstandingFile(f);
   };
 
-  const runRecon = async () => {
-    if (!canSubmit) return;
-    setLoading(true);
+  // whether current step has a selected file
+  const hasFileForActiveStep = useMemo(() => !!getFileForIndex(activeStep), [activeStep, bankFile, pdfFile, misFile, outstandingFile]);
+
+  // revoke any created blobUrls on unmount/reset
+  useEffect(() => {
+    return () => {
+      Object.values(stepResults).forEach((r) => {
+        if (r && r.blobUrl) URL.revokeObjectURL(r.blobUrl);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const extractFilenameFromDisposition = (cdHeader) => {
+    if (!cdHeader) return null;
+    const match = /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cdHeader);
+    return decodeURIComponent(match?.[1] || "") || match?.[2] || null;
+  };
+
+  const saveStepResult = (idx, resultObj) =>
+    setStepResults((prev) => ({ ...prev, [idx]: resultObj }));
+
+  // Single-step upload
+  const uploadStep = async (index) => {
     setError("");
-    setResult(null);
+    setLoading(true);
+
+    if (!API_BASE) {
+      setError("NEXT_PUBLIC_API_BASE_URL is not set.");
+      setLoading(false);
+      return false;
+    }
+
+    const step = steps[index];
+    if (!step) {
+      setError("Invalid step.");
+      setLoading(false);
+      return false;
+    }
+
+    const file = getFileForIndex(index);
+    if (!file) {
+      setError(`Please select a file for "${step.label}".`);
+      setLoading(false);
+      return false;
+    }
+
     try {
       const fd = new FormData();
-      fd.append("pdf", pdf);
-      fd.append("bank1", bank);
-      fd.append("mis", mis);
-      fd.append("outstanding", outstanding);
+      fd.append(step.fieldName, file);
 
-      const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/pdf-recon`;
-
+      const endpoint = `${API_BASE.replace(/\/$/, "")}${step.endpoint}`;
       const res = await fetch(endpoint, { method: "POST", body: fd });
+
       const ctype = res.headers.get("Content-Type") || "";
 
       if (!res.ok) {
@@ -67,23 +122,74 @@ export default function Home() {
             msg = await res.text();
           }
         } catch (_) {}
-        throw new Error(msg);
+        saveStepResult(index, { ok: false, error: msg });
+        setError(msg);
+        return false;
       }
 
       if (ctype.includes("application/json")) {
         const data = await res.json();
-        setResult(data);
+        saveStepResult(index, { ok: true, json: data });
       } else {
-        await downloadBlob(res);
-        setResult({ ok: true, streamed: true });
+        // binary -> create blob url
+        const blob = await res.blob();
+        const cd = res.headers.get("Content-Disposition") || "";
+        const filename = extractFilenameFromDisposition(cd) || `recon_${steps[index].key}_${Date.now()}.xlsx`;
+        const blobUrl = URL.createObjectURL(blob);
+        saveStepResult(index, { ok: true, blobUrl, filename });
       }
+
+      return true;
     } catch (e) {
-      setError(e?.message || "Upload failed");
-      setResult({ ok: false, error: e?.message || "Upload failed" });
+      const msg = e?.message || "Upload failed";
+      saveStepResult(index, { ok: false, error: msg });
+      setError(msg);
+      return false;
     } finally {
       setLoading(false);
     }
   };
+
+  // Next: upload current file; auto-advance to next step on success
+  const handleNext = async () => {
+    setError("");
+    const ok = await uploadStep(activeStep);
+    if (ok) {
+      setActiveStep((s) => Math.min(s + 1, steps.length));
+    }
+  };
+
+  const handleBack = () => {
+    setError("");
+    setActiveStep((s) => Math.max(0, s - 1));
+  };
+
+  const handleReset = () => {
+    // revoke blob urls
+    Object.values(stepResults).forEach((r) => {
+      if (r && r.blobUrl) URL.revokeObjectURL(r.blobUrl);
+    });
+    setBankFile(null);
+    setPdfFile(null);
+    setMisFile(null);
+    setOutstandingFile(null);
+    setStepResults({});
+    setActiveStep(0);
+    setError("");
+  };
+
+  // download stored blob
+  const handleDownloadBlob = (blobUrl, filename) => {
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename || `recon_${Date.now()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  // current step config
+  const currentStepCfg = steps[activeStep];
 
   return (
     <>
@@ -101,7 +207,7 @@ export default function Home() {
         }}
       >
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: "bolder" }}>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: "bolder" , height:'24px'}}>
             RGCIRC
           </h1>
           <p style={{ width: "90px", fontSize: "10px", fontWeight: "bold" }}>
@@ -119,9 +225,9 @@ export default function Home() {
         />
       </nav>
 
-      <main style={{ margin: "0 auto", maxWidth: 960 }}>
-        <p style={{ color: "#555", marginTop: 0, marginBottom: 8 }}>
-          Upload required documents and run reconciliation.
+      <main style={{ margin: "0 auto", maxWidth: 720 , marginTop:'80px'}}>
+        <p style={{ color: "#555", marginTop: 0, marginBottom: '40px' }}>
+          Upload one file per step. Choose file and click <strong>Next</strong>.
         </p>
 
         {!API_BASE && (
@@ -132,83 +238,56 @@ export default function Home() {
               padding: 8,
               borderRadius: 6,
               marginBottom: 12,
+               
             }}
           >
-            <strong>Note:</strong>{" "}
-            <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
+            <strong>Note:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
           </div>
         )}
 
+        <Box sx={{ width: "100%", mb: 2 }}>
+          <Stepper activeStep={activeStep}>
+            {steps.map((s, idx) => (
+              <Step key={s.key} completed={!!stepResults[idx]?.ok}>
+                <StepLabel>{s.label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+
+        {/* Only show the current step's upload input */}
         <div
           style={{
             border: "1px solid #eee",
             borderRadius: 10,
-            padding: 16,
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            padding: 20,
             boxShadow: "rgba(100, 100, 111, 0.2) 0px 7px 29px 0px",
             background: "#ffffffff",
+          
           }}
         >
           <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-              Select Bank Account Statement (.xlsx)
+            <label style={{ fontWeight: 600, marginBottom: 8, display: "block" }}>
+              {currentStepCfg?.label}
             </label>
-            <FileUpload
-              accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              label="Select Bank Account Statement"
-              onChange={(files) => setBank(files[0] || null)}
-              name="bank1"
-              uploaderId="bank"
-            />
-            {bank && <small>Selected: {bank.name}</small>}
-          </div>
 
-          <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-              Select Advanced Account Statement (.pdf)
-            </label>
             <FileUpload
-            //   accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              accept=".pdf,application/pdf"
-              label="Select Advanced Account Statement"
-              onChange={(files) => setPdf(files[0] || null)}
-              name="pdf"
-              uploaderId="pdf"
+              accept={currentStepCfg?.accept}
+              label={`Select ${currentStepCfg?.label}`}
+              onChange={(files) => setFileForIndex(activeStep, files[0] || null)}
+              name={currentStepCfg?.fieldName}
+              uploaderId={currentStepCfg?.key}
             />
-            {pdf && <small>Selected: {pdf.name}</small>}
-          </div>
 
-          <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-              Select MIS Extract (.xlsx)
-            </label>
-            <FileUpload
-              accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              label="Select MIS Extract"
-              onChange={(files) => setMis(files[0] || null)}
-              name="mis"
-              uploaderId="mis"
-            />
-            {mis && <small>Selected: {mis.name}</small>}
-          </div>
-
-          <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-              Select Outstanding Report (.xlsx)
-            </label>
-            <FileUpload
-              accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              label="Select Outstanding Report"
-              onChange={(files) => setOutstanding(files[0] || null)}
-              name="outstanding"
-              uploaderId="outstanding"
-            />
-            {outstanding && <small>Selected: {outstanding.name}</small>}
+            {getFileForIndex(activeStep) && (
+              <div style={{ marginTop: 8 }}>
+                <small>Selected: {getFileForIndex(activeStep).name}</small>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Controls */}
         <div
           style={{
             display: "flex",
@@ -219,54 +298,109 @@ export default function Home() {
             marginBottom: "8px",
           }}
         >
-          <Button
-            onClick={runRecon}
-            disabled={!canSubmit || loading}
-            borderRadius="1.75rem"
-            className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
-          >
-            {loading ? "Running..." : "Run Recon"}
-          </Button>
+          <MuiButton variant="text" disabled={activeStep === 0 || loading} onClick={handleBack}>
+            Back
+          </MuiButton>
+
+          <div style={{ flex: "0 0 auto" }}>
+            <FancyButton
+              onClick={handleNext}
+              disabled={!hasFileForActiveStep || loading}
+              borderRadius="1.75rem"
+              className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
+            >
+              {loading ? "Uploading..." : activeStep === steps.length - 1 ? "Finish (Upload)" : "Next (Upload)"}
+            </FancyButton>
+          </div>
+
+          <MuiButton variant="text" onClick={handleReset} disabled={loading}>
+            Reset
+          </MuiButton>
+
           {error && <span style={{ color: "#c00" }}>Error: {error}</span>}
         </div>
 
-        {result && (
-          <div
-            style={{
-              marginTop: 16,
-              border: "1px solid #eee",
-              borderRadius: 10,
-              padding: 12,
-            }}
-          >
-            <pre style={{ whiteSpace: "pre-wrap" }}>
-              Matches found:{" "}
-              {JSON.stringify(result.summary?.matches_found, null, 2)}
-            </pre>
+        {/* Per-step results (downloads / artifact links / json) */}
+        <div style={{ marginTop: 16 }}>
+          {Object.keys(stepResults).length > 0 && (
+            <div
+              style={{
+                marginTop: 8,
+                border: "1px solid #eee",
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <Typography variant="h6">Step results</Typography>
 
-            {result?.ok && result?.artifacts?.consolidated_output && (
-              <p>
-                <a
-                  href={result.artifacts.consolidated_output}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Download consolidated output
-                </a>
-              </p>
-            )}
+              {steps.map((s, idx) => {
+                const res = stepResults[idx];
+                return (
+                  <div key={s.key} style={{ marginTop: 12, padding: 8, borderBottom: "1px solid #f2f2f2" }}>
+                    <strong>
+                      Step {idx + 1}: {s.label}
+                    </strong>
+                    <div style={{ marginTop: 6 }}>
+                      {!res && <em>Not uploaded yet</em>}
 
-            {result?.ok && result?.artifacts?.updated_outstanding && (
-              <p>
-                <a
-                  href={result.artifacts.updated_outstanding}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Download updated outstanding
-                </a>
-              </p>
-            )}
+                      {res && res.ok && res.blobUrl && (
+                        <>
+                          <div>Upload successful. File available to download:</div>
+                          <div style={{ marginTop: 6 }}>
+                            <MuiButton onClick={() => handleDownloadBlob(res.blobUrl, res.filename)} variant="contained">
+                              Download ({res.filename})
+                            </MuiButton>
+                          </div>
+                        </>
+                      )}
+
+                      {res && res.ok && res.json && (
+                        <>
+                          <div>Upload successful. Response:</div>
+                          <pre style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>{JSON.stringify(res.json, null, 2)}</pre>
+
+                          {res.json?.artifacts && (
+                            <div style={{ marginTop: 8 }}>
+                              {res.json.artifacts.consolidated_output && (
+                                <div>
+                                  <a href={res.json.artifacts.consolidated_output} target="_blank" rel="noopener noreferrer">
+                                    Download consolidated output
+                                  </a>
+                                </div>
+                              )}
+                              {res.json.artifacts.updated_outstanding && (
+                                <div>
+                                  <a href={res.json.artifacts.updated_outstanding} target="_blank" rel="noopener noreferrer">
+                                    Download updated outstanding
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {res && res.ok === false && (
+                        <>
+                          <div style={{ color: "#c00" }}>Upload failed: {res.error}</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Final finished message */}
+        {activeStep >= steps.length && (
+          <div style={{ marginTop: 16 }}>
+            <Typography sx={{ mt: 2, mb: 1 }}>All steps completed — you're finished</Typography>
+            <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
+              <Box sx={{ flex: "1 1 auto" }} />
+              <MuiButton onClick={handleReset}>Reset</MuiButton>
+            </Box>
           </div>
         )}
       </main>
