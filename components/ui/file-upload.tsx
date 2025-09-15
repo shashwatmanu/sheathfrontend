@@ -1,50 +1,60 @@
 import { cn } from "../../utils";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { IconUpload } from "@tabler/icons-react";
+import { IconUpload, IconX } from "@tabler/icons-react";
 import { useDropzone } from "react-dropzone";
 
 const mainVariant = {
-  initial: {
-    x: 0,
-    y: 0,
-  },
-  animate: {
-    x: 20,
-    y: -20,
-    opacity: 0.9,
-  },
+  initial: { x: 0, y: 0 },
+  animate: { x: 20, y: -20, opacity: 0.9 },
 };
 
 const secondaryVariant = {
-  initial: {
-    opacity: 0,
-  },
-  animate: {
-    opacity: 1,
-  },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
 };
 
 export const FileUpload = ({
   onChange,
   accept,
+  uploaderId, // 👈 expects a unique id per uploader instance
 }: {
   onChange?: (files: File[]) => void;
   accept?: string;
+  uploaderId: string;
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (newFiles: File[]) => {
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-    onChange && onChange(newFiles);
   };
+
+  // notify parent after render
+  useEffect(() => {
+    if (onChange) onChange(files);
+  }, [files, onChange]);
 
   const handleClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Build accept config for react-dropzone
+  const removeFile = (index: number) => {
+    setFiles((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated;
+    });
+
+    // reset native input so user can re-upload same file if needed
+    if (fileInputRef.current) {
+      try {
+        fileInputRef.current.value = "";
+      } catch (e) {
+        // ignore if not supported
+      }
+    }
+  };
+
   const buildAcceptConfig = (accept?: string) => {
     if (!accept) return undefined;
     const types = accept.split(",").map((t) => t.trim());
@@ -60,9 +70,6 @@ export const FileUpload = ({
     noClick: true,
     accept: buildAcceptConfig(accept),
     onDrop: handleFileChange,
-    onDropRejected: (error) => {
-      console.log("Rejected:", error);
-    },
   });
 
   return (
@@ -74,9 +81,8 @@ export const FileUpload = ({
       >
         <input
           ref={fileInputRef}
-          id="file-upload-handle"
           type="file"
-          accept={accept} // 🔥 enforce allowed types for file picker
+          accept={accept}
           onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
         />
@@ -86,23 +92,36 @@ export const FileUpload = ({
         </div>
 
         <div className="flex flex-col items-center justify-center">
-          <p className="relative z-20 font-sans font-bold text-neutral-700 dark:text-neutral-300 text-base">
+          <p className="relative z-20 font-bold text-neutral-700 dark:text-neutral-300 text-base">
             Upload file
           </p>
-          <p className="relative z-20 font-sans font-normal text-neutral-400 dark:text-neutral-400 text-base mt-2">
+          <p className="relative z-20 text-neutral-400 dark:text-neutral-400 text-base mt-2">
             Drag or drop your files here or click to upload
           </p>
           <div className="relative w-full mt-10 max-w-xl mx-auto">
             {files.length > 0 &&
               files.map((file, idx) => (
                 <motion.div
-                  key={"file" + idx}
-                  layoutId={idx === 0 ? "file-upload" : "file-upload-" + idx}
+                  key={`${uploaderId}-file-${idx}`}
+                  layoutId={`${uploaderId}-file-${idx}`}
                   className={cn(
                     "relative overflow-hidden z-40 bg-white dark:bg-neutral-900 flex flex-col items-start justify-start md:h-24 p-4 mt-4 w-full mx-auto rounded-md",
                     "shadow-sm"
                   )}
                 >
+                  {/* remove button (stopPropagation so clicking it doesn't re-open the picker) */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFile(idx);
+                    }}
+                    className="absolute right-2 top-2 p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    <IconX className="w-4 h-4 text-neutral-500" />
+                  </button>
+
                   <div className="flex justify-between w-full items-center gap-4">
                     <motion.p
                       initial={{ opacity: 0 }}
@@ -127,16 +146,12 @@ export const FileUpload = ({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       layout
-                      className="px-1 py-0.5 rounded-md bg-gray-100 dark:bg-neutral-800 "
+                      className="px-1 py-0.5 rounded-md bg-gray-100 dark:bg-neutral-800"
                     >
                       {file.type}
                     </motion.p>
 
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      layout
-                    >
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} layout>
                       modified {new Date(file.lastModified).toLocaleDateString()}
                     </motion.p>
                   </div>
@@ -145,13 +160,9 @@ export const FileUpload = ({
 
             {!files.length && (
               <motion.div
-                layoutId="file-upload"
+                layoutId={`${uploaderId}-empty`}
                 variants={mainVariant}
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 20,
-                }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className={cn(
                   "relative group-hover/file:shadow-2xl z-40 bg-white dark:bg-neutral-900 flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md",
                   "shadow-[0px_10px_50px_rgba(0,0,0,0.1)]"
@@ -176,7 +187,7 @@ export const FileUpload = ({
               <motion.div
                 variants={secondaryVariant}
                 className="absolute opacity-0 border border-dashed border-sky-400 inset-0 z-30 bg-transparent flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md"
-              ></motion.div>
+              />
             )}
           </div>
         </div>
@@ -189,7 +200,7 @@ export function GridPattern() {
   const columns = 41;
   const rows = 11;
   return (
-    <div className="flex bg-gray-100 dark:bg-neutral-900 shrink-0 flex-wrap justify-center items-center gap-x-px gap-y-px  scale-105">
+    <div className="flex bg-gray-100 dark:bg-neutral-900 shrink-0 flex-wrap justify-center items-center gap-x-px gap-y-px scale-105">
       {Array.from({ length: rows }).map((_, row) =>
         Array.from({ length: columns }).map((_, col) => {
           const index = row * columns + col;

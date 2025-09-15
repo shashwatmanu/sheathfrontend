@@ -1,282 +1,78 @@
 "use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 
-import "./globals.css";
-import React, { useMemo, useState } from "react";
-import { FileUpload } from "../components/ui/file-upload.tsx";
-import { Button } from "../components/ui/moving-border";
-import { SparklesCore } from "../components/ui/sparkles";
-import { color } from "framer-motion";
-
-export default function Home() {
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  const [pdf, setPdf] = useState(null);
-  const [bank, setBank] = useState(null);
-  const [mis, setMis] = useState(null);
-  const [outstanding, setOutstanding] = useState(null);
-  const [loading, setLoading] = useState(false);
+export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
+  const router = useRouter();
 
-  const canSubmit = useMemo(
-    () => !!(pdf && bank && mis && outstanding && API_BASE),
-    [pdf, bank, mis, outstanding, API_BASE]
-  );
-
-  const downloadBlob = async (res) => {
-    const cd = res.headers.get("Content-Disposition") || "";
-    const match =
-      /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
-    const suggested =
-      decodeURIComponent(match?.[1] || "") ||
-      match?.[2] ||
-      `recon_${Date.now()}.xlsx`;
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = suggested;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const runRecon = async () => {
-    if (!canSubmit) return;
-    setLoading(true);
-    setError("");
-    setResult(null);
-    try {
-      const fd = new FormData();
-      fd.append("pdf", pdf);
-      fd.append("bank1", bank);
-      fd.append("mis", mis);
-      fd.append("outstanding", outstanding);
-
-      const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/pdf-recon`;
-
-      const res = await fetch(endpoint, { method: "POST", body: fd });
-      const ctype = res.headers.get("Content-Type") || "";
-
-      if (!res.ok) {
-        let msg = `HTTP ${res.status}`;
-        try {
-          if (ctype.includes("application/json")) {
-            const j = await res.json();
-            msg = j?.detail || j?.error || JSON.stringify(j);
-          } else {
-            msg = await res.text();
-          }
-        } catch (_) {}
-        throw new Error(msg);
-      }
-
-      if (ctype.includes("application/json")) {
-        const data = await res.json();
-        setResult(data);
-      } else {
-        await downloadBlob(res);
-        setResult({ ok: true, streamed: true });
-      }
-    } catch (e) {
-      setError(e?.message || "Upload failed");
-      setResult({ ok: false, error: e?.message || "Upload failed" });
-    } finally {
-      setLoading(false);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!username || !password) {
+      setError("Please enter both username and password.");
+      return;
     }
+    if (username !== "admin" || password !== "admin") {
+      setError("Invalid username or password.");
+      return;
+    }
+    setError("");
+    router.push("/dashboard");
   };
 
   return (
-    <>
-    
-      <nav
-        style={{
-          background: "#111111",
-          color: "#fff",
-          padding: "12px 24px",
-          marginBottom: 24,
-          borderRadius: "0 0 6px 6px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-          maxHeight: '48px',
-        }}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 dark:from-neutral-900 dark:to-neutral-950">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-xl p-8"
       >
-       
-        <div style={{display:'flex', flexDirection:'column'}}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight:'bolder', height:'24px'}}>RGCIRC</h1>
-        <p style={{width:'90px', fontSize:'10px' , fontWeight:'bold'}}>Recon Dashboard</p>
-        </div>
-        <SparklesCore
-          id="tsparticlesfullpage"
-          background="transparent"
-          minSize={0.1}
-          maxSize={0.8}
-          particleDensity={100}
-          className="w-full h-full"
-          particleColor="#FFFFFF"
-        />
-        {/* <h1 style={{ margin: 0, fontSize: 20 }}>Recon Dashboard</h1> */}
-        
-      </nav>
-
-      <main style={{ margin: "0 auto", maxWidth: 960 }}>
-        <p style={{ color: "#555", marginTop: 0 , marginBottom: 8}}>
-          Upload required documents and run reconciliation.
-        </p>
-
-        {!API_BASE && (
-          <div
-            style={{
-              background: "#fff3cd",
-              border: "1px solid #ffeeba",
-              padding: 8,
-              borderRadius: 6,
-              marginBottom: 12,
-            }}
+        <h2 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-100 mb-6">
+          Welcome Back
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">
+              Username
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="mt-2 w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-black dark:bg-neutral-800 dark:text-gray-100"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-2 w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-black dark:bg-neutral-800 dark:text-gray-100"
+              required
+            />
+          </div>
+          {error && (
+            <div className="text-red-500 text-sm text-center font-medium">
+              {error}
+            </div>
+          )}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            type="submit"
+            className="w-full py-3 rounded-lg bg-black hover:bg-gray-800 text-white font-semibold shadow-lg transition-colors"
           >
-            <strong>Note:</strong>{" "}
-            <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
-          </div>
-        )}
-
-        {/* Responsive grid for file uploads */}
-        <div
-          style={{
-            border: "1px solid #eee",
-            borderRadius: 10,
-            padding: 16,
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            boxShadow: "rgba(100, 100, 111, 0.2) 0px 7px 29px 0px",
-            background: "#ffffffff",
-          }}
-        >
-          <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-              Select Advanced Account Statement (.pdf)
-            </label>
-            <FileUpload
-            key="1"
-              accept="application/pdf"
-              label="Select Advanced Account Statement"
-              onChange={(files) => setPdf(files[0] || null)}
-              name="pdf"
-            />
-            {pdf && <small>Selected: {pdf.name}</small>}
-          </div>
-
-          <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-             Select Bank Account Statement (.xlsx)
-            </label>
-            <FileUpload
-            key="2"
-              accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              label="Select Bank Account Statement"
-              onChange={(files) => setBank(files[0] || null)}
-              name="bank1"
-            />
-            {bank && <small>Selected: {bank.name}</small>}
-          </div>
-
-          <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-              Select MIS Extract (.xlsx)
-            </label>
-            <FileUpload
-            key="3"
-              accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              label="Select MIS Extract"
-              onChange={(files) => setMis(files[0] || null)}
-              name="mis"
-            />
-            {mis && <small>Selected: {mis.name}</small>}
-          </div>
-
-          <div>
-            <label style={{ fontWeight: 600, marginBottom: 6, display: "block" }}>
-              Select Outstanding Report (.xlsx)
-            </label>
-            <FileUpload
-            key="4"
-              accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              label="Select Outstanding Report"
-              onChange={(files) => setOutstanding(files[0] || null)}
-              name="outstanding"
-            />
-            {outstanding && <small>Selected: {outstanding.name}</small>}
-          </div>
-        </div>
-
-        {/* Action button */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16 , justifyContent:'center', marginBottom:'8px'}}>
-          <Button
-            onClick={runRecon}
-            disabled={!canSubmit || loading}
-            // style={{
-            //   padding: "10px 18px",
-            //   borderRadius: 8,
-            //   cursor: canSubmit && !loading ? "pointer" : "not-allowed",
-            //   background: "#111111",
-            //   color: "#fff",
-            //   border: "none",
-            //   fontWeight: 600,
-            // }}
-            borderRadius="1.75rem"
-        className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
-          >
-            {loading ? "Running..." : "Run Recon"}
-          </Button>
-          {error && <span style={{ color: "#c00" }}>Error: {error}</span>}
-          
-        </div>
-
-
-        {/* Results */}
-        {result && (
-          <div
-            style={{
-              marginTop: 16,
-              border: "1px solid #eee",
-              borderRadius: 10,
-              padding: 12,
-            }}
-          >
-            <pre style={{ whiteSpace: "pre-wrap" }}>
-              Matches found:{" "}
-              {JSON.stringify(result.summary?.matches_found, null, 2)}
-            </pre>
-
-            {result?.ok && result?.artifacts?.consolidated_output && (
-              <p>
-                <a
-                  href={result.artifacts.consolidated_output}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Download consolidated output
-                </a>
-              </p>
-            )}
-
-            {result?.ok && result?.artifacts?.updated_outstanding && (
-              <p>
-                <a
-                  href={result.artifacts.updated_outstanding}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Download updated outstanding
-                </a>
-              </p>
-            )}
-          </div>
-        )}
-      </main>
-    </>
+            Login
+          </motion.button>
+        </form>
+      </motion.div>
+    </div>
   );
 }
