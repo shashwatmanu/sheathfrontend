@@ -347,6 +347,7 @@ export default function Home() {
                       marginTop: 12,
                       padding: 8,
                       borderBottom: "1px solid #f2f2f2",
+                      marginBottom: 24
                     }}
                   >
                     <strong>
@@ -425,7 +426,7 @@ export default function Home() {
         {activeStep >= steps.length && (
           <div style={{ marginTop: 16 }}>
             <Typography sx={{ mt: 2, mb: 1 }}>
-              All steps completed — you&apos;re finished
+              Recon completed. You can reset to start over.
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
               <Box sx={{ flex: "1 1 auto" }} />

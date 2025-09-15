@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { SparklesCore } from "../components/ui/sparkles";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -23,17 +24,46 @@ export default function LoginPage() {
     router.push("/dashboard");
   };
 
+  // Memoize sparkles so it doesn't re-init on every render
+  const sparkles = useMemo(
+    () => (
+      <SparklesCore
+        id="loginSparkles"
+        background="#000000"
+        minSize={0.1}
+        maxSize={0.8}
+        particleDensity={100}
+        particleColor="#FFFFFF"
+      />
+    ),
+    []
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 dark:from-neutral-900 dark:to-neutral-950">
+    <div className="relative min-h-screen flex items-center justify-center bg-black">
+      {/* Sparkles background */}
+      <div className="absolute inset-0 z-0">{sparkles}</div>
+
+      {/* Login box */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-xl p-8"
+        className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-xl p-8 z-10"
       >
+        {/* Logo */}
+        <div className="flex justify-center mb-4">
+          <img
+            src="/logo.png"
+            alt="Logo"
+            className="h-16 w-auto object-contain"
+          />
+        </div>
+
         <h2 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-100 mb-6">
           Welcome Back
         </h2>
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-300">
