@@ -127,7 +127,7 @@ export default function Home() {
   const currentStepCfg = steps[activeStep];
 
   // Correct bank colors
-  const bankShadowColor = selectedBank === "ICICI" ? "rgba(255,234,207,0.5)" : selectedBank === "Axis" ? "rgba(135,31,66,0.5)" : "rgba(0,0,0,0.12)";
+  const bankShadowColor = selectedBank === "ICICI" ? "rgba(255,234,207,1)" : selectedBank === "Axis" ? "rgba(135,31,66,0.5)" : "rgba(0,0,0,0.12)";
 
   return (
     <>
