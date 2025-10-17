@@ -15,10 +15,59 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
+import Tooltip from "@mui/material/Tooltip";
+import IconButton from "@mui/material/IconButton";
+
+// Separate component for navbar sparkles - won't re-render on state changes
+const NavbarSparkles = React.memo(() => (
+  <div style={{
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "100%",
+    pointerEvents: "none",
+    zIndex: 1
+  }}>
+    <SparklesCore 
+      id="navbar-sparkles" 
+      background="transparent" 
+      minSize={0.1} 
+      maxSize={0.8} 
+      particleDensity={100} 
+      className="w-full h-full" 
+      particleColor="#FFFFFF"
+    />
+  </div>
+));
+
+// Separate component for hero sparkles - won't re-render on state changes
+const HeroSparkles = React.memo(() => (
+  <div style={{
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: "none",
+    zIndex: 0
+  }}>
+    <SparklesCore 
+      id="hero-sparkles" 
+      background="transparent" 
+      minSize={0.1} 
+      maxSize={1.2} 
+      particleDensity={80} 
+      className="w-full h-full" 
+      particleColor="#FFFFFF"
+    />
+  </div>
+));
 
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
+  const [darkMode, setDarkMode] = useState(false);
   const [bankType, setBankType] = useState("ICICI");
   const [bankFile, setBankFile] = useState(null);
   const [advanceFile, setAdvanceFile] = useState(null);
@@ -442,162 +491,410 @@ export default function Home() {
 
   const accepts = getFileAccept();
 
+  // Theme colors based on dark mode
+  const theme = {
+    bg: darkMode ? "#0f172a" : "#ffffff",
+    cardBg: darkMode ? "#1e293b" : "#ffffff",
+    text: darkMode ? "#f1f5f9" : "#000000",
+    textSecondary: darkMode ? "#94a3b8" : "#666666",
+    border: darkMode ? "#334155" : "#e0e0e0",
+    inputBg: darkMode ? "#334155" : "#f8f8f8",
+  };
+
   return (
     <>
-      <nav style={{ 
-        background: "#111111", 
-        color: "#fff", 
-        padding: "12px 24px", 
-        marginBottom: 24, 
-        borderRadius: "0 0 6px 6px", 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        maxHeight: "48px" 
-      }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: "bolder", height: "24px" }}>RGCIRC</h1>
-          <p style={{ width: "90px", fontSize: "10px", fontWeight: "bold" }}>Recon Dashboard</p>
+    <div style={{ 
+      background: theme.bg,
+      minHeight: "100vh",
+      transition: "background 0.3s ease"
+    }}>
+      {/* Navbar with sparkles container */}
+      <div style={{ position: "relative", overflow: "hidden", height: "60px", isolation: "isolate" }}>
+        <nav style={{ 
+          background: darkMode ? "#0f172a" : "#111111", 
+          color: "#fff", 
+          padding: "12px 24px", 
+          borderRadius: "0 0 6px 6px", 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center", 
+          height: "100%",
+          position: "relative",
+          zIndex: 10
+        }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: "bolder" }}>RGCIRC</h1>
+            <p style={{ fontSize: "10px", fontWeight: "bold", margin: 0 }}>Recon Dashboard</p>
+          </div>
+          
+          {/* Dark Mode Toggle */}
+          <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} arrow>
+            <IconButton 
+              onClick={() => setDarkMode(!darkMode)}
+              style={{ 
+                color: "white",
+                background: "rgba(255,255,255,0.1)",
+                padding: "8px",
+                width: "40px",
+                height: "40px"
+              }}
+            >
+              <span style={{ fontSize: "20px" }}>{darkMode ? "☀️" : "🌙"}</span>
+            </IconButton>
+          </Tooltip>
+        </nav>
+        
+        {/* Sparkles confined to navbar area - using memoized component */}
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 5
+        }}>
+          <NavbarSparkles />
         </div>
-        <SparklesCore 
-          id="tsparticlesfullpage" 
-          background="transparent" 
-          minSize={0.1} 
-          maxSize={0.8} 
-          particleDensity={100} 
-          className="w-full h-full" 
-          particleColor="#FFFFFF"
-        />
-      </nav>
+      </div>
 
-      <main style={{ margin: "0 auto", maxWidth: 720, marginTop: "40px" }}>
-        <p style={{ color: "#555", marginTop: 0, marginBottom: "40px" }}>
-          Complete each step in sequence. Click <strong>Next</strong> to proceed.
-        </p>
+      <main style={{ 
+        margin: "0 auto", 
+        maxWidth: 800, 
+        padding: "24px 16px"
+      }}>
+        
+        {/* Hero Section with sparkles */}
+        <div style={{
+          position: "relative",
+          background: darkMode 
+            ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)" 
+            : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          padding: "48px 32px",
+          borderRadius: "16px",
+          marginBottom: "32px",
+          color: "white",
+          textAlign: "center",
+          overflow: "hidden"
+        }}>
+          {/* Sparkles for hero section - using memoized component */}
+          <HeroSparkles />
+          
+          {/* Hero content */}
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <h1 style={{ fontSize: "40px", marginBottom: "12px", fontWeight: "800", margin: 0 }}>
+              Bank Reconciliation Dashboard
+            </h1>
+            <p style={{ fontSize: "16px", opacity: 0.95, maxWidth: "600px", margin: "12px auto 0" }}>
+              Streamline your financial reconciliation in 4 simple steps. 
+              Process bank statements, match transactions, and generate reports automatically.
+            </p>
+            <div style={{ 
+              display: "flex", 
+              gap: "32px", 
+              justifyContent: "center", 
+              marginTop: "28px",
+              fontSize: "14px",
+              flexWrap: "wrap"
+            }}>
+              <div>
+                <div style={{ fontSize: "32px", fontWeight: "bold" }}>4</div>
+                <div style={{ opacity: 0.9 }}>Simple Steps</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "32px", fontWeight: "bold" }}>2</div>
+                <div style={{ opacity: 0.9 }}>Bank Types</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "32px", fontWeight: "bold" }}>100%</div>
+                <div style={{ opacity: 0.9 }}>Automated</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {!API_BASE && (
           <div style={{ 
-            background: "#fff3cd", 
-            border: "1px solid #ffeeba", 
-            padding: 8, 
-            borderRadius: 6, 
-            marginBottom: 12 
+            background: darkMode ? "#451a03" : "#fff3cd", 
+            border: `1px solid ${darkMode ? "#78350f" : "#ffeeba"}`, 
+            padding: 12, 
+            borderRadius: 8, 
+            marginBottom: 16,
+            color: darkMode ? "#fef3c7" : "#856404"
           }}>
             <strong>Note:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
           </div>
         )}
 
-        <Box sx={{ width: "100%", mb: 3 }}>
-          <Stepper activeStep={activeStep}>
-            {steps.map((s, idx) => (
-              <Step key={s.key} completed={!!stepResults[idx]?.ok}>
-                <StepLabel>{s.label}</StepLabel>
-              </Step>
-            ))}
+        {/* Enhanced Stepper */}
+        <Box sx={{ 
+          width: "100%", 
+          mb: 3, 
+          background: theme.cardBg, 
+          padding: 3, 
+          borderRadius: 3, 
+          boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
+          border: darkMode ? "1px solid #334155" : "none"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", alignItems: "center" }}>
+            <Typography variant="h6" style={{ fontWeight: 600, margin: 0, color: theme.text }}>
+              Reconciliation Progress
+            </Typography>
+            <Typography variant="body2" style={{ color: theme.textSecondary }}>
+              {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} of {steps.length} steps completed
+            </Typography>
+          </div>
+          
+          {/* Progress bar */}
+          <div style={{
+            height: "8px",
+            background: darkMode ? "#334155" : "#e0e0e0",
+            borderRadius: "4px",
+            overflow: "hidden",
+            marginBottom: "24px"
+          }}>
+            <div style={{
+              height: "100%",
+              width: `${(Object.keys(stepResults).filter(k => stepResults[k]?.ok).length / steps.length) * 100}%`,
+              background: "linear-gradient(90deg, #10b981, #059669)",
+              transition: "width 0.5s ease"
+            }}></div>
+          </div>
+
+          <Stepper activeStep={activeStep} alternativeLabel>
+            {steps.map((s, idx) => {
+              const isComplete = !!stepResults[idx]?.ok;
+              const isCurrent = idx === activeStep;
+              
+              return (
+                <Step key={s.key} completed={isComplete}>
+                  <StepLabel 
+                    StepIconProps={{
+                      sx: {
+                        '&.Mui-completed': { color: '#10b981' },
+                        '&.Mui-active': { 
+                          color: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
+                          transform: 'scale(1.1)'
+                        },
+                        '&.MuiStepIcon-root': {
+                          color: darkMode ? '#64748b' : '#bdbdbd'
+                        }
+                      }
+                    }}
+                  >
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ 
+                        fontWeight: isCurrent ? 600 : 400, 
+                        fontSize: "14px",
+                        color: darkMode ? (isCurrent ? '#f1f5f9' : '#cbd5e1') : '#000'
+                      }}>
+                        {s.label}
+                      </div>
+                      <div style={{ 
+                        fontSize: "11px", 
+                        color: darkMode ? '#94a3b8' : '#666', 
+                        marginTop: "2px" 
+                      }}>
+                        {s.description}
+                      </div>
+                      {isComplete && stepResults[idx]?.data?.counts && (
+                        <div style={{ 
+                          fontSize: "10px", 
+                          color: "#10b981", 
+                          marginTop: "4px",
+                          fontWeight: 500 
+                        }}>
+                          ✓ {stepResults[idx]?.data?.counts?.rows || 
+                             stepResults[idx]?.data?.counts?.matches || 
+                             stepResults[idx]?.data?.counts?.bank_rows || 0} records
+                        </div>
+                      )}
+                    </div>
+                  </StepLabel>
+                </Step>
+              );
+            })}
           </Stepper>
         </Box>
 
         <div style={{
           borderRadius: 16,
           padding: 24,
-          background: `linear-gradient(135deg, #f0f4ff, #ffffff)`,
-          boxShadow: `0 0 50px ${bankShadowColor}`,
-          transition: "all 0.3s ease"
+          background: darkMode 
+            ? "linear-gradient(135deg, #1e293b, #0f172a)" 
+            : "linear-gradient(135deg, #f0f4ff, #ffffff)",
+          boxShadow: darkMode 
+            ? `0 0 50px rgba(79, 70, 229, 0.2)` 
+            : `0 0 50px ${bankShadowColor}`,
+          transition: "all 0.3s ease",
+          border: darkMode ? "1px solid #334155" : "none"
         }}>
           
           {activeStep === 0 && (
             <>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>
-                  Select Bank Type
-                </label>
-                <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
+                    Select Bank Type
+                  </label>
+                  <Tooltip title="Choose between ICICI (Bank=Excel, Advance=PDF) or AXIS (Bank=PDF, Advance=Excel)" arrow>
+                    <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
+                  </Tooltip>
+                </div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                   {["ICICI", "AXIS"].map((bank) => (
                     <div 
                       key={bank} 
                       onClick={() => setBankType(bank)} 
                       style={{
                         cursor: "pointer",
-                        padding: "10px 24px",
+                        padding: "12px 28px",
                         borderRadius: "20px",
-                        border: `2px solid ${bankType === bank ? (bank === "ICICI" ? "#bf2a2a" : "#871f42") : "#ccc"}`,
-                        background: bankType === bank ? `${bank === "ICICI" ? "#ffe6eb" : "#fbeaf0"}` : "#f8f8f8",
+                        border: `2px solid ${bankType === bank ? (bank === "ICICI" ? "#bf2a2a" : "#871f42") : (darkMode ? "#475569" : "#ccc")}`,
+                        background: bankType === bank 
+                          ? `${bank === "ICICI" ? "#ffe6eb" : "#fbeaf0"}` 
+                          : (darkMode ? "#334155" : "#f8f8f8"),
+                        color: bankType === bank ? "#000" : theme.text,
                         fontWeight: 600,
-                        transition: "all 0.3s"
+                        transition: "all 0.3s",
+                        fontSize: "15px"
                       }}
                     >
                       {bank}
                     </div>
                   ))}
                 </div>
-                <small style={{ display: "block", marginTop: 8, color: "#666" }}>
+                <small style={{ display: "block", marginTop: 10, color: theme.textSecondary, fontSize: "13px" }}>
                   {bankType === "ICICI" 
-                    ? "ICICI: Bank (Excel) + Advance (PDF)" 
-                    : "AXIS: Bank (PDF) + Advance (Excel)"}
+                    ? "📊 ICICI: Bank (Excel) + Advance (PDF)" 
+                    : "📊 AXIS: Bank (PDF) + Advance (Excel)"}
                 </small>
               </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontWeight: 600, marginBottom: 8, display: "block" }}>
-                  Bank Statement ({bankType === "ICICI" ? "Excel" : "PDF"})
-                </label>
-                <FileUpload 
-                  key={`bank-${fileResetKey}`}
-                  accept={accepts.bank}
-                  label={`Select Bank Statement`}
-                  onChange={(files) => setBankFile(files[0] || null)}
-                  name="bank_file"
-                  uploaderId="bank-upload"
-                />
-                {bankFile && (
-                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      background: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
-                      animation: "pulse 1.2s infinite",
-                    }}></div>
-                    <small>Selected: {bankFile.name}</small>
+              {/* File Upload Cards */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: window.innerWidth < 600 ? "1fr" : "1fr 1fr",
+                gap: "20px",
+                marginTop: "24px"
+              }}>
+                {/* Bank Statement Card */}
+                <div style={{
+                  border: `2px dashed ${bankFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                  borderRadius: "12px",
+                  padding: "24px",
+                  textAlign: "center",
+                  background: bankFile 
+                    ? (darkMode ? "#064e3b" : "#f0fdf4") 
+                    : (darkMode ? "#0f172a" : "white"),
+                  transition: "all 0.3s ease",
+                  position: "relative"
+                }}>
+                  <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                    {bankFile ? "📄" : "📁"}
                   </div>
-                )}
-              </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                    <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                      Bank Statement
+                    </Typography>
+                    <Tooltip title="Upload your bank's transaction statement" arrow>
+                      <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                    </Tooltip>
+                  </div>
+                  <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                    {bankType === "ICICI" ? "Excel (.xlsx)" : "PDF (.pdf)"}
+                  </Typography>
+                  
+                  {bankFile ? (
+                    <div style={{
+                      background: darkMode ? "#0f172a" : "white",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      display: "inline-block",
+                      border: darkMode ? "1px solid #334155" : "none"
+                    }}>
+                      <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {bankFile.name}</div>
+                      <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                        {(bankFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                  ) : (
+                    <FileUpload 
+                      key={`bank-${fileResetKey}`}
+                      accept={accepts.bank}
+                      label="Click or drag to upload"
+                      onChange={(files) => setBankFile(files[0] || null)}
+                      name="bank_file"
+                      uploaderId="bank-upload"
+                      darkMode={darkMode}
+                    />
+                  )}
+                </div>
 
-              <div>
-                <label style={{ fontWeight: 600, marginBottom: 8, display: "block" }}>
-                  Advance Account Statement ({bankType === "ICICI" ? "PDF" : "Excel"})
-                </label>
-                <FileUpload 
-                  key={`advance-${fileResetKey}`}
-                  accept={accepts.advance}
-                  label={`Select Advance Statement`}
-                  onChange={(files) => setAdvanceFile(files[0] || null)}
-                  name="advance_file"
-                  uploaderId="advance-upload"
-                />
-                {advanceFile && (
-                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      background: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
-                      animation: "pulse 1.2s infinite",
-                    }}></div>
-                    <small>Selected: {advanceFile.name}</small>
+                {/* Advance Statement Card */}
+                <div style={{
+                  border: `2px dashed ${advanceFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                  borderRadius: "12px",
+                  padding: "24px",
+                  textAlign: "center",
+                  background: advanceFile 
+                    ? (darkMode ? "#064e3b" : "#f0fdf4") 
+                    : (darkMode ? "#0f172a" : "white"),
+                  transition: "all 0.3s ease",
+                  position: "relative"
+                }}>
+                  <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                    {advanceFile ? "📄" : "📁"}
                   </div>
-                )}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                    <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                      Advance Statement
+                    </Typography>
+                    <Tooltip title="Upload your advance account statement" arrow>
+                      <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                    </Tooltip>
+                  </div>
+                  <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                    {bankType === "ICICI" ? "PDF (.pdf)" : "Excel (.xlsx)"}
+                  </Typography>
+                  
+                  {advanceFile ? (
+                    <div style={{
+                      background: darkMode ? "#0f172a" : "white",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      display: "inline-block",
+                      border: darkMode ? "1px solid #334155" : "none"
+                    }}>
+                      <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {advanceFile.name}</div>
+                      <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                        {(advanceFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                  ) : (
+                    <FileUpload 
+                      key={`advance-${fileResetKey}`}
+                      accept={accepts.advance}
+                      label="Click or drag to upload"
+                      onChange={(files) => setAdvanceFile(files[0] || null)}
+                      name="advance_file"
+                      uploaderId="advance-upload"
+                      darkMode={darkMode}
+                    />
+                  )}
+                </div>
               </div>
             </>
           )}
 
           {activeStep === 1 && (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <Typography variant="h6" style={{ marginBottom: 12 }}>
+            <div style={{ textAlign: "center", padding: "32px 0" }}>
+              <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔄</div>
+              <Typography variant="h6" style={{ marginBottom: 16, fontWeight: 600, color: theme.text }}>
                 Bank × Advance Matching
               </Typography>
-              <Typography variant="body2" color="textSecondary">
-                This step automatically matches Bank transactions with Advance records.
+              <Typography variant="body2" style={{ maxWidth: "500px", margin: "0 auto", color: theme.textSecondary }}>
+                This step automatically matches Bank transactions with Advance records using reference numbers.
                 Click <strong>Next</strong> to process.
               </Typography>
             </div>
@@ -605,13 +902,23 @@ export default function Home() {
 
           {activeStep === 2 && (
             <>
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>Select TPA</label>
+                  <Tooltip title="Choose your Third Party Administrator for MIS mapping" arrow>
+                    <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
+                  </Tooltip>
+                </div>
                 <FormControl fullWidth>
-                  <InputLabel>Select TPA</InputLabel>
+                  <InputLabel style={{ color: theme.textSecondary }}>Select TPA</InputLabel>
                   <Select
                     value={tpaName}
                     label="Select TPA"
                     onChange={(e) => setTpaName(e.target.value)}
+                    style={{ 
+                      background: darkMode ? "#334155" : "white",
+                      color: theme.text
+                    }}
                   >
                     {tpaChoices.map((tpa) => (
                       <MenuItem key={tpa} value={tpa}>{tpa}</MenuItem>
@@ -620,58 +927,109 @@ export default function Home() {
                 </FormControl>
               </div>
 
-              <div>
-                <label style={{ fontWeight: 600, marginBottom: 8, display: "block" }}>
-                  MIS Extract File
-                </label>
-                <FileUpload 
-                  key={`mis-${fileResetKey}`}
-                  accept={accepts.mis}
-                  label="Select MIS File"
-                  onChange={(files) => setMisFile(files[0] || null)}
-                  name="mis_file"
-                  uploaderId="mis-upload"
-                />
-                {misFile && (
-                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      background: "#3b82f6",
-                      animation: "pulse 1.2s infinite",
-                    }}></div>
-                    <small>Selected: {misFile.name}</small>
+              {/* MIS File Card */}
+              <div style={{
+                border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                borderRadius: "12px",
+                padding: "24px",
+                textAlign: "center",
+                background: misFile 
+                  ? (darkMode ? "#064e3b" : "#f0fdf4") 
+                  : (darkMode ? "#0f172a" : "white"),
+                transition: "all 0.3s ease"
+              }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                  {misFile ? "📄" : "📊"}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                  <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                    MIS Extract File
+                  </Typography>
+                  <Tooltip title="Upload your Management Information System extract" arrow>
+                    <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                  </Tooltip>
+                </div>
+                <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                  Excel (.xlsx)
+                </Typography>
+                
+                {misFile ? (
+                  <div style={{
+                    background: darkMode ? "#0f172a" : "white",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    display: "inline-block",
+                    border: darkMode ? "1px solid #334155" : "none"
+                  }}>
+                    <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                    <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                      {(misFile.size / 1024).toFixed(1)} KB
+                    </div>
                   </div>
+                ) : (
+                  <FileUpload 
+                    key={`mis-${fileResetKey}`}
+                    accept={accepts.mis}
+                    label="Click or drag to upload"
+                    onChange={(files) => setMisFile(files[0] || null)}
+                    name="mis_file"
+                    uploaderId="mis-upload"
+                    darkMode={darkMode}
+                  />
                 )}
               </div>
             </>
           )}
 
           {activeStep === 3 && (
-            <div>
-              <label style={{ fontWeight: 600, marginBottom: 8, display: "block" }}>
-                Outstanding Report
-              </label>
-              <FileUpload 
-                key={`outstanding-${fileResetKey}`}
-                accept={accepts.outstanding}
-                label="Select Outstanding File"
-                onChange={(files) => setOutstandingFile(files[0] || null)}
-                name="outstanding_file"
-                uploaderId="outstanding-upload"
-              />
-              {outstandingFile && (
-                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    background: "#10b981",
-                    animation: "pulse 1.2s infinite",
-                  }}></div>
-                  <small>Selected: {outstandingFile.name}</small>
+            <div style={{
+              border: `2px dashed ${outstandingFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+              borderRadius: "12px",
+              padding: "24px",
+              textAlign: "center",
+              background: outstandingFile 
+                ? (darkMode ? "#064e3b" : "#f0fdf4") 
+                : (darkMode ? "#0f172a" : "white"),
+              transition: "all 0.3s ease"
+            }}>
+              <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                {outstandingFile ? "📄" : "📋"}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                  Outstanding Report
+                </Typography>
+                <Tooltip title="Upload your outstanding balances report" arrow>
+                  <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                </Tooltip>
+              </div>
+              <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                Excel (.xlsx)
+              </Typography>
+              
+              {outstandingFile ? (
+                <div style={{
+                  background: darkMode ? "#0f172a" : "white",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  display: "inline-block",
+                  border: darkMode ? "1px solid #334155" : "none"
+                }}>
+                  <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {outstandingFile.name}</div>
+                  <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                    {(outstandingFile.size / 1024).toFixed(1)} KB
+                  </div>
                 </div>
+              ) : (
+                <FileUpload 
+                  key={`outstanding-${fileResetKey}`}
+                  accept={accepts.outstanding}
+                  label="Click or drag to upload"
+                  onChange={(files) => setOutstandingFile(files[0] || null)}
+                  name="outstanding_file"
+                  uploaderId="outstanding-upload"
+                  darkMode={darkMode}
+                />
               )}
             </div>
           )}
@@ -679,16 +1037,18 @@ export default function Home() {
 
         <div style={{ 
           display: "flex", 
-          gap: 8, 
+          flexDirection: window.innerWidth < 600 ? "column" : "row",
+          gap: 12, 
           alignItems: "center", 
-          marginTop: 16, 
+          marginTop: 20, 
           justifyContent: "center", 
-          marginBottom: "8px" 
+          marginBottom: "16px" 
         }}>
           <MuiButton 
             variant="text" 
             disabled={activeStep === 0 || loading} 
             onClick={handleBack}
+            style={{ minWidth: "80px" }}
           >
             Back
           </MuiButton>
@@ -710,135 +1070,340 @@ export default function Home() {
             variant="text" 
             onClick={handleReset} 
             disabled={loading}
+            style={{ minWidth: "80px" }}
           >
             Reset
           </MuiButton>
         </div>
 
-        {error && (
-          <div style={{ 
-            marginTop: 12, 
-            padding: 12, 
-            background: "#fee", 
-            border: "1px solid #fcc", 
-            borderRadius: 6, 
-            color: "#c00" 
+        {/* Processing Overlay */}
+        {loading && (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999
           }}>
-            <strong>Error:</strong> {error}
+            <div style={{
+              background: darkMode ? "#1e293b" : "white",
+              padding: "40px",
+              borderRadius: "16px",
+              textAlign: "center",
+              minWidth: "300px",
+              maxWidth: "90%",
+              border: darkMode ? "1px solid #334155" : "none"
+            }}>
+              <div style={{
+                width: "80px",
+                height: "80px",
+                border: `4px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
+                borderTop: `4px solid ${bankType === "ICICI" ? "#bf2a2a" : "#871f42"}`,
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+                margin: "0 auto 24px"
+              }}></div>
+              <Typography variant="h6" style={{ marginBottom: "8px", color: darkMode ? "#f1f5f9" : "#000" }}>
+                Processing Step {activeStep + 1}
+              </Typography>
+              <Typography variant="body2" style={{ color: darkMode ? "#94a3b8" : "textSecondary" }}>
+                {steps[activeStep]?.description || "Please wait..."}
+              </Typography>
+              <div style={{
+                marginTop: "16px",
+                fontSize: "12px",
+                color: darkMode ? "#64748b" : "#999"
+              }}>
+                This may take a few moments
+              </div>
+            </div>
           </div>
         )}
 
-        {Object.keys(stepResults).length > 0 && (
+        {/* Enhanced Error Display */}
+        {error && (
           <div style={{ 
-            marginTop: 24, 
-            border: "1px solid #eee", 
-            borderRadius: 10, 
-            padding: 16 
+            marginTop: 16,
+            background: darkMode ? "#7f1d1d" : "#fef2f2",
+            border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
+            borderRadius: 12,
+            padding: 20,
+            display: "flex",
+            alignItems: "start",
+            gap: 16
           }}>
-            <Typography variant="h6" style={{ marginBottom: 12 }}>
-              Step Results
-            </Typography>
-            {steps.map((s, idx) => {
-              const res = stepResults[idx];
-              if (!res) return null;
-              return (
-                <div 
-                  key={s.key} 
-                  style={{ 
-                    marginTop: 12, 
-                    padding: 12, 
-                    borderBottom: "1px solid #f2f2f2", 
-                    marginBottom: 12 
+            <div style={{
+              fontSize: 32,
+              flexShrink: 0
+            }}>⚠️</div>
+            <div style={{ flex: 1 }}>
+              <Typography variant="h6" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
+                Processing Error
+              </Typography>
+              <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 16, fontSize: "14px" }}>
+                {error}
+              </Typography>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setError("")}
+                  style={{
+                    padding: "8px 16px",
+                    background: "#dc2626",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 14
                   }}
                 >
-                  <strong>Step {idx + 1}: {s.label}</strong>
-                  <div style={{ marginTop: 8 }}>
-                    {res?.ok && (
-                      <>
-                        <div style={{ color: "#059669", marginBottom: 12 }}>
-                          ✓ Processing successful
+                  Dismiss
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={!canProceed}
+                  style={{
+                    padding: "8px 16px",
+                    background: darkMode ? "#1e293b" : "white",
+                    color: "#dc2626",
+                    border: "2px solid #dc2626",
+                    borderRadius: 6,
+                    cursor: canProceed ? "pointer" : "not-allowed",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    opacity: canProceed ? 1 : 0.5
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Results Display */}
+        {Object.keys(stepResults).length > 0 && (
+          <div style={{ 
+            marginTop: 32,
+            background: theme.cardBg,
+            borderRadius: 16,
+            padding: 24,
+            boxShadow: darkMode ? "0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.08)",
+            border: darkMode ? "1px solid #334155" : "none"
+          }}>
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "center",
+              marginBottom: 24,
+              flexWrap: "wrap",
+              gap: 12
+            }}>
+              <Typography variant="h5" style={{ fontWeight: 700, margin: 0, color: theme.text }}>
+                📊 Processing Results
+              </Typography>
+              <div style={{
+                background: "#10b981",
+                color: "white",
+                padding: "6px 16px",
+                borderRadius: "20px",
+                fontSize: "14px",
+                fontWeight: 600
+              }}>
+                {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} / {steps.length} Complete
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: "16px" }}>
+              {steps.map((s, idx) => {
+                const res = stepResults[idx];
+                if (!res) return null;
+                
+                return (
+                  <div 
+                    key={s.key}
+                    style={{
+                      background: res.ok 
+                        ? (darkMode ? "#064e3b" : "#f0fdf4") 
+                        : (darkMode ? "#7f1d1d" : "#fef2f2"),
+                      border: `2px solid ${res.ok ? "#10b981" : "#ef4444"}`,
+                      borderRadius: 12,
+                      padding: 20,
+                      transition: "all 0.3s ease"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                          <div style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: "50%",
+                            background: res.ok ? "#10b981" : "#ef4444",
+                            color: "white",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "bold",
+                            fontSize: "18px",
+                            flexShrink: 0
+                          }}>
+                            {res.ok ? "✓" : "✗"}
+                          </div>
+                          <div>
+                            <Typography variant="h6" style={{ fontWeight: 600, marginBottom: 2, fontSize: "16px", color: res.ok ? (darkMode ? "#d1fae5" : "#000") : (darkMode ? "#fecaca" : "#000") }}>
+                              Step {idx + 1}: {s.label}
+                            </Typography>
+                            <Typography variant="body2" style={{ fontSize: "13px", color: res.ok ? (darkMode ? "#a7f3d0" : "#666") : (darkMode ? "#fca5a5" : "#666") }}>
+                              {s.description}
+                            </Typography>
+                          </div>
                         </div>
-                        
-                        {res.downloadLinks && res.downloadLinks.length > 0 && (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+
+                        {res.ok && res.downloadLinks && (
+                          <div style={{ 
+                            display: "flex", 
+                            flexWrap: "wrap", 
+                            gap: 8, 
+                            marginTop: 16 
+                          }}>
                             {res.downloadLinks.map((link, i) => (
                               <a
                                 key={i}
                                 href={`${API_BASE.replace(/\/$/, "")}${link.url}`}
                                 download
                                 style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  padding: "10px 16px",
+                                  background: darkMode ? "#0f172a" : "white",
+                                  border: "2px solid #10b981",
+                                  color: "#10b981",
+                                  borderRadius: 8,
                                   textDecoration: "none",
-                                  padding: "8px 14px",
-                                  background: "#111",
-                                  color: "#fff",
-                                  borderRadius: "6px",
-                                  width: "fit-content",
-                                  fontSize: "14px",
-                                  fontWeight: 500,
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  transition: "all 0.2s ease"
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "#10b981";
+                                  e.currentTarget.style.color = "white";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = darkMode ? "#0f172a" : "white";
+                                  e.currentTarget.style.color = "#10b981";
                                 }}
                               >
-                                ⬇️ {link.label}
+                                <span style={{ fontSize: 16 }}>⬇️</span>
+                                {link.label}
                               </a>
                             ))}
                           </div>
                         )}
 
                         {res.zipUrl && (
-                          <div style={{ marginTop: 12 }}>
+                          <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${darkMode ? "#334155" : "#e0e0e0"}` }}>
                             <a 
                               href={`${API_BASE.replace(/\/$/, "")}${res.zipUrl}`}
                               download
                               style={{ 
-                                display: "inline-block",
-                                padding: "12px 24px",
-                                background: "#10b981",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 12,
+                                padding: "14px 28px",
+                                background: "linear-gradient(135deg, #10b981, #059669)",
                                 color: "white",
-                                borderRadius: 6,
+                                borderRadius: 10,
                                 textDecoration: "none",
-                                fontSize: 15,
-                                fontWeight: 600,
-                                cursor: "pointer",
+                                fontSize: 16,
+                                fontWeight: 700,
+                                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
                                 transition: "all 0.2s"
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = "#059669"}
-                              onMouseLeave={(e) => e.currentTarget.style.background = "#10b981"}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 6px 16px rgba(16, 185, 129, 0.4)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.3)";
+                              }}
                             >
-                              📦 Download Complete ZIP Package
+                              <span style={{ fontSize: 24 }}>📦</span>
+                              Download Complete Package
                             </a>
                           </div>
                         )}
-                      </>
-                    )}
-                    {res?.ok === false && (
-                      <div style={{ color: "#c00" }}>
-                        ✗ Processing failed: {res.error}
+
+                        {res.ok === false && (
+                          <div style={{ color: darkMode ? "#fca5a5" : "#c00", marginTop: 12, fontSize: "14px" }}>
+                            ✗ Processing failed: {res.error}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
         {activeStep >= steps.length && (
-          <div style={{ marginTop: 16 }}>
-            <Typography sx={{ mt: 2, mb: 1 }}>
-              Reconciliation completed! You can reset to start over.
+          <div style={{ 
+            marginTop: 24, 
+            textAlign: "center",
+            padding: "32px",
+            background: theme.cardBg,
+            borderRadius: 16,
+            boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
+            border: darkMode ? "1px solid #334155" : "none"
+          }}>
+            <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: theme.text }}>
+              Reconciliation Completed!
             </Typography>
-            <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
-              <Box sx={{ flex: "1 1 auto" }} />
-              <MuiButton onClick={handleReset}>Reset</MuiButton>
-            </Box>
+            <Typography variant="body1" sx={{ mb: 3, color: theme.textSecondary }}>
+              All steps have been processed successfully. You can download the results above or reset to start over.
+            </Typography>
+            <MuiButton 
+              variant="contained" 
+              onClick={handleReset}
+              style={{
+                background: darkMode 
+                  ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
+                  : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "white",
+                padding: "12px 32px",
+                fontSize: "16px",
+                fontWeight: 600,
+                textTransform: "none",
+                borderRadius: "8px"
+              }}
+            >
+              Start New Reconciliation
+            </MuiButton>
           </div>
         )}
       </main>
+    </div>
 
       <style>{`
         @keyframes pulse {
           0% { transform: scale(0.8); opacity: 0.6; }
           50% { transform: scale(1); opacity: 1; }
           100% { transform: scale(0.8); opacity: 0.6; }
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </>

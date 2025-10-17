@@ -87,15 +87,18 @@ export const FileUpload = ({
           className="hidden"
         />
 
-        <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">
+        {/* Hide grid pattern in dark mode */}
+        <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] dark:hidden">
           <GridPattern />
         </div>
 
         <div className="flex flex-col items-center justify-center">
-          <p className="relative z-20 font-bold text-neutral-700 dark:text-neutral-300 text-base">
+          {/* Upload file label - darker in dark mode */}
+          <p className="relative z-20 font-bold text-neutral-700 dark:text-neutral-600 text-base">
             Upload file
           </p>
-          <p className="relative z-20 text-neutral-400 dark:text-neutral-400 text-base mt-2">
+          {/* Drag or drop text - darker in dark mode */}
+          <p className="relative z-20 text-neutral-400 dark:text-neutral-500 text-base mt-2">
             Drag or drop your files here or click to upload
           </p>
           <div className="relative w-full mt-10 max-w-xl mx-auto">
@@ -109,7 +112,7 @@ export const FileUpload = ({
                     "shadow-sm"
                   )}
                 >
-                  {/* remove button (stopPropagation so clicking it doesn't re-open the picker) */}
+                  {/* remove button */}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -119,7 +122,7 @@ export const FileUpload = ({
                     className="absolute right-2 top-2 p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800"
                     aria-label={`Remove ${file.name}`}
                   >
-                    <IconX className="w-4 h-4 text-neutral-500" />
+                    <IconX className="w-4 h-4 text-neutral-500 dark:text-neutral-400" />
                   </button>
 
                   <div className="flex justify-between w-full items-center gap-4">
@@ -172,13 +175,13 @@ export const FileUpload = ({
                   <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-neutral-600 flex flex-col items-center"
+                    className="text-neutral-600 dark:text-neutral-500 flex flex-col items-center"
                   >
                     Drop it
-                    <IconUpload className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
+                    <IconUpload className="h-4 w-4 text-neutral-600 dark:text-neutral-500" />
                   </motion.p>
                 ) : (
-                  <IconUpload className="h-4 w-4 text-neutral-600 dark:text-neutral-300" />
+                  <IconUpload className="h-4 w-4 text-neutral-600 dark:text-neutral-500" />
                 )}
               </motion.div>
             )}
