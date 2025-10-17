@@ -774,7 +774,7 @@ export default function Home() {
               {/* File Upload Cards */}
               <div style={{
                 display: "grid",
-                gridTemplateColumns: window.innerWidth < 600 ? "1fr" : "1fr 1fr",
+                gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth < 600 ? "1fr" : "1fr 1fr",
                 gap: "20px",
                 marginTop: "24px"
               }}>
@@ -1037,7 +1037,7 @@ export default function Home() {
 
         <div style={{ 
           display: "flex", 
-          flexDirection: window.innerWidth < 600 ? "column" : "row",
+          flexDirection: typeof window !== 'undefined' && window.innerWidth < 600 ? "column" : "row",
           gap: 12, 
           alignItems: "center", 
           marginTop: 20, 
