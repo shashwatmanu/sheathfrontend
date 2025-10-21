@@ -5,6 +5,7 @@ import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
 import * as XLSX from 'xlsx';
+import Lottie from 'lottie-react';
 
 import Box from "@mui/material/Box";
 import Stepper from "@mui/material/Stepper";
@@ -244,7 +245,7 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
               {/* Scrollable table wrapper with visible scrollbars */}
               <div style={{ 
                 width: "100%",
-                overflowX: "auto",
+                overflowX: "scroll",
                 overflowY: "auto",
                 maxHeight: "500px",
                 border: `1px solid ${theme.border}`,
@@ -381,6 +382,7 @@ export default function Home() {
 
   const [stepResults, setStepResults] = useState({});
   const [fileResetKey, setFileResetKey] = useState(0);
+  const [animationData, setAnimationData] = useState(null);
 
   const steps = [
     { key: "step1", label: "Bank & Advance Statements", description: "Upload both files together" },
@@ -388,6 +390,14 @@ export default function Home() {
     { key: "step3", label: "MIS Mapping", description: "Select TPA & upload MIS" },
     { key: "step4", label: "Outstanding Report", description: "Final matching" },
   ];
+
+  // Load Lottie animation
+  useEffect(() => {
+    fetch('/animations/loading.json')
+      .then(response => response.json())
+      .then(data => setAnimationData(data))
+      .catch(err => console.error('Failed to load animation:', err));
+  }, []);
 
   useEffect(() => {
     const fetchTpaChoices = async () => {
@@ -1380,7 +1390,7 @@ export default function Home() {
           </MuiButton>
         </div>
 
-        {/* Processing Overlay */}
+        {/* Enhanced Processing Overlay with Lottie */}
         {loading && (
           <div style={{
             position: "fixed",
@@ -1388,42 +1398,189 @@ export default function Home() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(0,0,0,0.8)",
+            background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(8px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999
+            zIndex: 9999,
+            animation: "fadeIn 0.3s ease"
           }}>
             <div style={{
-              background: darkMode ? "#1e293b" : "white",
-              padding: "40px",
-              borderRadius: "16px",
+              background: darkMode 
+                ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" 
+                : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+              padding: "48px 40px",
+              borderRadius: "24px",
               textAlign: "center",
-              minWidth: "300px",
+              minWidth: "320px",
               maxWidth: "90%",
-              border: darkMode ? "1px solid #334155" : "none"
+              border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+              boxShadow: darkMode 
+                ? "0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(79, 70, 229, 0.3)" 
+                : "0 20px 60px rgba(0,0,0,0.15)",
+              position: "relative",
+              overflow: "hidden"
             }}>
+              {/* Animated gradient background */}
               <div style={{
-                width: "80px",
-                height: "80px",
-                border: `4px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
-                borderTop: `4px solid ${bankType === "ICICI" ? "#bf2a2a" : "#871f42"}`,
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-                margin: "0 auto 24px"
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: bankType === "ICICI"
+                  ? "linear-gradient(45deg, rgba(191,42,42,0.1), rgba(191,42,42,0.05))"
+                  : "linear-gradient(45deg, rgba(135,31,66,0.1), rgba(135,31,66,0.05))",
+                opacity: 0.5,
+                animation: "shimmer 2s infinite"
               }}></div>
-              <Typography variant="h6" style={{ marginBottom: "8px", color: darkMode ? "#f1f5f9" : "#000" }}>
-                Processing Step {activeStep + 1}
+
+              {/* Step icon */}
+              <div style={{ 
+                fontSize: "40px", 
+                marginBottom: "16px",
+                position: "relative",
+                zIndex: 1
+              }}>
+                {activeStep === 0 && "📁"}
+                {activeStep === 1 && "🔄"}
+                {activeStep === 2 && "📊"}
+                {activeStep === 3 && "📋"}
+              </div>
+
+              {/* Lottie Animation */}
+              <div style={{
+                width: "160px",
+                height: "160px",
+                margin: "0 auto 24px",
+                position: "relative",
+                zIndex: 1
+              }}>
+                {animationData ? (
+                  <Lottie 
+                    animationData={animationData}
+                    loop={true}
+                    style={{ width: "100%", height: "100%" }}
+                  />
+                ) : (
+                  // Fallback spinner if Lottie fails to load
+                  <div style={{
+                    width: "100%",
+                    height: "100%",
+                    border: `6px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
+                    borderTop: `6px solid ${bankType === "ICICI" ? "#bf2a2a" : "#871f42"}`,
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite"
+                  }}></div>
+                )}
+              </div>
+
+              {/* Step indicator with progress */}
+              <div style={{
+                background: darkMode ? "#334155" : "#f1f5f9",
+                borderRadius: "20px",
+                padding: "8px 20px",
+                display: "inline-block",
+                marginBottom: "16px",
+                position: "relative",
+                zIndex: 1
+              }}>
+                <span style={{
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px"
+                }}>
+                  Step {activeStep + 1} of {steps.length}
+                </span>
+              </div>
+
+              {/* Main heading */}
+              <Typography variant="h5" style={{ 
+                marginBottom: "12px", 
+                color: theme.text,
+                fontWeight: 700,
+                fontSize: "24px",
+                position: "relative",
+                zIndex: 1
+              }}>
+                Processing {steps[activeStep]?.label}
               </Typography>
-              <Typography variant="body2" style={{ color: darkMode ? "#94a3b8" : "textSecondary" }}>
+
+              {/* Description */}
+              <Typography variant="body1" style={{ 
+                color: theme.textSecondary,
+                marginBottom: "24px",
+                fontSize: "15px",
+                position: "relative",
+                zIndex: 1
+              }}>
                 {steps[activeStep]?.description || "Please wait..."}
               </Typography>
+
+              {/* Progress bar */}
               <div style={{
-                marginTop: "16px",
-                fontSize: "12px",
-                color: darkMode ? "#64748b" : "#999"
+                width: "100%",
+                height: "6px",
+                background: darkMode ? "#334155" : "#e2e8f0",
+                borderRadius: "3px",
+                overflow: "hidden",
+                marginBottom: "16px",
+                position: "relative",
+                zIndex: 1
               }}>
-                This may take a few moments
+                <div style={{
+                  height: "100%",
+                  width: `${((activeStep + 1) / steps.length) * 100}%`,
+                  background: `linear-gradient(90deg, ${
+                    bankType === "ICICI" ? "#bf2a2a" : "#871f42"
+                  }, ${bankType === "ICICI" ? "#e63946" : "#be185d"})`,
+                  borderRadius: "3px",
+                  transition: "width 0.5s ease",
+                  animation: "shimmer 2s infinite"
+                }}></div>
+              </div>
+
+              {/* Loading dots */}
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "8px",
+                marginTop: "20px",
+                position: "relative",
+                zIndex: 1
+              }}>
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
+                      animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
+                    }}
+                  ></div>
+                ))}
+              </div>
+
+              {/* Additional info */}
+              <div style={{
+                marginTop: "24px",
+                padding: "12px",
+                background: darkMode ? "rgba(51, 65, 85, 0.5)" : "rgba(241, 245, 249, 0.8)",
+                borderRadius: "12px",
+                fontSize: "12px",
+                color: theme.textSecondary,
+                position: "relative",
+                zIndex: 1
+              }}>
+                <div style={{ marginBottom: "4px" }}>⏱️ This may take a few moments</div>
+                <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                  Please do not close or refresh this page
+                </div>
               </div>
             </div>
           </div>
@@ -1685,6 +1842,25 @@ export default function Home() {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes shimmer {
+          0% { 
+            background-position: -200% center;
+            opacity: 0.5;
+          }
+          50% {
+            opacity: 0.8;
+          }
+          100% { 
+            background-position: 200% center;
+            opacity: 0.5;
+          }
         }
 
         @media (max-width: 768px) {
