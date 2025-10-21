@@ -4,6 +4,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
+import * as XLSX from 'xlsx';
 
 import Box from "@mui/material/Box";
 import Stepper from "@mui/material/Stepper";
@@ -17,6 +18,7 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
+import Collapse from "@mui/material/Collapse";
 
 // Separate component for navbar sparkles - won't re-render on state changes
 const NavbarSparkles = React.memo(() => (
@@ -63,6 +65,303 @@ const HeroSparkles = React.memo(() => (
     />
   </div>
 ));
+
+// New component for displaying Excel data
+const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
+  const [data, setData] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const [displayLimit] = useState(50); // Show first 50 rows
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  const theme = {
+    bg: darkMode ? "#0f172a" : "#ffffff",
+    cardBg: darkMode ? "#1e293b" : "#ffffff",
+    text: darkMode ? "#f1f5f9" : "#000000",
+    textSecondary: darkMode ? "#94a3b8" : "#666666",
+    border: darkMode ? "#334155" : "#e0e0e0",
+  };
+
+  const fetchAndParseExcel = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const fullUrl = `${apiBase.replace(/\/$/, "")}${url}`;
+      const response = await fetch(fullUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      if (jsonData.length > 0) {
+        setColumns(Object.keys(jsonData[0]));
+        setData(jsonData);
+        setDataLoaded(true);
+      }
+    } catch (err) {
+      console.error("Error loading Excel:", err);
+      setError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (expanded && !dataLoaded && !loading) {
+      fetchAndParseExcel();
+    }
+  }, [expanded, dataLoaded, loading]);
+
+  const displayData = data.slice(0, displayLimit);
+
+  return (
+    <div style={{
+      background: darkMode ? "#0f172a" : "#f8f9fa",
+      borderRadius: "8px",
+      border: `1px solid ${theme.border}`,
+      marginTop: "8px",
+      width: "100%",
+      maxWidth: "100%",
+      boxSizing: "border-box"
+    }}>
+      {/* Header with download and expand/collapse */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "12px 16px",
+        background: darkMode ? "#1e293b" : "#ffffff",
+        borderBottom: expanded ? `1px solid ${theme.border}` : "none",
+        flexWrap: "wrap",
+        gap: "8px",
+        borderRadius: expanded ? "8px 8px 0 0" : "8px"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 auto", minWidth: "200px" }}>
+          <span style={{ fontSize: 16 }}>📄</span>
+          <Typography variant="body2" style={{ fontWeight: 600, color: theme.text, fontSize: "14px" }}>
+            {label}
+          </Typography>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <a
+            href={`${apiBase.replace(/\/$/, "")}${url}`}
+            download
+            style={{
+              padding: "6px 14px",
+              background: "#10b981",
+              color: "white",
+              borderRadius: 6,
+              textDecoration: "none",
+              fontSize: 13,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              whiteSpace: "nowrap"
+            }}
+          >
+            <span>⬇️</span>
+            Download
+          </a>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            style={{
+              padding: "6px 14px",
+              background: darkMode ? "#334155" : "#e5e7eb",
+              color: theme.text,
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+              whiteSpace: "nowrap"
+            }}
+          >
+            {expanded ? "Hide ▲" : "View ▼"}
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible data table */}
+      <Collapse in={expanded}>
+        <div style={{ 
+          padding: "16px", 
+          width: "100%", 
+          boxSizing: "border-box",
+          maxWidth: "100%"
+        }}>
+          {loading && (
+            <div style={{ textAlign: "center", padding: "32px", color: theme.textSecondary }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
+              Loading data...
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              padding: "16px",
+              background: darkMode ? "#7f1d1d" : "#fef2f2",
+              color: darkMode ? "#fca5a5" : "#dc2626",
+              borderRadius: 8,
+              textAlign: "center"
+            }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          {!loading && !error && data.length === 0 && (
+            <div style={{ textAlign: "center", padding: "32px", color: theme.textSecondary }}>
+              No data available
+            </div>
+          )}
+
+          {!loading && !error && data.length > 0 && (
+            <>
+              <div style={{
+                marginBottom: 12,
+                color: theme.textSecondary,
+                fontSize: 13,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 8
+              }}>
+                <span>Total rows: <strong>{data.length}</strong></span>
+                {data.length > displayLimit && (
+                  <span>Showing first {displayLimit} rows</span>
+                )}
+              </div>
+
+              {/* Scrollable table wrapper with visible scrollbars */}
+              <div style={{ 
+                width: "100%",
+                overflowX: "auto",
+                overflowY: "auto",
+                maxHeight: "500px",
+                border: `1px solid ${theme.border}`,
+                borderRadius: 8,
+                background: theme.cardBg,
+                WebkitOverflowScrolling: "touch",
+                boxSizing: "border-box"
+              }}>
+                <table style={{ 
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "12px",
+                  tableLayout: "fixed"
+                }}>
+                  <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
+                    <tr>
+                      <th style={{ 
+                        background: darkMode ? "#334155" : "#f3f4f6", 
+                        color: theme.text,
+                        fontWeight: 700,
+                        fontSize: 11,
+                        padding: "8px 8px",
+                        textAlign: "left",
+                        borderBottom: `1px solid ${theme.border}`,
+                        width: "40px"
+                      }}>
+                        #
+                      </th>
+                      {columns.map((col, idx) => (
+                        <th 
+                          key={idx}
+                          title={col}
+                          style={{ 
+                            background: darkMode ? "#334155" : "#f3f4f6", 
+                            color: theme.text,
+                            fontWeight: 700,
+                            fontSize: 10,
+                            padding: "8px 8px",
+                            textAlign: "left",
+                            borderBottom: `1px solid ${theme.border}`,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: "150px"
+                          }}
+                        >
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.map((row, rowIdx) => (
+                      <tr 
+                        key={rowIdx}
+                        style={{
+                          background: rowIdx % 2 === 0 
+                            ? (darkMode ? "#1e293b" : "#ffffff")
+                            : (darkMode ? "#0f172a" : "#f9fafb")
+                        }}
+                      >
+                        <td style={{ 
+                          color: theme.textSecondary, 
+                          fontSize: 11,
+                          padding: "6px 8px",
+                          fontWeight: 600,
+                          borderBottom: `1px solid ${theme.border}`,
+                          width: "40px"
+                        }}>
+                          {rowIdx + 1}
+                        </td>
+                        {columns.map((col, colIdx) => (
+                          <td 
+                            key={colIdx}
+                            title={String(row[col] || "")}
+                            style={{ 
+                              color: theme.text, 
+                              fontSize: 11,
+                              padding: "6px 8px",
+                              borderBottom: `1px solid ${theme.border}`,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "150px"
+                            }}
+                          >
+                            {String(row[col] || "")}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{
+                marginTop: 12,
+                padding: 10,
+                background: darkMode ? "#334155" : "#f3f4f6",
+                borderRadius: 6,
+                textAlign: "center",
+                fontSize: 11,
+                color: theme.textSecondary
+              }}>
+                {data.length > displayLimit ? (
+                  <>📊 Showing {displayLimit} of {data.length} rows. <strong>Hover over cells</strong> to see full text. Download for complete data.</>
+                ) : (
+                  <>💡 <strong>Tip:</strong> Hover over any cell to see the full text content</>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </Collapse>
+    </div>
+  );
+};
 
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -560,8 +859,10 @@ export default function Home() {
 
       <main style={{ 
         margin: "0 auto", 
-        maxWidth: 800, 
-        padding: "24px 16px"
+        maxWidth: "900px",
+        width: "100%",
+        padding: "24px 16px",
+        boxSizing: "border-box"
       }}>
         
         {/* Hero Section with sparkles */}
@@ -772,12 +1073,15 @@ export default function Home() {
               </div>
 
               {/* File Upload Cards */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth < 600 ? "1fr" : "1fr 1fr",
-                gap: "20px",
-                marginTop: "24px"
-              }}>
+              <div 
+                className="file-upload-grid"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "20px",
+                  marginTop: "24px"
+                }}
+              >
                 {/* Bank Statement Card */}
                 <div style={{
                   border: `2px dashed ${bankFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
@@ -1186,7 +1490,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Enhanced Results Display */}
+        {/* Enhanced Results Display with Excel Viewer */}
         {Object.keys(stepResults).length > 0 && (
           <div style={{ 
             marginTop: 32,
@@ -1194,7 +1498,9 @@ export default function Home() {
             borderRadius: 16,
             padding: 24,
             boxShadow: darkMode ? "0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.08)",
-            border: darkMode ? "1px solid #334155" : "none"
+            border: darkMode ? "1px solid #334155" : "none",
+            width: "100%",
+            boxSizing: "border-box"
           }}>
             <div style={{ 
               display: "flex", 
@@ -1234,7 +1540,9 @@ export default function Home() {
                       border: `2px solid ${res.ok ? "#10b981" : "#ef4444"}`,
                       borderRadius: 12,
                       padding: 20,
-                      transition: "all 0.3s ease"
+                      transition: "all 0.3s ease",
+                      width: "100%",
+                      boxSizing: "border-box"
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
@@ -1265,44 +1573,17 @@ export default function Home() {
                           </div>
                         </div>
 
+                        {/* Display Excel files with viewer */}
                         {res.ok && res.downloadLinks && (
-                          <div style={{ 
-                            display: "flex", 
-                            flexWrap: "wrap", 
-                            gap: 8, 
-                            marginTop: 16 
-                          }}>
+                          <div style={{ marginTop: 16 }}>
                             {res.downloadLinks.map((link, i) => (
-                              <a
+                              <ExcelDataViewer 
                                 key={i}
-                                href={`${API_BASE.replace(/\/$/, "")}${link.url}`}
-                                download
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  padding: "10px 16px",
-                                  background: darkMode ? "#0f172a" : "white",
-                                  border: "2px solid #10b981",
-                                  color: "#10b981",
-                                  borderRadius: 8,
-                                  textDecoration: "none",
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  transition: "all 0.2s ease"
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = "#10b981";
-                                  e.currentTarget.style.color = "white";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = darkMode ? "#0f172a" : "white";
-                                  e.currentTarget.style.color = "#10b981";
-                                }}
-                              >
-                                <span style={{ fontSize: 16 }}>⬇️</span>
-                                {link.label}
-                              </a>
+                                url={link.url}
+                                label={link.label}
+                                darkMode={darkMode}
+                                apiBase={API_BASE}
+                              />
                             ))}
                           </div>
                         )}
@@ -1370,7 +1651,7 @@ export default function Home() {
               Reconciliation Completed!
             </Typography>
             <Typography variant="body1" sx={{ mb: 3, color: theme.textSecondary }}>
-              All steps have been processed successfully. You can download the results above or reset to start over.
+              All steps have been processed successfully. You can view and download the results above or reset to start over.
             </Typography>
             <MuiButton 
               variant="contained" 
@@ -1404,6 +1685,12 @@ export default function Home() {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          .file-upload-grid {
+            grid-template-columns: 1fr !important;
+          }
         }
       `}</style>
     </>
