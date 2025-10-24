@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { isAuthenticated, logout, getUsername, getToken } from "../../lib/auth";
 import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
@@ -90,7 +92,15 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
     setError("");
     try {
       const fullUrl = `${apiBase.replace(/\/$/, "")}${url}`;
-      const response = await fetch(fullUrl);
+      
+      // Add Bearer token for authentication
+      const token = localStorage.getItem('access_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(fullUrl, { headers });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch file: ${response.status}`);
@@ -152,15 +162,43 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
           </Typography>
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <a
-            href={`${apiBase.replace(/\/$/, "")}${url}`}
-            download
+          <button
+            onClick={async () => {
+              try {
+                const token = localStorage.getItem('access_token');
+                const headers = {};
+                if (token) {
+                  headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const fullUrl = `${apiBase.replace(/\/$/, "")}${url}`;
+                const response = await fetch(fullUrl, { headers });
+                
+                if (!response.ok) {
+                  throw new Error('Download failed');
+                }
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = url.split('/').pop();
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                document.body.removeChild(a);
+              } catch (err) {
+                console.error('Download error:', err);
+                alert('Download failed. Please try again.');
+              }
+            }}
             style={{
               padding: "6px 14px",
               background: "#10b981",
               color: "white",
+              border: "none",
               borderRadius: 6,
-              textDecoration: "none",
+              cursor: "pointer",
               fontSize: 13,
               fontWeight: 600,
               display: "flex",
@@ -171,7 +209,7 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
           >
             <span>⬇️</span>
             Download
-          </a>
+          </button>
           <button
             onClick={() => setExpanded(!expanded)}
             style={{
@@ -364,8 +402,35 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
   );
 };
 
+// Helper function for authenticated API calls with Bearer token
+const authenticatedFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('access_token');
+  
+  const headers = {
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  console.log('[Auth] API Request:', url);
+  if (token) {
+    console.log('[Auth] ✓ Token present:', token.substring(0, 20) + '...');
+  } else {
+    console.log('[Auth] ⚠️ No token - request may fail with 403');
+  }
+  
+  return fetch(url, {
+    ...options,
+    headers: headers,
+  });
+};
+
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  const router = useRouter();
+  const [username, setUsername] = useState("");
 
   const [darkMode, setDarkMode] = useState(false);
   const [bankType, setBankType] = useState("ICICI");
@@ -391,6 +456,19 @@ export default function Home() {
     { key: "step4", label: "Outstanding Report", description: "Final matching" },
   ];
 
+
+  // Check authentication on mount
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      console.log("[Dashboard] Not authenticated, redirecting to login");
+      router.push("/auth/login");
+    } else {
+      const user = getUsername();
+      setUsername(user || "User");
+      console.log("[Dashboard] Authenticated as:", user);
+    }
+  }, [router]);
+
   // Load Lottie animation
   useEffect(() => {
     fetch('/animations/loading.json')
@@ -402,7 +480,7 @@ export default function Home() {
   useEffect(() => {
     const fetchTpaChoices = async () => {
       try {
-        const res = await fetch(`${API_BASE.replace(/\/$/, "")}/tpa-choices`);
+        const res = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/tpa-choices`);
         if (res.ok) {
           const data = await res.json();
           setTpaChoices(data.tpa_choices || []);
@@ -416,6 +494,12 @@ export default function Home() {
     };
     if (API_BASE) fetchTpaChoices();
   }, [API_BASE]);
+
+  const handleLogout = () => {
+    console.log("[Dashboard] Logout clicked");
+    logout();
+    window.location.href = "/auth/login";
+  };
 
   const saveStepResult = (idx, resultObj) => setStepResults((prev) => ({ ...prev, [idx]: resultObj }));
 
@@ -444,7 +528,7 @@ export default function Home() {
       const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/step1`;
       console.log("[Step1] Sending request to:", endpoint);
       
-      const res = await fetch(endpoint, { method: "POST", body: fd });
+      const res = await authenticatedFetch(endpoint, { method: "POST", body: fd });
       
       if (!res.ok) {
         const text = await res.text();
@@ -511,7 +595,7 @@ export default function Home() {
       const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/step2`;
       console.log("[Step2] Sending request to:", endpoint);
       
-      const res = await fetch(endpoint, { method: "POST" });
+      const res = await authenticatedFetch(endpoint, { method: "POST" });
 
       if (!res.ok) {
         const text = await res.text();
@@ -594,7 +678,7 @@ export default function Home() {
       const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/step3`;
       console.log("[Step3] Sending request to:", endpoint);
       
-      const res = await fetch(endpoint, { method: "POST", body: fd });
+      const res = await authenticatedFetch(endpoint, { method: "POST", body: fd });
 
       if (!res.ok) {
         const text = await res.text();
@@ -666,7 +750,7 @@ export default function Home() {
       const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/step4`;
       console.log("[Step4] Sending request to:", endpoint);
       
-      const res = await fetch(endpoint, { method: "POST", body: fd });
+      const res = await authenticatedFetch(endpoint, { method: "POST", body: fd });
 
       if (!res.ok) {
         const text = await res.text();
@@ -836,7 +920,22 @@ export default function Home() {
             <p style={{ fontSize: "10px", fontWeight: "bold", margin: 0 }}>Recon Dashboard</p>
           </div>
           
-          {/* Dark Mode Toggle */}
+          {/* User Info + Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Username Display */}
+            {username && (
+              <div style={{
+                background: "rgba(255,255,255,0.1)",
+                padding: "6px 12px",
+                borderRadius: "20px",
+                fontSize: "14px",
+                fontWeight: 600
+              }}>
+                👤 {username}
+              </div>
+            )}
+            
+            {/* Dark Mode Toggle */}
           <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} arrow>
             <IconButton 
               onClick={() => setDarkMode(!darkMode)}
@@ -851,6 +950,23 @@ export default function Home() {
               <span style={{ fontSize: "20px" }}>{darkMode ? "☀️" : "🌙"}</span>
             </IconButton>
           </Tooltip>
+          
+          {/* Logout Button */}
+          <Tooltip title="Logout" arrow>
+            <IconButton 
+              onClick={handleLogout}
+              style={{ 
+                color: "white",
+                background: "rgba(255,0,0,0.2)",
+                padding: "8px",
+                width: "40px",
+                height: "40px"
+              }}
+            >
+              <span style={{ fontSize: "20px" }}>🚪</span>
+            </IconButton>
+          </Tooltip>
+        </div>
         </nav>
         
         {/* Sparkles confined to navbar area - using memoized component */}
@@ -1028,18 +1144,19 @@ export default function Home() {
           </Stepper>
         </Box>
 
-        <div style={{
-          borderRadius: 16,
-          padding: 24,
-          background: darkMode 
-            ? "linear-gradient(135deg, #1e293b, #0f172a)" 
-            : "linear-gradient(135deg, #f0f4ff, #ffffff)",
-          boxShadow: darkMode 
-            ? `0 0 50px rgba(79, 70, 229, 0.2)` 
-            : `0 0 50px ${bankShadowColor}`,
-          transition: "all 0.3s ease",
-          border: darkMode ? "1px solid #334155" : "none"
-        }}>
+        {activeStep < steps.length && (
+          <div style={{
+            borderRadius: 16,
+            padding: 24,
+            background: darkMode 
+              ? "linear-gradient(135deg, #1e293b, #0f172a)" 
+              : "linear-gradient(135deg, #f0f4ff, #ffffff)",
+            boxShadow: darkMode 
+              ? `0 0 50px rgba(79, 70, 229, 0.2)` 
+              : `0 0 50px ${bankShadowColor}`,
+            transition: "all 0.3s ease",
+            border: darkMode ? "1px solid #334155" : "none"
+          }}>
           
           {activeStep === 0 && (
             <>
@@ -1347,17 +1464,19 @@ export default function Home() {
               )}
             </div>
           )}
-        </div>
+          </div>
+        )}
 
-        <div style={{ 
-          display: "flex", 
-          flexDirection: typeof window !== 'undefined' && window.innerWidth < 600 ? "column" : "row",
-          gap: 12, 
-          alignItems: "center", 
-          marginTop: 20, 
-          justifyContent: "center", 
-          marginBottom: "16px" 
-        }}>
+        {activeStep < steps.length && (
+          <div style={{ 
+            display: "flex", 
+            flexDirection: typeof window !== 'undefined' && window.innerWidth < 600 ? "column" : "row",
+            gap: 12, 
+            alignItems: "center", 
+            marginTop: 20, 
+            justifyContent: "center", 
+            marginBottom: "16px" 
+          }}>
           <MuiButton 
             variant="text" 
             disabled={activeStep === 0 || loading} 
@@ -1388,7 +1507,8 @@ export default function Home() {
           >
             Reset
           </MuiButton>
-        </div>
+          </div>
+        )}
 
         {/* Enhanced Processing Overlay with Lottie */}
         {loading && (
@@ -1668,7 +1788,7 @@ export default function Home() {
               gap: 12
             }}>
               <Typography variant="h5" style={{ fontWeight: 700, margin: 0, color: theme.text }}>
-                📊 Processing Results
+                📊 Results
               </Typography>
               <div style={{
                 background: "#10b981",
@@ -1747,9 +1867,40 @@ export default function Home() {
 
                         {res.zipUrl && (
                           <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${darkMode ? "#334155" : "#e0e0e0"}` }}>
-                            <a 
-                              href={`${API_BASE.replace(/\/$/, "")}${res.zipUrl}`}
-                              download
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const token = localStorage.getItem('access_token');
+                                  const headers = {};
+                                  if (token) {
+                                    headers['Authorization'] = `Bearer ${token}`;
+                                  }
+                                  
+                                  const fullUrl = `${API_BASE.replace(/\/$/, "")}${res.zipUrl}`;
+                                  console.log('[ZIP Download] Fetching:', fullUrl);
+                                  
+                                  const response = await fetch(fullUrl, { headers });
+                                  
+                                  if (!response.ok) {
+                                    throw new Error(`Download failed: ${response.status}`);
+                                  }
+                                  
+                                  const blob = await response.blob();
+                                  const downloadUrl = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = downloadUrl;
+                                  a.download = res.zipUrl.split('/').pop() || 'reconciliation.zip';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  window.URL.revokeObjectURL(downloadUrl);
+                                  document.body.removeChild(a);
+                                  
+                                  console.log('[ZIP Download] ✓ Success!');
+                                } catch (err) {
+                                  console.error('[ZIP Download] Error:', err);
+                                  alert('ZIP download failed. Please try again.');
+                                }
+                              }}
                               style={{ 
                                 display: "inline-flex",
                                 alignItems: "center",
@@ -1757,8 +1908,9 @@ export default function Home() {
                                 padding: "14px 28px",
                                 background: "linear-gradient(135deg, #10b981, #059669)",
                                 color: "white",
+                                border: "none",
                                 borderRadius: 10,
-                                textDecoration: "none",
+                                cursor: "pointer",
                                 fontSize: 16,
                                 fontWeight: 700,
                                 boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
@@ -1775,7 +1927,7 @@ export default function Home() {
                             >
                               <span style={{ fontSize: 24 }}>📦</span>
                               Download Complete Package
-                            </a>
+                            </button>
                           </div>
                         )}
 
