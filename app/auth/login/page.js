@@ -25,53 +25,41 @@ function LoginFormContent() {
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated()) {
-      console.log("[Login] User already authenticated, redirecting to dashboard");
       window.location.href = "/dashboard"; // Hard redirect
     }
   }, []);
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("[Login] Form submitted");
-    console.log("[Login] Username:", username);
-    console.log("[Login] Password length:", password.length);
     
     setError("");
     setSuccessMessage("");
 
     if (!username || !password) {
-      console.log("[Login] Validation failed: Missing credentials");
       setError("Please enter both username and password.");
       return;
     }
 
     setLoading(true);
-    console.log("[Login] Calling login function...");
 
     try {
       // Call actual login API
       const result = await login(username, password);
-      console.log("[Login] Login result:", result);
 
       setLoading(false);
 
       if (result.success) {
-        console.log("[Login] ✅ Login successful!");
         
         // Check localStorage
         const token = localStorage.getItem('access_token');
         const savedUsername = localStorage.getItem('username');
-        console.log("[Login] Token saved:", token ? `${token.substring(0, 20)}...` : "NO TOKEN");
-        console.log("[Login] Username saved:", savedUsername);
         
         // Login successful - use window.location for hard redirect
-        console.log("[Login] Redirecting to /dashboard...");
         
         // Give cookies a moment to be set, then redirect
         setTimeout(() => {
           window.location.href = "/dashboard";
         }, 100);
       } else {
-        console.log("[Login] ❌ Login failed:", result.error);
         setError(result.error || "Login failed. Please check your credentials.");
       }
     } catch (error) {
@@ -90,24 +78,15 @@ function LoginFormContent() {
         minSize={0.1}
         maxSize={0.8}
         particleDensity={100}
-        particleColor="#FFFFFF"
+        particleColor="#FFFFFF" className="w-full h-screen"
       />
     ),
     []
   );
 
-  // Debug info on component mount
-  useEffect(() => {
-    console.log("=== LOGIN PAGE DEBUG INFO ===");
-    console.log("Current URL:", window.location.href);
-    console.log("Is authenticated:", isAuthenticated());
-    console.log("localStorage token:", localStorage.getItem('access_token') ? "EXISTS" : "NONE");
-    console.log("API Base URL:", process.env.NEXT_PUBLIC_API_BASE_URL || "NOT SET (using default)");
-    console.log("============================");
-  }, []);
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-black">
+    <div className="relative w-full h-screen flex items-center justify-center bg-black overflow-hidden">
       {/* Sparkles background */}
       <div className="absolute inset-0 z-0">{sparkles}</div>
 
@@ -147,7 +126,6 @@ function LoginFormContent() {
               type="text"
               value={username}
               onChange={(e) => {
-                console.log("[Login] Username changed:", e.target.value);
                 setUsername(e.target.value);
               }}
               className="mt-2 w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-black dark:bg-neutral-800 dark:text-gray-100"
@@ -163,7 +141,6 @@ function LoginFormContent() {
               type="password"
               value={password}
               onChange={(e) => {
-                console.log("[Login] Password changed, length:", e.target.value.length);
                 setPassword(e.target.value);
               }}
               className="mt-2 w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-black dark:bg-neutral-800 dark:text-gray-100"
@@ -181,7 +158,6 @@ function LoginFormContent() {
             type="submit"
             disabled={loading}
             onClick={(e) => {
-              console.log("[Login] Button clicked!");
             }}
             className="w-full py-3 rounded-lg bg-black hover:bg-gray-800 text-white font-semibold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -200,14 +176,7 @@ function LoginFormContent() {
           </a>
         </div>
 
-        {/* Debug info (remove in production) */}
-        <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-          <div className="font-bold mb-1">Debug Info:</div>
-          <div>Loading: {loading ? "YES" : "NO"}</div>
-          <div>Username: {username || "(empty)"}</div>
-          <div>Password: {password ? "●".repeat(password.length) : "(empty)"}</div>
-          <div>Error: {error || "None"}</div>
-        </div>
+
       </motion.div>
     </div>
   );
