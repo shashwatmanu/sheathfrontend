@@ -8,6 +8,7 @@ import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
 import * as XLSX from 'xlsx';
 import Lottie from 'lottie-react';
+import DataModal from '../../components/ui/DataModal';
 
 import Box from "@mui/material/Box";
 import Stepper from "@mui/material/Stepper";
@@ -78,6 +79,7 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
   const [expanded, setExpanded] = useState(false);
   const [displayLimit] = useState(50); // Show first 50 rows
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const theme = {
     bg: darkMode ? "#0f172a" : "#ffffff",
@@ -394,10 +396,68 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
                   <>💡 <strong>Tip:</strong> Hover over any cell to see the full text content</>
                 )}
               </div>
+
+              {/* View All button - only show if there's data and more than display limit */}
+              {data.length > displayLimit && (
+                <div style={{ marginTop: 12, textAlign: 'center' }}>
+                  <button
+                    onClick={() => setModalOpen(true)}
+                    style={{
+                      padding: "10px 24px",
+                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      boxShadow: darkMode 
+                        ? "0 4px 12px rgba(102, 126, 234, 0.3)" 
+                        : "0 4px 12px rgba(102, 126, 234, 0.2)",
+                      transition: "all 0.2s"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = darkMode
+                        ? "0 6px 16px rgba(102, 126, 234, 0.4)"
+                        : "0 6px 16px rgba(102, 126, 234, 0.3)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = darkMode
+                        ? "0 4px 12px rgba(102, 126, 234, 0.3)"
+                        : "0 4px 12px rgba(102, 126, 234, 0.2)";
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>📊</span>
+                    View All {data.length.toLocaleString()} Rows
+                  </button>
+                  <div style={{
+                    marginTop: 8,
+                    fontSize: 11,
+                    color: theme.textSecondary
+                  }}>
+                    ✨ Full pagination, search & export
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
       </Collapse>
+
+      {/* Data Modal for full view */}
+      <DataModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        data={data}
+        columns={columns}
+        filename={label}
+        darkMode={darkMode}
+      />
     </div>
   );
 };
@@ -850,6 +910,23 @@ export default function Home() {
     if (tpaChoices.length > 0) setTpaName(tpaChoices[0]);
   };
 
+  // Power/Shutdown Icon Component
+  const PowerIcon = () => (
+    <svg 
+      width="20" 
+      height="20" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+      <line x1="12" y1="2" x2="12" y2="12"></line>
+    </svg>
+  );
+
   const canProceed = useMemo(() => {
     if (activeStep === 0) return bankFile && advanceFile;
     if (activeStep === 1) return stepResults[0]?.ok;
@@ -922,17 +999,37 @@ export default function Home() {
           
           {/* User Info + Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            {/* Username Display */}
+            {/* Username Display - Clickable */}
             {username && (
-              <div style={{
-                background: "rgba(255,255,255,0.1)",
-                padding: "6px 12px",
-                borderRadius: "20px",
-                fontSize: "14px",
-                fontWeight: 600
-              }}>
-                👤 {username}
-              </div>
+              <Tooltip title="View Profile" arrow>
+                <button
+                  onClick={() => router.push("/dashboard/profile")}
+                  style={{
+                    background: "rgba(255,255,255,0.1)",
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    border: "none",
+                    color: "white",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  👤 {username}
+                </button>
+              </Tooltip>
             )}
             
             {/* Dark Mode Toggle */}
@@ -963,7 +1060,7 @@ export default function Home() {
                 height: "40px"
               }}
             >
-              <span style={{ fontSize: "20px" }}>🚪</span>
+              <PowerIcon />
             </IconButton>
           </Tooltip>
         </div>
@@ -1549,9 +1646,7 @@ export default function Home() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: bankType === "ICICI"
-                  ? "linear-gradient(45deg, rgba(191,42,42,0.1), rgba(191,42,42,0.05))"
-                  : "linear-gradient(45deg, rgba(135,31,66,0.1), rgba(135,31,66,0.05))",
+                background: "linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05))",
                 opacity: 0.5,
                 animation: "shimmer 2s infinite"
               }}></div>
@@ -1589,7 +1684,7 @@ export default function Home() {
                     width: "100%",
                     height: "100%",
                     border: `6px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
-                    borderTop: `6px solid ${bankType === "ICICI" ? "#bf2a2a" : "#871f42"}`,
+                    borderTop: "6px solid #3b82f6",
                     borderRadius: "50%",
                     animation: "spin 1s linear infinite"
                   }}></div>
@@ -1609,7 +1704,7 @@ export default function Home() {
                 <span style={{
                   fontSize: "12px",
                   fontWeight: 700,
-                  color: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
+                  color: "#3b82f6",
                   textTransform: "uppercase",
                   letterSpacing: "1px"
                 }}>
@@ -1654,9 +1749,7 @@ export default function Home() {
                 <div style={{
                   height: "100%",
                   width: `${((activeStep + 1) / steps.length) * 100}%`,
-                  background: `linear-gradient(90deg, ${
-                    bankType === "ICICI" ? "#bf2a2a" : "#871f42"
-                  }, ${bankType === "ICICI" ? "#e63946" : "#be185d"})`,
+                  background: "linear-gradient(90deg, #3b82f6, #2563eb)",
                   borderRadius: "3px",
                   transition: "width 0.5s ease",
                   animation: "shimmer 2s infinite"
@@ -1679,7 +1772,7 @@ export default function Home() {
                       width: "8px",
                       height: "8px",
                       borderRadius: "50%",
-                      background: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
+                      background: "#3b82f6",
                       animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
                     }}
                   ></div>
