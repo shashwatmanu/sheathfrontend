@@ -9,6 +9,7 @@ import { SparklesCore } from "../../components/ui/sparkles";
 import * as XLSX from 'xlsx';
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
+// import AIAssistantModal from '../../components/ui/AIAssistantModal.jsx';  // ✅ NEW: AI Assistant
 
 import Box from "@mui/material/Box";
 import Stepper from "@mui/material/Stepper";
@@ -508,6 +509,9 @@ export default function Home() {
   const [stepResults, setStepResults] = useState({});
   const [fileResetKey, setFileResetKey] = useState(0);
   const [animationData, setAnimationData] = useState(null);
+  
+  // ✅ NEW: AI Assistant Modal state
+  // const [aiModalOpen, setAiModalOpen] = useState(false);
 
   const steps = [
     { key: "step1", label: "Bank & Advance Statements", description: "Upload both files together" },
@@ -998,7 +1002,7 @@ export default function Home() {
           </div>
           
           {/* User Info + Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
             {/* Username Display - Clickable */}
             {username && (
               <Tooltip title="View Profile" arrow>
@@ -1031,6 +1035,71 @@ export default function Home() {
                 </button>
               </Tooltip>
             )}
+            
+            {/* ✅ NEW: History Button */}
+            <Tooltip title="View All History" arrow>
+              <button
+                onClick={() => router.push("/dashboard/history")}
+                style={{
+                  padding: "8px 16px",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                <span>📚</span>
+                History
+              </button>
+            </Tooltip>
+
+            {/* ✅ NEW: AI Assistant Button */}
+            {/* <Tooltip title="AI Assistant" arrow>
+              <button
+                onClick={() => setAiModalOpen(true)}
+                style={{
+                  padding: "8px 16px",
+                  background: "linear-gradient(135deg, #10b981, #059669)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.2s",
+                  boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(16, 185, 129, 0.3)";
+                }}
+              >
+                <span>🤖</span>
+                AI Chat
+              </button>
+            </Tooltip> */}
             
             {/* Dark Mode Toggle */}
           <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} arrow>
@@ -2075,6 +2144,14 @@ export default function Home() {
           </div>
         )}
       </main>
+      
+      {/* ✅ NEW: AI Assistant Modal - Add this component here */}
+      {/* <AIAssistantModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        darkMode={darkMode}
+        apiBase={API_BASE}
+      /> */}
     </div>
 
       <style>{`

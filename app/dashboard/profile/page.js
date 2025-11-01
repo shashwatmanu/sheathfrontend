@@ -62,6 +62,7 @@ export default function ProfilePage() {
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downloading, setDownloading] = useState({});
 
   const theme = {
     bg: darkMode ? "#0f172a" : "#ffffff",
@@ -112,6 +113,35 @@ export default function ProfilePage() {
       setError(err.message || "Failed to load profile data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadZip = async (runId) => {
+    setDownloading(prev => ({ ...prev, [runId]: true }));
+    
+    try {
+      const response = await authenticatedFetch(
+        `${API_BASE.replace(/\/$/, "")}/reconciliations/${runId}/download-zip`
+      );
+      
+      if (!response.ok) {
+        throw new Error("Download failed");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${runId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("[Download] Error:", err);
+      alert("Download failed. Please try again.");
+    } finally {
+      setDownloading(prev => ({ ...prev, [runId]: false }));
     }
   };
 
@@ -174,6 +204,29 @@ export default function ProfilePage() {
               >
                 <span>←</span>
                 Dashboard
+              </button>
+            </MuiTooltip>
+
+            {/* View History */}
+            <MuiTooltip title="View All History" arrow>
+              <button
+                onClick={() => router.push("/dashboard/history")}
+                style={{
+                  padding: "8px 16px",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                <span>📚</span>
+                History
               </button>
             </MuiTooltip>
 
@@ -443,7 +496,7 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Recent Activity */}
+            {/* Recent Activity with Download */}
             <div style={{
               background: theme.cardBg,
               padding: "24px",
@@ -451,9 +504,36 @@ export default function ProfilePage() {
               border: `1px solid ${theme.border}`,
               boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)"
             }}>
-              <Typography variant="h6" style={{ fontWeight: 700, color: theme.text, marginBottom: 16 }}>
-                📋 Recent Activity
-              </Typography>
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "center", 
+                marginBottom: 16,
+                flexWrap: "wrap",
+                gap: 12
+              }}>
+                <Typography variant="h6" style={{ fontWeight: 700, color: theme.text }}>
+                  📋 Recent Reconciliations
+                </Typography>
+                <button
+                  onClick={() => router.push("/dashboard/history")}
+                  style={{
+                    padding: "8px 16px",
+                    background: darkMode ? "#334155" : "#f3f4f6",
+                    color: theme.text,
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  View All →
+                </button>
+              </div>
 
               {recentActivity.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -467,7 +547,7 @@ export default function ProfilePage() {
                         border: `1px solid ${theme.border}`
                       }}
                     >
-                      {/* Header: Bank Type + TPA */}
+                      {/* Header: Bank Type + TPA + Download */}
                       <div style={{ 
                         display: "flex", 
                         justifyContent: "space-between", 
@@ -476,7 +556,7 @@ export default function ProfilePage() {
                         flexWrap: "wrap",
                         gap: 8
                       }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                           <div style={{
                             width: 32,
                             height: 32,
@@ -505,13 +585,41 @@ export default function ProfilePage() {
                           </div>
                         </div>
                         
-                        <Typography variant="body2" style={{ 
-                          color: theme.textSecondary, 
-                          fontSize: 12,
-                          fontWeight: 500
-                        }}>
-                          {formatDate(activity.timestamp)}
-                        </Typography>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Typography variant="body2" style={{ 
+                            color: theme.textSecondary, 
+                            fontSize: 12,
+                            fontWeight: 500
+                          }}>
+                            {formatDate(activity.timestamp)}
+                          </Typography>
+                          
+                          {/* Download Button */}
+                          <button
+                            onClick={() => downloadZip(activity.run_id)}
+                            disabled={downloading[activity.run_id]}
+                            style={{
+                              padding: "6px 12px",
+                              background: downloading[activity.run_id] 
+                                ? (darkMode ? "#334155" : "#e5e7eb")
+                                : "#10b981",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              cursor: downloading[activity.run_id] ? "wait" : "pointer",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              opacity: downloading[activity.run_id] ? 0.6 : 1,
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            {downloading[activity.run_id] ? "⏳" : "📦"}
+                            {downloading[activity.run_id] ? "..." : "ZIP"}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Row Counts */}
