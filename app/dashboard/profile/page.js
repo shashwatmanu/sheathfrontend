@@ -62,6 +62,15 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState({});
   
+  // Change password state
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  
   // Email verification state
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [sendingVerification, setSendingVerification] = useState(false);
@@ -73,6 +82,7 @@ export default function ProfilePage() {
     text: darkMode ? "#f1f5f9" : "#000000",
     textSecondary: darkMode ? "#94a3b8" : "#666666",
     border: darkMode ? "#334155" : "#e0e0e0",
+    inputBg: darkMode ? "#334155" : "#f8f8f8",
   };
 
   useEffect(() => {
@@ -186,6 +196,67 @@ export default function ProfilePage() {
       alert("Download failed. Please try again.");
     } finally {
       setDownloading(prev => ({ ...prev, [runId]: false }));
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+    
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("All fields are required");
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters");
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+    
+    setChangingPassword(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append("current_password", currentPassword);
+      formData.append("new_password", newPassword);
+      
+      const response = await authenticatedFetch(
+        `${API_BASE.replace(/\/$/, "")}/auth/change-password`,
+        {
+          method: "POST",
+          body: formData
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to change password");
+      }
+      
+      setPasswordSuccess("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      
+      // Close modal after 2 seconds
+      setTimeout(() => {
+        setPasswordModalOpen(false);
+        setPasswordSuccess("");
+      }, 2000);
+      
+    } catch (err) {
+      console.error("[Change Password] Error:", err);
+      setPasswordError(err.message || "Failed to change password");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -406,32 +477,66 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Email Verification Badge */}
-                {verificationStatus && verificationStatus.has_email && (
-                  <div style={{
-                    background: verificationStatus.email_verified 
-                      ? "rgba(16, 185, 129, 0.2)" 
-                      : "rgba(251, 191, 36, 0.2)",
-                    border: `2px solid ${verificationStatus.email_verified ? "#10b981" : "#fbbf24"}`,
-                    borderRadius: "12px",
-                    padding: "12px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8
-                  }}>
-                    <span style={{ fontSize: 20 }}>
-                      {verificationStatus.email_verified ? "✅" : "⚠️"}
-                    </span>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>
-                        {verificationStatus.email_verified ? "Email Verified" : "Email Not Verified"}
-                      </div>
-                      <div style={{ fontSize: 11, opacity: 0.9 }}>
-                        {verificationStatus.email}
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {/* Change Password Button */}
+                  <button
+                    onClick={() => setPasswordModalOpen(true)}
+                    style={{
+                      padding: "12px 20px",
+                      background: "rgba(255,255,255,0.2)",
+                      color: "white",
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderRadius: "12px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      transition: "all 0.2s",
+                      backdropFilter: "blur(10px)",
+                      whiteSpace: "nowrap"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.3)";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }}
+                  >
+                    <span style={{ fontSize: 16 }}>🔒</span>
+                    Change Password
+                  </button>
+
+                  {/* Email Verification Badge */}
+                  {verificationStatus && verificationStatus.has_email && (
+                    <div style={{
+                      background: verificationStatus.email_verified 
+                        ? "rgba(16, 185, 129, 0.2)" 
+                        : "rgba(251, 191, 36, 0.2)",
+                      border: `2px solid ${verificationStatus.email_verified ? "#10b981" : "#fbbf24"}`,
+                      borderRadius: "12px",
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8
+                    }}>
+                      <span style={{ fontSize: 20 }}>
+                        {verificationStatus.email_verified ? "✅" : "⚠️"}
+                      </span>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>
+                          {verificationStatus.email_verified ? "Email Verified" : "Email Not Verified"}
+                        </div>
+                        <div style={{ fontSize: 11, opacity: 0.9 }}>
+                          {verificationStatus.email}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Email Verification Section */}
@@ -783,6 +888,281 @@ export default function ProfilePage() {
           </>
         )}
       </main>
+
+      {/* Change Password Modal */}
+      {passwordModalOpen && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.75)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "16px"
+        }}>
+          <div style={{
+            background: darkMode 
+              ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" 
+              : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+            borderRadius: "24px",
+            padding: "32px",
+            maxWidth: "450px",
+            width: "100%",
+            border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+            boxShadow: darkMode 
+              ? "0 20px 60px rgba(0,0,0,0.5)" 
+              : "0 20px 60px rgba(0,0,0,0.15)",
+            position: "relative"
+          }}>
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setPasswordModalOpen(false);
+                setPasswordError("");
+                setPasswordSuccess("");
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+              }}
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                background: "transparent",
+                border: "none",
+                fontSize: "24px",
+                cursor: "pointer",
+                color: theme.textSecondary,
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div style={{ marginBottom: "24px", textAlign: "center" }}>
+              <div style={{ fontSize: "48px", marginBottom: "12px" }}>🔒</div>
+              <Typography variant="h5" style={{ 
+                fontWeight: 700, 
+                color: theme.text,
+                marginBottom: "8px"
+              }}>
+                Change Password
+              </Typography>
+              <Typography variant="body2" style={{ color: theme.textSecondary }}>
+                Enter your current password and choose a new one
+              </Typography>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleChangePassword}>
+              {/* Current Password */}
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  color: theme.text
+                }}>
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: "8px",
+                    border: `1px solid ${theme.border}`,
+                    background: theme.inputBg,
+                    color: theme.text,
+                    fontSize: "14px",
+                    boxSizing: "border-box"
+                  }}
+                  placeholder="Enter current password"
+                  disabled={changingPassword}
+                />
+              </div>
+
+              {/* New Password */}
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  color: theme.text
+                }}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: "8px",
+                    border: `1px solid ${theme.border}`,
+                    background: theme.inputBg,
+                    color: theme.text,
+                    fontSize: "14px",
+                    boxSizing: "border-box"
+                  }}
+                  placeholder="Enter new password (min 6 chars)"
+                  disabled={changingPassword}
+                />
+              </div>
+
+              {/* Confirm Password */}
+              <div style={{ marginBottom: "24px" }}>
+                <label style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  color: theme.text
+                }}>
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: "8px",
+                    border: `1px solid ${theme.border}`,
+                    background: theme.inputBg,
+                    color: theme.text,
+                    fontSize: "14px",
+                    boxSizing: "border-box"
+                  }}
+                  placeholder="Re-enter new password"
+                  disabled={changingPassword}
+                />
+              </div>
+
+              {/* Error Message */}
+              {passwordError && (
+                <div style={{
+                  background: darkMode ? "#7f1d1d" : "#fef2f2",
+                  border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
+                  borderRadius: "8px",
+                  padding: "12px",
+                  marginBottom: "16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px"
+                }}>
+                  <span style={{ fontSize: "20px" }}>⚠️</span>
+                  <span style={{ 
+                    color: darkMode ? "#fecaca" : "#dc2626",
+                    fontSize: "13px",
+                    fontWeight: 600
+                  }}>
+                    {passwordError}
+                  </span>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {passwordSuccess && (
+                <div style={{
+                  background: darkMode ? "#064e3b" : "#f0fdf4",
+                  border: `2px solid #10b981`,
+                  borderRadius: "8px",
+                  padding: "12px",
+                  marginBottom: "16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px"
+                }}>
+                  <span style={{ fontSize: "20px" }}>✅</span>
+                  <span style={{ 
+                    color: darkMode ? "#d1fae5" : "#059669",
+                    fontSize: "13px",
+                    fontWeight: 600
+                  }}>
+                    {passwordSuccess}
+                  </span>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div style={{
+                display: "flex",
+                gap: "12px",
+                flexDirection: "column"
+              }}>
+                <button
+                  type="submit"
+                  disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+                  style={{
+                    width: "100%",
+                    padding: "14px 24px",
+                    background: changingPassword || !currentPassword || !newPassword || !confirmPassword
+                      ? (darkMode ? "#334155" : "#e5e7eb")
+                      : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "12px",
+                    cursor: changingPassword || !currentPassword || !newPassword || !confirmPassword ? "not-allowed" : "pointer",
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    opacity: changingPassword || !currentPassword || !newPassword || !confirmPassword ? 0.6 : 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px"
+                  }}
+                >
+                  {changingPassword ? "⏳" : "🔒"}
+                  {changingPassword ? "Changing Password..." : "Change Password"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordModalOpen(false);
+                    setPasswordError("");
+                    setPasswordSuccess("");
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  disabled={changingPassword}
+                  style={{
+                    width: "100%",
+                    padding: "14px 24px",
+                    background: "transparent",
+                    color: theme.text,
+                    border: `2px solid ${theme.border}`,
+                    borderRadius: "12px",
+                    cursor: changingPassword ? "not-allowed" : "pointer",
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    opacity: changingPassword ? 0.5 : 1
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
