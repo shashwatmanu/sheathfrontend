@@ -9,7 +9,6 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import MuiTooltip from "@mui/material/Tooltip";
 
-// Separate component for navbar sparkles
 const NavbarSparkles = React.memo(() => (
   <div style={{
     position: "absolute",
@@ -32,7 +31,6 @@ const NavbarSparkles = React.memo(() => (
   </div>
 ));
 
-// Helper function for authenticated API calls
 const authenticatedFetch = async (url, options = {}) => {
   const token = localStorage.getItem('access_token');
   
@@ -63,6 +61,11 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState({});
+  
+  // Email verification state
+  const [verificationStatus, setVerificationStatus] = useState(null);
+  const [sendingVerification, setSendingVerification] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState("");
 
   const theme = {
     bg: darkMode ? "#0f172a" : "#ffffff",
@@ -72,7 +75,6 @@ export default function ProfilePage() {
     border: darkMode ? "#334155" : "#e0e0e0",
   };
 
-  // Check authentication on mount
   useEffect(() => {
     if (!isAuthenticated()) {
       console.log("[Profile] Not authenticated, redirecting to login");
@@ -82,27 +84,38 @@ export default function ProfilePage() {
       setUsername(user || "User");
       console.log("[Profile] Authenticated as:", user);
       fetchProfileData();
+      fetchVerificationStatus();
     }
   }, [router]);
+
+  const fetchVerificationStatus = async () => {
+    try {
+      const response = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/auth/verification-status`);
+      if (response.ok) {
+        const data = await response.json();
+        setVerificationStatus(data);
+        console.log("[Verification] Status:", data);
+      }
+    } catch (err) {
+      console.error("[Verification] Error fetching status:", err);
+    }
+  };
 
   const fetchProfileData = async () => {
     setLoading(true);
     setError("");
     
     try {
-      // Fetch user stats
       const statsRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/profile/stats`);
       if (!statsRes.ok) throw new Error("Failed to fetch stats");
       const statsData = await statsRes.json();
       setStats(statsData);
 
-      // Fetch daily activity
       const dailyRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/profile/daily?days=30`);
       if (!dailyRes.ok) throw new Error("Failed to fetch daily activity");
       const dailyData = await dailyRes.json();
       setDailyActivity(dailyData);
 
-      // Fetch recent activity
       const activityRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/profile/activity?limit=10`);
       if (!activityRes.ok) throw new Error("Failed to fetch activity");
       const activityData = await activityRes.json();
@@ -113,6 +126,37 @@ export default function ProfilePage() {
       setError(err.message || "Failed to load profile data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const sendVerificationEmail = async () => {
+    setSendingVerification(true);
+    setVerificationMessage("");
+    
+    try {
+      const response = await authenticatedFetch(
+        `${API_BASE.replace(/\/$/, "")}/auth/send-verification-email`,
+        { method: "POST" }
+      );
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        if (data.status === "success") {
+          setVerificationMessage("✅ Verification email sent! Check your inbox.");
+        } else if (data.status === "already_verified") {
+          setVerificationMessage("✅ Your email is already verified!");
+        } else {
+          setVerificationMessage("⚠️ Token generated but email not sent. Check server logs.");
+        }
+      } else {
+        setVerificationMessage(`❌ ${data.detail || "Failed to send verification email"}`);
+      }
+    } catch (err) {
+      console.error("[Verification] Error:", err);
+      setVerificationMessage("❌ Network error. Please try again.");
+    } finally {
+      setSendingVerification(false);
     }
   };
 
@@ -184,7 +228,6 @@ export default function ProfilePage() {
           </div>
           
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            {/* Back to Dashboard */}
             <MuiTooltip title="Back to Dashboard" arrow>
               <button
                 onClick={() => router.push("/dashboard")}
@@ -207,7 +250,6 @@ export default function ProfilePage() {
               </button>
             </MuiTooltip>
 
-            {/* View History */}
             <MuiTooltip title="View All History" arrow>
               <button
                 onClick={() => router.push("/dashboard/history")}
@@ -230,7 +272,6 @@ export default function ProfilePage() {
               </button>
             </MuiTooltip>
 
-            {/* Dark Mode Toggle */}
             <MuiTooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} arrow>
               <IconButton 
                 onClick={() => setDarkMode(!darkMode)}
@@ -246,7 +287,6 @@ export default function ProfilePage() {
               </IconButton>
             </MuiTooltip>
             
-            {/* Logout Button */}
             <MuiTooltip title="Logout" arrow>
               <IconButton 
                 onClick={handleLogout}
@@ -285,7 +325,6 @@ export default function ProfilePage() {
         boxSizing: "border-box"
       }}>
         
-        {/* Loading State */}
         {loading && (
           <div style={{
             textAlign: "center",
@@ -297,7 +336,6 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Error State */}
         {error && !loading && (
           <div style={{
             background: darkMode ? "#7f1d1d" : "#fef2f2",
@@ -331,10 +369,9 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Profile Content */}
         {!loading && !error && stats && (
           <>
-            {/* Header Card */}
+            {/* Header Card with Email Verification Badge */}
             <div style={{
               background: darkMode 
                 ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)" 
@@ -347,28 +384,115 @@ export default function ProfilePage() {
                 ? "0 8px 24px rgba(79, 70, 229, 0.3)" 
                 : "0 8px 24px rgba(102, 126, 234, 0.3)"
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-                <div style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 36
-                }}>
-                  👤
+              <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 36
+                  }}>
+                    👤
+                  </div>
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800 }}>{username}</h1>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 14, opacity: 0.9 }}>
+                      Member since {new Date(stats.last_activity || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800 }}>{username}</h1>
-                  <p style={{ margin: "4px 0 0 0", fontSize: 14, opacity: 0.9 }}>
-                    Member since {new Date(stats.last_activity || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </p>
-                </div>
+
+                {/* Email Verification Badge */}
+                {verificationStatus && verificationStatus.has_email && (
+                  <div style={{
+                    background: verificationStatus.email_verified 
+                      ? "rgba(16, 185, 129, 0.2)" 
+                      : "rgba(251, 191, 36, 0.2)",
+                    border: `2px solid ${verificationStatus.email_verified ? "#10b981" : "#fbbf24"}`,
+                    borderRadius: "12px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8
+                  }}>
+                    <span style={{ fontSize: 20 }}>
+                      {verificationStatus.email_verified ? "✅" : "⚠️"}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>
+                        {verificationStatus.email_verified ? "Email Verified" : "Email Not Verified"}
+                      </div>
+                      <div style={{ fontSize: 11, opacity: 0.9 }}>
+                        {verificationStatus.email}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Email Verification Section */}
+              {verificationStatus && verificationStatus.has_email && !verificationStatus.email_verified && (
+                <div style={{
+                  background: "rgba(251, 191, 36, 0.15)",
+                  border: "2px solid rgba(251, 191, 36, 0.4)",
+                  borderRadius: "12px",
+                  padding: "16px",
+                  marginTop: "16px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "start", gap: 12, marginBottom: 12 }}>
+                    <span style={{ fontSize: 24 }}>📧</span>
+                    <div style={{ flex: 1 }}>
+                      <Typography variant="body1" style={{ fontWeight: 600, marginBottom: 4 }}>
+                        Verify your email address
+                      </Typography>
+                      <Typography variant="body2" style={{ fontSize: 13, opacity: 0.9, marginBottom: 12 }}>
+                        We sent a verification link to <strong>{verificationStatus.email}</strong>. 
+                        Click the link in the email to verify your account.
+                      </Typography>
+                      
+                      <button
+                        onClick={sendVerificationEmail}
+                        disabled={sendingVerification}
+                        style={{
+                          padding: "10px 20px",
+                          background: sendingVerification ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.9)",
+                          color: "#5b21b6",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: sendingVerification ? "wait" : "pointer",
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          opacity: sendingVerification ? 0.7 : 1
+                        }}
+                      >
+                        {sendingVerification ? "⏳ Sending..." : "📤 Resend Verification Email"}
+                      </button>
+
+                      {verificationMessage && (
+                        <div style={{
+                          marginTop: 12,
+                          padding: "8px 12px",
+                          background: "rgba(255,255,255,0.2)",
+                          borderRadius: "6px",
+                          fontSize: "13px"
+                        }}>
+                          {verificationMessage}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Rest of the profile page remains the same... */}
             {/* Stats Grid */}
             <div style={{
               display: "grid",
@@ -376,7 +500,6 @@ export default function ProfilePage() {
               gap: "16px",
               marginBottom: "24px"
             }}>
-              {/* Total Reconciliations */}
               <div style={{
                 background: theme.cardBg,
                 padding: "24px",
@@ -393,7 +516,6 @@ export default function ProfilePage() {
                 </Typography>
               </div>
 
-              {/* This Week */}
               <div style={{
                 background: theme.cardBg,
                 padding: "24px",
@@ -410,7 +532,6 @@ export default function ProfilePage() {
                 </Typography>
               </div>
 
-              {/* This Month */}
               <div style={{
                 background: theme.cardBg,
                 padding: "24px",
@@ -427,7 +548,6 @@ export default function ProfilePage() {
                 </Typography>
               </div>
 
-              {/* Streak */}
               <div style={{
                 background: theme.cardBg,
                 padding: "24px",
@@ -547,7 +667,6 @@ export default function ProfilePage() {
                         border: `1px solid ${theme.border}`
                       }}
                     >
-                      {/* Header: Bank Type + TPA + Download */}
                       <div style={{ 
                         display: "flex", 
                         justifyContent: "space-between", 
@@ -594,7 +713,6 @@ export default function ProfilePage() {
                             {formatDate(activity.timestamp)}
                           </Typography>
                           
-                          {/* Download Button */}
                           <button
                             onClick={() => downloadZip(activity.run_id)}
                             disabled={downloading[activity.run_id]}
@@ -622,7 +740,6 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      {/* Row Counts */}
                       {activity.row_counts && Object.keys(activity.row_counts).length > 0 && (
                         <div style={{
                           display: "flex",
