@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Typography from "@mui/material/Typography";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -287,5 +287,54 @@ export default function VerifyEmailPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ 
+        background: "#ffffff",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px"
+      }}>
+        <div style={{
+          background: "#ffffff",
+          borderRadius: "16px",
+          padding: "48px 32px",
+          textAlign: "center",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.1)"
+        }}>
+          <div style={{ 
+            fontSize: "80px", 
+            marginBottom: "24px",
+            animation: "pulse 2s infinite"
+          }}>
+            ⏳
+          </div>
+          <Typography 
+            variant="h4" 
+            style={{ 
+              fontWeight: 700, 
+              color: "#000000", 
+              marginBottom: "16px" 
+            }}
+          >
+            Loading...
+          </Typography>
+          <style>{`
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.1); opacity: 0.8; }
+            }
+          `}</style>
+        </div>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
