@@ -1199,6 +1199,10 @@ export default function Home() {
                 <div style={{ opacity: 0.9 }}>Bank Types</div>
               </div>
               <div>
+                <div style={{ fontSize: "32px", fontWeight: "bold" }}>10+</div>
+                <div style={{ opacity: 0.9 }}>TPAs</div>
+              </div>
+              <div>
                 <div style={{ fontSize: "32px", fontWeight: "bold" }}>100%</div>
                 <div style={{ opacity: 0.9 }}>Automated</div>
               </div>

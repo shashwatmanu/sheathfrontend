@@ -9,6 +9,22 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import MuiTooltip from "@mui/material/Tooltip";
 
+const PowerIcon = () => (
+  <svg 
+    width="20" 
+    height="20" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+    <line x1="12" y1="2" x2="12" y2="12"></line>
+  </svg>
+);
+
 const NavbarSparkles = React.memo(() => (
   <div style={{
     position: "absolute",
@@ -359,18 +375,18 @@ export default function ProfilePage() {
             </MuiTooltip>
             
             <MuiTooltip title="Logout" arrow>
-              <IconButton 
-                onClick={handleLogout}
-                style={{ 
-                  color: "white",
-                  background: "rgba(255,0,0,0.2)",
-                  padding: "8px",
-                  width: "40px",
-                  height: "40px"
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>🚪</span>
-              </IconButton>
+            <IconButton 
+              onClick={handleLogout}
+              style={{ 
+                color: "white",
+                background: "rgba(255,0,0,0.2)",
+                padding: "8px",
+                width: "40px",
+                height: "40px"
+              }}
+            >
+              <PowerIcon />
+            </IconButton>
             </MuiTooltip>
           </div>
         </nav>
