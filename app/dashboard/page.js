@@ -494,7 +494,7 @@ export default function Home() {
   const [username, setUsername] = useState("");
 
   const [darkMode, setDarkMode] = useState(false);
-  const [bankType, setBankType] = useState("ICICI");
+  const [bankType, setBankType] = useState("Standard Chartered");
   const [bankFile, setBankFile] = useState(null);
   const [advanceFile, setAdvanceFile] = useState(null);
   const [tpaName, setTpaName] = useState("");
@@ -910,7 +910,7 @@ export default function Home() {
     setActiveStep(0); 
     setError(""); 
     setFileResetKey((k) => k + 1); 
-    setBankType("ICICI");
+    setBankType("Standard Chartered");
     if (tpaChoices.length > 0) setTpaName(tpaChoices[0]);
   };
 
@@ -939,11 +939,11 @@ export default function Home() {
     return false;
   }, [activeStep, bankFile, advanceFile, misFile, outstandingFile, tpaName, stepResults]);
 
-  const bankShadowColor = bankType === "ICICI" 
+  const bankShadowColor = bankType === "Standard Chartered"
+    ? "rgba(0,114,206,0.2)"
+    : bankType === "ICICI" 
     ? "rgba(191,42,42,0.2)" 
-    : bankType === "AXIS"
-    ? "rgba(135,31,66,0.25)"
-    : "rgba(0,114,206,0.2)";
+    : "rgba(135,31,66,0.25)";
 
   const getFileAccept = () => {
     if (activeStep === 0) {
@@ -1272,7 +1272,7 @@ export default function Home() {
                       sx: {
                         '&.Mui-completed': { color: '#10b981' },
                         '&.Mui-active': { 
-                          color: bankType === "ICICI" ? "#bf2a2a" : bankType === "AXIS" ? "#871f42" : "#0072ce",
+                          color: bankType === "Standard Chartered" ? "#0072ce" : bankType === "ICICI" ? "#bf2a2a" : "#871f42",
                           transform: 'scale(1.1)'
                         },
                         '&.MuiStepIcon-root': {
@@ -1342,7 +1342,7 @@ export default function Home() {
                   </Tooltip>
                 </div>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  {["ICICI", "AXIS", "Standard Chartered"].map((bank) => (
+                  {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
                     <div 
                       key={bank} 
                       onClick={() => setBankType(bank)} 
@@ -1350,9 +1350,9 @@ export default function Home() {
                         cursor: "pointer",
                         padding: "12px 28px",
                         borderRadius: "20px",
-                        border: `2px solid ${bankType === bank ? (bank === "ICICI" ? "#bf2a2a" : bank === "AXIS" ? "#871f42" : "#0072ce") : (darkMode ? "#475569" : "#ccc")}`,
+                        border: `2px solid ${bankType === bank ? (bank === "Standard Chartered" ? "#0072ce" : bank === "ICICI" ? "#bf2a2a" : "#871f42") : (darkMode ? "#475569" : "#ccc")}`,
                         background: bankType === bank 
-                          ? `${bank === "ICICI" ? "#ffe6eb" : bank === "AXIS" ? "#fbeaf0" : "#e6f2ff"}` 
+                          ? `${bank === "Standard Chartered" ? "#e6f2ff" : bank === "ICICI" ? "#ffe6eb" : "#fbeaf0"}` 
                           : (darkMode ? "#334155" : "#f8f8f8"),
                         color: bankType === bank ? "#000" : theme.text,
                         fontWeight: 600,
@@ -1365,11 +1365,11 @@ export default function Home() {
                   ))}
                 </div>
                 <small style={{ display: "block", marginTop: 10, color: theme.textSecondary, fontSize: "13px" }}>
-                  {bankType === "ICICI" 
+                  {bankType === "Standard Chartered"
+                    ? "📊 Standard Chartered: Format coming soon"
+                    : bankType === "ICICI" 
                     ? "📊 ICICI: Bank (Excel) + Advance (PDF)" 
-                    : bankType === "AXIS" 
-                    ? "📊 AXIS: Bank (PDF) + Advance (Excel)"
-                    : "📊 Standard Chartered: Format coming soon"}
+                    : "📊 AXIS: Bank (PDF) + Advance (Excel)"}
                 </small>
               </div>
 
