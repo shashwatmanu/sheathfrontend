@@ -166,7 +166,7 @@ function LoginFormContent() {
         </form>
 
         {/* Register link */}
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+        {/* <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
           Don't have an account?{" "}
           <a
             href="/auth/register"
@@ -174,7 +174,7 @@ function LoginFormContent() {
           >
             Register here
           </a>
-        </div>
+        </div> */}
 
 
       </motion.div>

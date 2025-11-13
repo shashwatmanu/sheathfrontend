@@ -941,11 +941,13 @@ export default function Home() {
 
   const bankShadowColor = bankType === "ICICI" 
     ? "rgba(191,42,42,0.2)" 
-    : "rgba(135,31,66,0.25)";
+    : bankType === "AXIS"
+    ? "rgba(135,31,66,0.25)"
+    : "rgba(0,114,206,0.2)";
 
   const getFileAccept = () => {
     if (activeStep === 0) {
-      if (bankType === "ICICI") {
+      if (bankType === "ICICI" || bankType === "Standard Chartered") {
         return {
           bank: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
           advance: ".pdf,application/pdf"
@@ -1195,7 +1197,7 @@ export default function Home() {
                 <div style={{ opacity: 0.9 }}>Simple Steps</div>
               </div>
               <div>
-                <div style={{ fontSize: "32px", fontWeight: "bold" }}>2</div>
+                <div style={{ fontSize: "32px", fontWeight: "bold" }}>3</div>
                 <div style={{ opacity: 0.9 }}>Bank Types</div>
               </div>
               <div>
@@ -1270,7 +1272,7 @@ export default function Home() {
                       sx: {
                         '&.Mui-completed': { color: '#10b981' },
                         '&.Mui-active': { 
-                          color: bankType === "ICICI" ? "#bf2a2a" : "#871f42",
+                          color: bankType === "ICICI" ? "#bf2a2a" : bankType === "AXIS" ? "#871f42" : "#0072ce",
                           transform: 'scale(1.1)'
                         },
                         '&.MuiStepIcon-root': {
@@ -1335,12 +1337,12 @@ export default function Home() {
                   <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
                     Select Bank Type
                   </label>
-                  <Tooltip title="Choose between ICICI (Bank=Excel, Advance=PDF) or AXIS (Bank=PDF, Advance=Excel)" arrow>
+                  <Tooltip title="Choose between ICICI (Bank=Excel, Advance=PDF), AXIS (Bank=PDF, Advance=Excel), or Standard Chartered (coming soon)" arrow>
                     <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
                   </Tooltip>
                 </div>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  {["ICICI", "AXIS"].map((bank) => (
+                  {["ICICI", "AXIS", "Standard Chartered"].map((bank) => (
                     <div 
                       key={bank} 
                       onClick={() => setBankType(bank)} 
@@ -1348,9 +1350,9 @@ export default function Home() {
                         cursor: "pointer",
                         padding: "12px 28px",
                         borderRadius: "20px",
-                        border: `2px solid ${bankType === bank ? (bank === "ICICI" ? "#bf2a2a" : "#871f42") : (darkMode ? "#475569" : "#ccc")}`,
+                        border: `2px solid ${bankType === bank ? (bank === "ICICI" ? "#bf2a2a" : bank === "AXIS" ? "#871f42" : "#0072ce") : (darkMode ? "#475569" : "#ccc")}`,
                         background: bankType === bank 
-                          ? `${bank === "ICICI" ? "#ffe6eb" : "#fbeaf0"}` 
+                          ? `${bank === "ICICI" ? "#ffe6eb" : bank === "AXIS" ? "#fbeaf0" : "#e6f2ff"}` 
                           : (darkMode ? "#334155" : "#f8f8f8"),
                         color: bankType === bank ? "#000" : theme.text,
                         fontWeight: 600,
@@ -1365,7 +1367,9 @@ export default function Home() {
                 <small style={{ display: "block", marginTop: 10, color: theme.textSecondary, fontSize: "13px" }}>
                   {bankType === "ICICI" 
                     ? "📊 ICICI: Bank (Excel) + Advance (PDF)" 
-                    : "📊 AXIS: Bank (PDF) + Advance (Excel)"}
+                    : bankType === "AXIS" 
+                    ? "📊 AXIS: Bank (PDF) + Advance (Excel)"
+                    : "📊 Standard Chartered: Format coming soon"}
                 </small>
               </div>
 
@@ -1403,7 +1407,7 @@ export default function Home() {
                     </Tooltip>
                   </div>
                   <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
-                    {bankType === "ICICI" ? "Excel (.xlsx)" : "PDF (.pdf)"}
+                    {bankType === "ICICI" || bankType === "Standard Chartered" ? "Excel (.xlsx)" : "PDF (.pdf)"}
                   </Typography>
                   
                   {bankFile ? (
@@ -1456,7 +1460,7 @@ export default function Home() {
                     </Tooltip>
                   </div>
                   <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
-                    {bankType === "ICICI" ? "PDF (.pdf)" : "Excel (.xlsx)"}
+                    {bankType === "ICICI" || bankType === "Standard Chartered" ? "PDF (.pdf)" : "Excel (.xlsx)"}
                   </Typography>
                   
                   {advanceFile ? (
