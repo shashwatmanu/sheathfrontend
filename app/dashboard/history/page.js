@@ -314,7 +314,7 @@ export default function HistoryPage() {
               📚 Reconciliation History
             </Typography>
             <Typography variant="body2" style={{ color: theme.textSecondary }}>
-              View and download your past reconciliations (auto-deleted after 30 days)
+              View and download your past reconciliations (auto-deleted after 40 days)
             </Typography>
           </div>
           
