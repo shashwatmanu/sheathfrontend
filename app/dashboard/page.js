@@ -24,6 +24,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
 import Collapse from "@mui/material/Collapse";
+import { useDarkMode } from "../../lib/dark-mode-context";
 
 // Separate component for navbar sparkles - won't re-render on state changes
 const NavbarSparkles = React.memo(() => (
@@ -492,8 +493,7 @@ export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const router = useRouter();
   const [username, setUsername] = useState("");
-
-  const [darkMode, setDarkMode] = useState(false);
+  const { darkMode, setDarkMode } = useDarkMode();
   const [bankType, setBankType] = useState("Standard Chartered");
   const [bankFile, setBankFile] = useState(null);
   const [advanceFile, setAdvanceFile] = useState(null);

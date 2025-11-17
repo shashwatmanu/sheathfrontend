@@ -7,6 +7,7 @@ import { SparklesCore } from "../../../components/ui/sparkles";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import MuiTooltip from "@mui/material/Tooltip";
+import { useDarkMode } from "../../../lib/dark-mode-context";
 
 const PowerIcon = () => (
   <svg 
@@ -59,7 +60,7 @@ export default function HistoryPage() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [darkMode, setDarkMode] = useState(false);
+  const { darkMode, setDarkMode } = useDarkMode();
   
   const [reconciliations, setReconciliations] = useState([]);
   const [loading, setLoading] = useState(true);

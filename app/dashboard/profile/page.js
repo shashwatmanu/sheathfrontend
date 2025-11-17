@@ -8,6 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import MuiTooltip from "@mui/material/Tooltip";
+import { useDarkMode } from "../../../lib/dark-mode-context";
 
 const PowerIcon = () => (
   <svg 
@@ -68,7 +69,7 @@ export default function ProfilePage() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [darkMode, setDarkMode] = useState(false);
+  const { darkMode, setDarkMode } = useDarkMode();
   
   // Profile data state
   const [stats, setStats] = useState(null);

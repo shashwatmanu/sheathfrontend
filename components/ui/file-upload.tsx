@@ -4,6 +4,19 @@ import { motion } from "motion/react";
 import { IconUpload, IconX } from "@tabler/icons-react";
 import { useDropzone } from "react-dropzone";
 
+const DARK_MODE_STORAGE_KEY = "sheath_dark_mode";
+
+const getStoredDarkModePreference = () => {
+  if (typeof window === "undefined") return false;
+  const storedPreference = window.localStorage.getItem(DARK_MODE_STORAGE_KEY);
+  return storedPreference === "true";
+};
+
+const DARK_BG = "#0f172a";
+const DARK_SURFACE = "#1e293b";
+const DARK_TILE_LIGHT = "#132038";
+const DARK_TILE_DARK = "#091427";
+
 const mainVariant = {
   initial: { x: 0, y: 0 },
   animate: { x: 20, y: -20, opacity: 0.9 },
@@ -18,13 +31,19 @@ export const FileUpload = ({
   onChange,
   accept,
   uploaderId, // 👈 expects a unique id per uploader instance
+  darkMode,
 }: {
   onChange?: (files: File[]) => void;
   accept?: string;
   uploaderId: string;
+  darkMode?: boolean;
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [effectiveDarkMode, setEffectiveDarkMode] = useState<boolean>(() => {
+    if (typeof darkMode === "boolean") return darkMode;
+    return getStoredDarkModePreference();
+  });
 
   const handleFileChange = (newFiles: File[]) => {
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
@@ -72,6 +91,38 @@ export const FileUpload = ({
     onDrop: handleFileChange,
   });
 
+  useEffect(() => {
+    if (typeof darkMode === "boolean") {
+      setEffectiveDarkMode(darkMode);
+      if (process.env.NODE_ENV !== "production") {
+        console.debug(`[FileUpload:${uploaderId}] darkMode prop provided:`, darkMode);
+      }
+      return;
+    }
+
+    const syncFromStorage = () => {
+      const storedPreference = getStoredDarkModePreference();
+      setEffectiveDarkMode(storedPreference);
+      if (process.env.NODE_ENV !== "production") {
+        console.debug(
+          `[FileUpload:${uploaderId}] darkMode prop missing, using stored value:`,
+          storedPreference
+        );
+      }
+    };
+
+    syncFromStorage();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === DARK_MODE_STORAGE_KEY) {
+        setEffectiveDarkMode(event.newValue === "true");
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [darkMode, uploaderId]);
+
   return (
     <div className="w-full" {...getRootProps()}>
       <motion.div
@@ -88,17 +139,27 @@ export const FileUpload = ({
         />
 
         {/* Hide grid pattern in dark mode */}
-        <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] dark:hidden">
-          <GridPattern />
+        <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">
+          <GridPattern darkMode={effectiveDarkMode} />
         </div>
 
         <div className="flex flex-col items-center justify-center">
           {/* Upload file label - darker in dark mode */}
-          <p className="relative z-20 font-bold text-neutral-700 dark:text-neutral-600 text-base">
+          <p
+            className={cn(
+              "relative z-20 font-bold text-base",
+              effectiveDarkMode ? "text-white" : "text-neutral-700"
+            )}
+          >
             Upload file
           </p>
           {/* Drag or drop text - darker in dark mode */}
-          <p className="relative z-20 text-neutral-700 dark:text-neutral-500 text-base mt-2">
+          <p
+            className={cn(
+              "relative z-20 text-base mt-3 mt-2",
+              effectiveDarkMode ? "text-neutral-500" : "text-neutral-700"
+            )}
+          >
             Drag or drop your files here or click to upload
           </p>
           <div className="relative w-full mt-10 max-w-xl mx-auto">
@@ -107,10 +168,13 @@ export const FileUpload = ({
                 <motion.div
                   key={`${uploaderId}-file-${idx}`}
                   layoutId={`${uploaderId}-file-${idx}`}
-                  className={cn(
-                    "relative overflow-hidden z-40 bg-white dark:bg-neutral-900 flex flex-col items-start justify-start md:h-24 p-4 mt-4 w-full mx-auto rounded-md",
-                    "shadow-sm"
-                  )}
+                   className={cn(
+                     "relative overflow-hidden z-40 flex flex-col items-start justify-start md:h-24 p-4 mt-4 w-full mx-auto rounded-md shadow-sm",
+                     !effectiveDarkMode && "bg-white"
+                   )}
+                   style={
+                     effectiveDarkMode ? { backgroundColor: DARK_SURFACE } : undefined
+                   }
                 >
                   {/* remove button */}
                   <button
@@ -119,10 +183,18 @@ export const FileUpload = ({
                       e.stopPropagation();
                       removeFile(idx);
                     }}
-                    className="absolute right-2 top-2 p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    className={cn(
+                      "absolute right-2 top-2 p-1 rounded-full",
+                      effectiveDarkMode ? "hover:bg-neutral-800" : "hover:bg-neutral-100"
+                    )}
                     aria-label={`Remove ${file.name}`}
                   >
-                    <IconX className="w-4 h-4 text-neutral-500 dark:text-neutral-400" />
+                    <IconX
+                      className={cn(
+                        "w-4 h-4",
+                        effectiveDarkMode ? "text-neutral-400" : "text-neutral-500"
+                      )}
+                    />
                   </button>
 
                   <div className="flex justify-between w-full items-center gap-4">
@@ -130,7 +202,10 @@ export const FileUpload = ({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       layout
-                      className="text-base text-neutral-700 dark:text-neutral-300 truncate max-w-xs"
+                      className={cn(
+                        "text-base truncate max-w-xs",
+                        effectiveDarkMode ? "text-neutral-300" : "text-neutral-700"
+                      )}
                     >
                       {file.name}
                     </motion.p>
@@ -138,18 +213,35 @@ export const FileUpload = ({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       layout
-                      className="rounded-lg px-2 py-1 w-fit shrink-0 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-white shadow-input"
+                       className={cn(
+                         "rounded-lg px-2 py-1 w-fit shrink-0 text-sm shadow-input",
+                         effectiveDarkMode ? "text-white" : "text-neutral-600 bg-neutral-100"
+                       )}
+                       style={
+                         effectiveDarkMode ? { backgroundColor: DARK_TILE_LIGHT } : undefined
+                       }
                     >
                       {(file.size / (1024 * 1024)).toFixed(2)} MB
                     </motion.p>
                   </div>
 
-                  <div className="flex text-sm md:flex-row flex-col items-start md:items-center w-full mt-2 justify-between text-neutral-600 dark:text-neutral-400">
+                  <div
+                    className={cn(
+                      "flex text-sm md:flex-row flex-col items-start md:items-center w-full mt-2 justify-between",
+                      effectiveDarkMode ? "text-neutral-300" : "text-neutral-600"
+                    )}
+                  >
                     <motion.p
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       layout
-                      className="px-1 py-0.5 rounded-md bg-gray-100 dark:bg-neutral-800"
+                      className={cn(
+                        "px-1 py-0.5 rounded-md",
+                        effectiveDarkMode ? "text-white" : "text-neutral-700 bg-gray-100"
+                      )}
+                      style={
+                        effectiveDarkMode ? { backgroundColor: DARK_TILE_LIGHT } : undefined
+                      }
                     >
                       {file.type}
                     </motion.p>
@@ -166,22 +258,38 @@ export const FileUpload = ({
                 layoutId={`${uploaderId}-empty`}
                 variants={mainVariant}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={cn(
-                  "relative group-hover/file:shadow-2xl z-40 bg-white dark:bg-neutral-900 flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md",
-                  "shadow-[0px_10px_50px_rgba(0,0,0,0.1)]"
-                )}
+                 className={cn(
+                   "relative group-hover/file:shadow-2xl z-40 flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md shadow-[0px_10px_50px_rgba(0,0,0,0.1)]",
+                   !effectiveDarkMode && "bg-white"
+                 )}
+                 style={
+                   effectiveDarkMode ? { backgroundColor: DARK_SURFACE } : undefined
+                 }
               >
                 {isDragActive ? (
                   <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-neutral-600 dark:text-neutral-500 flex flex-col items-center"
+                    className={cn(
+                      "flex flex-col items-center",
+                      effectiveDarkMode ? "text-neutral-500" : "text-neutral-600"
+                    )}
                   >
                     Drop it
-                    <IconUpload className="h-4 w-4 text-neutral-600 dark:text-neutral-500" />
+                    <IconUpload
+                      className={cn(
+                        "h-4 w-4",
+                        effectiveDarkMode ? "text-neutral-500" : "text-neutral-600"
+                      )}
+                    />
                   </motion.p>
                 ) : (
-                  <IconUpload className="h-4 w-4 text-neutral-600 dark:text-neutral-500" />
+                  <IconUpload
+                    className={cn(
+                      "h-4 w-4",
+                      effectiveDarkMode ? "text-neutral-500" : "text-neutral-600"
+                    )}
+                  />
                 )}
               </motion.div>
             )}
@@ -199,22 +307,45 @@ export const FileUpload = ({
   );
 };
 
-export function GridPattern() {
+export function GridPattern({ darkMode = false }: { darkMode?: boolean }) {
   const columns = 41;
   const rows = 11;
   return (
-    <div className="flex bg-gray-100 dark:bg-neutral-900 shrink-0 flex-wrap justify-center items-center gap-x-px gap-y-px scale-105">
+    <div
+      className={cn(
+        "grid shrink-0 justify-center items-center gap-x-px gap-y-px scale-105",
+        !darkMode && "bg-gray-100"
+      )}
+      style={{
+        backgroundColor: darkMode ? DARK_BG : undefined,
+        gridTemplateColumns: `repeat(${columns}, 2.5rem)`,
+      }}
+    >
       {Array.from({ length: rows }).map((_, row) =>
         Array.from({ length: columns }).map((_, col) => {
-          const index = row * columns + col;
+          const isEven = (row + col) % 2 === 0;
           return (
             <div
               key={`${col}-${row}`}
-              className={`w-10 h-10 flex shrink-0 rounded-[2px] ${
-                index % 2 === 0
-                  ? "bg-gray-50 dark:bg-neutral-950"
-                  : "bg-black-50 dark:bg-neutral-950 shadow-[0px_0px_1px_3px_rgba(255,255,255,1)_inset] dark:shadow-[0px_0px_1px_3px_rgba(0,0,0,1)_inset]"
-              }`}
+              className={cn(
+                "w-10 h-10 flex shrink-0 rounded-[2px]",
+                !darkMode &&
+                  cn(
+                    isEven
+                      ? "bg-gray-50"
+                      : "bg-black-50 shadow-[0px_0px_1px_3px_rgba(255,255,255,1)_inset]"
+                  )
+              )}
+              style={
+                darkMode
+                  ? {
+                      backgroundColor: isEven ? DARK_TILE_LIGHT : DARK_TILE_DARK,
+                      boxShadow: !isEven
+                        ? "0px 0px 1px 3px rgba(8, 14, 24, 0.65) inset"
+                        : undefined,
+                    }
+                  : undefined
+              }
             />
           );
         })
