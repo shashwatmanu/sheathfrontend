@@ -947,17 +947,10 @@ export default function Home() {
 
   const getFileAccept = () => {
     if (activeStep === 0) {
-      if (bankType === "ICICI" || bankType === "Standard Chartered") {
-        return {
-          bank: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
-          advance: ".pdf,application/pdf,.xlsx,.xls,.xlsm"
-        };
-      } else {
-        return {
-          bank: ".pdf,application/pdf",
-          advance: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-        };
-      }
+      return {
+        bank: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
+        advance: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+      };
     }
     return {
       mis: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
@@ -1303,7 +1296,7 @@ export default function Home() {
                       <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
                         Select Bank Type
                       </label>
-                      <Tooltip title="Choose between ICICI (Bank=Excel, Advance=PDF), AXIS (Bank=PDF, Advance=Excel), or Standard Chartered (coming soon)" arrow>
+                      <Tooltip title="Choose between ICICI, AXIS, or Standard Chartered (coming soon)" arrow>
                         <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
                       </Tooltip>
                     </div>
@@ -1354,12 +1347,12 @@ export default function Home() {
                             <div style={{ marginTop: "auto", position: "relative", zIndex: 10 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "rgba(255,255,255,0.9)" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                  {bank === "AXIS" ? <FileText size={12} /> : <FileSpreadsheet size={12} />}
+                                  {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
                                   <span>Bank</span>
                                 </div>
                                 <span style={{ opacity: 0.5 }}>+</span>
                                 <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                  {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileText size={12} />}
+                                  {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
                                   <span>Advance</span>
                                 </div>
                               </div>
@@ -1381,11 +1374,7 @@ export default function Home() {
                       ))}
                     </div>
                     <small style={{ display: "block", marginTop: 10, color: theme.textSecondary, fontSize: "13px" }}>
-                      {bankType === "Standard Chartered"
-                        ? "📊 Standard Chartered: Format coming soon"
-                        : bankType === "ICICI"
-                          ? "📊 ICICI: Bank (Excel) + Advance (PDF)"
-                          : "📊 AXIS: Bank (PDF) + Advance (Excel)"}
+                      {bankType === "Standard Chartered" ? "📊 Standard Chartered: Format coming soon" : null}
                     </small>
                   </div>
 
@@ -1402,7 +1391,7 @@ export default function Home() {
                           <div>
                             <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statement</h3>
                             <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                              {bankType === "ICICI" || bankType === "Standard Chartered" ? "Excel (.xlsx)" : "PDF (.pdf)"}
+                              Excel (.xlsx)
                             </p>
                           </div>
                         </div>
@@ -1455,7 +1444,7 @@ export default function Home() {
                           <div>
                             <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Advance Statement</h3>
                             <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                              {bankType === "ICICI" || bankType === "Standard Chartered" ? "PDF (.pdf)" : "Excel (.xlsx)"}
+                              Excel (.xlsx)
                             </p>
                           </div>
                         </div>
