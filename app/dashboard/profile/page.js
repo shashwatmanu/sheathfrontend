@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isAuthenticated, logout, getUsername } from "../../../lib/auth";
 import { SparklesCore } from "../../../components/ui/sparkles";
+import { WobbleCard } from "../../../components/ui/wobble-card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -11,14 +12,14 @@ import MuiTooltip from "@mui/material/Tooltip";
 import { useDarkMode } from "../../../lib/dark-mode-context";
 
 const PowerIcon = () => (
-  <svg 
-    width="20" 
-    height="20" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
     strokeLinejoin="round"
   >
     <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
@@ -36,13 +37,13 @@ const NavbarSparkles = React.memo(() => (
     pointerEvents: "none",
     zIndex: 1
   }}>
-    <SparklesCore 
-      id="navbar-sparkles" 
-      background="transparent" 
-      minSize={0.1} 
-      maxSize={0.8} 
-      particleDensity={100} 
-      className="w-full h-full" 
+    <SparklesCore
+      id="navbar-sparkles"
+      background="transparent"
+      minSize={0.1}
+      maxSize={0.8}
+      particleDensity={100}
+      className="w-full h-full"
       particleColor="#FFFFFF"
     />
   </div>
@@ -50,15 +51,15 @@ const NavbarSparkles = React.memo(() => (
 
 const authenticatedFetch = async (url, options = {}) => {
   const token = localStorage.getItem('access_token');
-  
+
   const headers = {
     ...options.headers,
   };
-  
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   return fetch(url, {
     ...options,
     headers: headers,
@@ -70,7 +71,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const { darkMode, setDarkMode } = useDarkMode();
-  
+
   // Profile data state
   const [stats, setStats] = useState(null);
   const [dailyActivity, setDailyActivity] = useState([]);
@@ -78,7 +79,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState({});
-  
+
   // Change password state
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -87,7 +88,7 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-  
+
   // Email verification state
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [sendingVerification, setSendingVerification] = useState(false);
@@ -131,7 +132,7 @@ export default function ProfilePage() {
   const fetchProfileData = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const statsRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/profile/stats`);
       if (!statsRes.ok) throw new Error("Failed to fetch stats");
@@ -159,15 +160,15 @@ export default function ProfilePage() {
   const sendVerificationEmail = async () => {
     setSendingVerification(true);
     setVerificationMessage("");
-    
+
     try {
       const response = await authenticatedFetch(
         `${API_BASE.replace(/\/$/, "")}/auth/send-verification-email`,
         { method: "POST" }
       );
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         if (data.status === "success") {
           setVerificationMessage("✅ Verification email sent! Check your inbox.");
@@ -189,16 +190,16 @@ export default function ProfilePage() {
 
   const downloadZip = async (runId) => {
     setDownloading(prev => ({ ...prev, [runId]: true }));
-    
+
     try {
       const response = await authenticatedFetch(
         `${API_BASE.replace(/\/$/, "")}/reconciliations/${runId}/download-zip`
       );
-      
+
       if (!response.ok) {
         throw new Error("Download failed");
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -220,30 +221,30 @@ export default function ProfilePage() {
     e.preventDefault();
     setPasswordError("");
     setPasswordSuccess("");
-    
+
     // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordError("All fields are required");
       return;
     }
-    
+
     if (newPassword.length < 6) {
       setPasswordError("New password must be at least 6 characters");
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setPasswordError("New passwords do not match");
       return;
     }
-    
+
     setChangingPassword(true);
-    
+
     try {
       const formData = new FormData();
       formData.append("current_password", currentPassword);
       formData.append("new_password", newPassword);
-      
+
       const response = await authenticatedFetch(
         `${API_BASE.replace(/\/$/, "")}/auth/change-password`,
         {
@@ -251,24 +252,24 @@ export default function ProfilePage() {
           body: formData
         }
       );
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.detail || "Failed to change password");
       }
-      
+
       setPasswordSuccess("Password changed successfully!");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      
+
       // Close modal after 2 seconds
       setTimeout(() => {
         setPasswordModalOpen(false);
         setPasswordSuccess("");
       }, 2000);
-      
+
     } catch (err) {
       console.error("[Change Password] Error:", err);
       setPasswordError(err.message || "Failed to change password");
@@ -285,25 +286,33 @@ export default function ProfilePage() {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   return (
-    <div style={{ 
+    <div style={{
       background: theme.bg,
       minHeight: "100vh",
       transition: "background 0.3s ease"
     }}>
       {/* Navbar */}
       <div style={{ position: "relative", overflow: "hidden", height: "60px", isolation: "isolate" }}>
-        <nav style={{ 
-          background: darkMode ? "#0f172a" : "#111111", 
-          color: "#fff", 
-          padding: "12px 24px", 
-          borderRadius: "0 0 6px 6px", 
-          display: "flex", 
-          justifyContent: "space-between", 
-          alignItems: "center", 
+        <nav style={{
+          background: darkMode ? "#0f172a" : "#111111",
+          color: "#fff",
+          padding: "12px 24px",
+          borderRadius: "0 0 6px 6px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           height: "100%",
           position: "relative",
           zIndex: 10
@@ -314,7 +323,7 @@ export default function ProfilePage() {
               <p style={{ fontSize: "10px", fontWeight: "bold", margin: 0 }}>User Profile</p>
             </div>
           </div>
-          
+
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <MuiTooltip title="Back to Dashboard" arrow>
               <button
@@ -361,9 +370,9 @@ export default function ProfilePage() {
             </MuiTooltip>
 
             <MuiTooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} arrow>
-              <IconButton 
+              <IconButton
                 onClick={() => setDarkMode(!darkMode)}
-                style={{ 
+                style={{
                   color: "white",
                   background: "rgba(255,255,255,0.1)",
                   padding: "8px",
@@ -374,24 +383,24 @@ export default function ProfilePage() {
                 <span style={{ fontSize: "20px" }}>{darkMode ? "☀️" : "🌙"}</span>
               </IconButton>
             </MuiTooltip>
-            
+
             <MuiTooltip title="Logout" arrow>
-            <IconButton 
-              onClick={handleLogout}
-              style={{ 
-                color: "white",
-                background: "rgba(255,0,0,0.2)",
-                padding: "8px",
-                width: "40px",
-                height: "40px"
-              }}
-            >
-              <PowerIcon />
-            </IconButton>
+              <IconButton
+                onClick={handleLogout}
+                style={{
+                  color: "white",
+                  background: "rgba(255,0,0,0.2)",
+                  padding: "8px",
+                  width: "40px",
+                  height: "40px"
+                }}
+              >
+                <PowerIcon />
+              </IconButton>
             </MuiTooltip>
           </div>
         </nav>
-        
+
         <div style={{
           position: "absolute",
           top: 0,
@@ -405,14 +414,14 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <main style={{ 
-        margin: "0 auto", 
+      <main style={{
+        margin: "0 auto",
         maxWidth: "1200px",
         width: "100%",
         padding: "24px 16px",
         boxSizing: "border-box"
       }}>
-        
+
         {loading && (
           <div style={{
             textAlign: "center",
@@ -461,15 +470,15 @@ export default function ProfilePage() {
           <>
             {/* Header Card with Email Verification Badge */}
             <div style={{
-              background: darkMode 
-                ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)" 
+              background: darkMode
+                ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
                 : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               padding: "32px",
               borderRadius: "16px",
               marginBottom: "24px",
               color: "white",
-              boxShadow: darkMode 
-                ? "0 8px 24px rgba(79, 70, 229, 0.3)" 
+              boxShadow: darkMode
+                ? "0 8px 24px rgba(79, 70, 229, 0.3)"
                 : "0 8px 24px rgba(102, 126, 234, 0.3)"
             }}>
               <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
@@ -530,8 +539,8 @@ export default function ProfilePage() {
                   {/* Email Verification Badge */}
                   {verificationStatus && verificationStatus.has_email && (
                     <div style={{
-                      background: verificationStatus.email_verified 
-                        ? "rgba(16, 185, 129, 0.2)" 
+                      background: verificationStatus.email_verified
+                        ? "rgba(16, 185, 129, 0.2)"
                         : "rgba(251, 191, 36, 0.2)",
                       border: `2px solid ${verificationStatus.email_verified ? "#10b981" : "#fbbf24"}`,
                       borderRadius: "12px",
@@ -572,10 +581,10 @@ export default function ProfilePage() {
                         Verify your email address
                       </Typography>
                       <Typography variant="body2" style={{ fontSize: 13, opacity: 0.9, marginBottom: 12 }}>
-                        We sent a verification link to <strong>{verificationStatus.email}</strong>. 
+                        We sent a verification link to <strong>{verificationStatus.email}</strong>.
                         Click the link in the email to verify your account.
                       </Typography>
-                      
+
                       <button
                         onClick={sendVerificationEmail}
                         disabled={sendingVerification}
@@ -615,119 +624,117 @@ export default function ProfilePage() {
             </div>
 
             {/* Rest of the profile page remains the same... */}
-            {/* Stats Grid */}
+            {/* Stats Grid with WobbleCards */}
             <div style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: "16px",
-              marginBottom: "24px"
+              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gap: "20px",
+              marginBottom: "32px"
             }}>
-              <div style={{
-                background: theme.cardBg,
-                padding: "24px",
-                borderRadius: "12px",
-                border: `1px solid ${theme.border}`,
-                boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)"
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
-                <Typography variant="h4" style={{ fontWeight: 700, color: theme.text, marginBottom: 4 }}>
-                  {stats.total_reconciliations}
-                </Typography>
-                <Typography variant="body2" style={{ color: theme.textSecondary }}>
-                  Total Reconciliations
-                </Typography>
-              </div>
+              <WobbleCard
+                containerClassName="col-span-1 h-full bg-pink-800 min-h-[200px]"
+                className=""
+              >
+                <div className="max-w-xs">
+                  <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
+                    {stats.total_reconciliations}
+                  </h2>
+                  <p className="mt-4 text-left  text-base/6 text-neutral-200">
+                    Total Reconciliations
+                  </p>
+                </div>
+              </WobbleCard>
 
-              <div style={{
-                background: theme.cardBg,
-                padding: "24px",
-                borderRadius: "12px",
-                border: `1px solid ${theme.border}`,
-                boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)"
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
-                <Typography variant="h4" style={{ fontWeight: 700, color: theme.text, marginBottom: 4 }}>
+              <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-blue-900">
+                <h2 className="max-w-80  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
                   {stats.this_week}
-                </Typography>
-                <Typography variant="body2" style={{ color: theme.textSecondary }}>
-                  This Week
-                </Typography>
-              </div>
+                </h2>
+                <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
+                  Reconciliations This Week
+                </p>
+              </WobbleCard>
 
-              <div style={{
-                background: theme.cardBg,
-                padding: "24px",
-                borderRadius: "12px",
-                border: `1px solid ${theme.border}`,
-                boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)"
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>📆</div>
-                <Typography variant="h4" style={{ fontWeight: 700, color: theme.text, marginBottom: 4 }}>
+              <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-indigo-800">
+                <h2 className="max-w-80  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
                   {stats.this_month}
-                </Typography>
-                <Typography variant="body2" style={{ color: theme.textSecondary }}>
-                  This Month
-                </Typography>
-              </div>
+                </h2>
+                <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
+                  Reconciliations This Month
+                </p>
+              </WobbleCard>
 
-              <div style={{
-                background: theme.cardBg,
-                padding: "24px",
-                borderRadius: "12px",
-                border: `1px solid ${theme.border}`,
-                boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)"
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🔥</div>
-                <Typography variant="h4" style={{ fontWeight: 700, color: theme.text, marginBottom: 4 }}>
-                  {stats.current_streak}
-                </Typography>
-                <Typography variant="body2" style={{ color: theme.textSecondary }}>
-                  Day Streak
-                </Typography>
-              </div>
+              <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-emerald-900">
+                <h2 className="max-w-80  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
+                  {stats.current_streak} Days
+                </h2>
+                <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
+                  Current Streak 🔥
+                </p>
+              </WobbleCard>
             </div>
 
             {/* Activity Chart */}
             <div style={{
-              background: theme.cardBg,
-              padding: "24px",
-              borderRadius: "12px",
-              border: `1px solid ${theme.border}`,
-              boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
-              marginBottom: "24px"
+              background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
+              backdropFilter: "blur(12px)",
+              padding: "32px",
+              borderRadius: "24px",
+              border: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+              boxShadow: darkMode ? "0 4px 20px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.05)",
+              marginBottom: "32px"
             }}>
-              <Typography variant="h6" style={{ fontWeight: 700, color: theme.text, marginBottom: 16 }}>
+              <Typography variant="h6" style={{ fontWeight: 700, color: theme.text, marginBottom: 24, fontSize: 20 }}>
                 📈 Activity (Last 30 Days)
               </Typography>
-              
+
               {dailyActivity.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={dailyActivity}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.border} />
-                    <XAxis 
-                      dataKey="date" 
+                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} vertical={false} />
+                    <XAxis
+                      dataKey="date"
                       stroke={theme.textSecondary}
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
                       tickFormatter={(value) => {
                         const date = new Date(value);
-                        return `${date.getMonth() + 1}/${date.getDate()}`;
+                        return `${date.getDate()}/${date.getMonth() + 1}`;
                       }}
+                      dy={10}
                     />
-                    <YAxis 
-                      stroke={theme.textSecondary} 
-                      tick={{ fontSize: 11 }}
+                    <YAxis
+                      stroke={theme.textSecondary}
+                      tick={{ fontSize: 12 }}
                       allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      dx={-10}
                     />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
-                        background: theme.cardBg,
+                        background: darkMode ? "#1e293b" : "#ffffff",
                         border: `1px solid ${theme.border}`,
-                        borderRadius: 8,
-                        color: theme.text
+                        borderRadius: 12,
+                        color: theme.text,
+                        boxShadow: "0 4px 20px rgba(0,0,0,0.1)"
                       }}
-                      labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                      cursor={{ fill: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
+                      labelFormatter={(value) => new Date(value).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     />
-                    <Bar dataKey="count" fill="#667eea" radius={[8, 8, 0, 0]} />
+                    <Bar
+                      dataKey="count"
+                      fill="url(#colorCount)"
+                      radius={[6, 6, 0, 0]}
+                      barSize={40}
+                    >
+                      <defs>
+                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#818cf8" stopOpacity={0.8} />
+                        </linearGradient>
+                      </defs>
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -739,155 +746,165 @@ export default function ProfilePage() {
             </div>
 
             {/* Recent Activity with Download */}
+            {/* Recent Activity with Download */}
             <div style={{
-              background: theme.cardBg,
-              padding: "24px",
-              borderRadius: "12px",
-              border: `1px solid ${theme.border}`,
-              boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)"
+              background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
+              backdropFilter: "blur(12px)",
+              padding: "32px",
+              borderRadius: "24px",
+              border: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+              boxShadow: darkMode ? "0 4px 20px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.05)"
             }}>
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center", 
-                marginBottom: 16,
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 24,
                 flexWrap: "wrap",
                 gap: 12
               }}>
-                <Typography variant="h6" style={{ fontWeight: 700, color: theme.text }}>
+                <Typography variant="h6" style={{ fontWeight: 700, color: theme.text, fontSize: 20 }}>
                   📋 Recent Reconciliations
                 </Typography>
                 <button
                   onClick={() => router.push("/dashboard/history")}
                   style={{
-                    padding: "8px 16px",
-                    background: darkMode ? "#334155" : "#f3f4f6",
+                    padding: "10px 20px",
+                    background: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
                     color: theme.text,
                     border: "none",
-                    borderRadius: "8px",
+                    borderRadius: "12px",
                     cursor: "pointer",
                     fontSize: "14px",
                     fontWeight: 600,
                     display: "flex",
                     alignItems: "center",
-                    gap: 6
+                    gap: 6,
+                    transition: "all 0.2s"
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}
                 >
-                  View All →
+                  View All History →
                 </button>
               </div>
 
               {recentActivity.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {recentActivity.map((activity, idx) => (
-                    <div 
+                    <div
                       key={idx}
                       style={{
-                        padding: "16px",
-                        background: darkMode ? "#0f172a" : "#f8f9fa",
-                        borderRadius: "8px",
-                        border: `1px solid ${theme.border}`
+                        padding: "20px",
+                        background: darkMode ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
+                        borderRadius: "16px",
+                        border: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+                        transition: "transform 0.2s",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = "translateX(4px)"}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = "translateX(0)"}
                     >
-                      <div style={{ 
-                        display: "flex", 
-                        justifyContent: "space-between", 
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
                         alignItems: "center",
-                        marginBottom: 12,
+                        marginBottom: 16,
                         flexWrap: "wrap",
-                        gap: 8
+                        gap: 12
                       }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
                           <div style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: "50%",
-                            background: activity.bank_type === "ICICI" 
-                              ? "linear-gradient(135deg, #bf2a2a, #e63946)" 
+                            width: 40,
+                            height: 40,
+                            borderRadius: "12px",
+                            background: activity.bank_type === "ICICI"
+                              ? "linear-gradient(135deg, #bf2a2a, #e63946)"
                               : "linear-gradient(135deg, #871f42, #be185d)",
                             color: "white",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             fontWeight: 700,
-                            fontSize: 12
+                            fontSize: 14,
+                            boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
                           }}>
-                            ✓
+                            {activity.bank_type.substring(0, 2)}
                           </div>
                           <div>
-                            <Typography variant="body1" style={{ fontWeight: 700, color: theme.text, fontSize: 15 }}>
+                            <Typography variant="body1" style={{ fontWeight: 700, color: theme.text, fontSize: 16 }}>
                               {activity.bank_type} Reconciliation
                             </Typography>
-                            {activity.tpa_name && (
-                              <Typography variant="body2" style={{ color: theme.textSecondary, fontSize: 12 }}>
-                                TPA: {activity.tpa_name}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                              <Typography variant="body2" style={{ color: theme.textSecondary, fontSize: 13 }}>
+                                {formatDate(activity.timestamp)}
                               </Typography>
-                            )}
+                              {activity.tpa_name && (
+                                <>
+                                  <span style={{ color: theme.textSecondary }}>•</span>
+                                  <Typography variant="body2" style={{ color: theme.textSecondary, fontSize: 13 }}>
+                                    {activity.tpa_name}
+                                  </Typography>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <Typography variant="body2" style={{ 
-                            color: theme.textSecondary, 
-                            fontSize: 12,
-                            fontWeight: 500
-                          }}>
-                            {formatDate(activity.timestamp)}
-                          </Typography>
-                          
-                          <button
-                            onClick={() => downloadZip(activity.run_id)}
-                            disabled={downloading[activity.run_id]}
-                            style={{
-                              padding: "6px 12px",
-                              background: downloading[activity.run_id] 
-                                ? (darkMode ? "#334155" : "#e5e7eb")
-                                : "#10b981",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "6px",
-                              cursor: downloading[activity.run_id] ? "wait" : "pointer",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
-                              opacity: downloading[activity.run_id] ? 0.6 : 1,
-                              whiteSpace: "nowrap"
-                            }}
-                          >
-                            {downloading[activity.run_id] ? "⏳" : "📦"}
-                            {downloading[activity.run_id] ? "..." : "ZIP"}
-                          </button>
-                        </div>
+
+                        <button
+                          onClick={() => downloadZip(activity.run_id)}
+                          disabled={downloading[activity.run_id]}
+                          style={{
+                            padding: "8px 16px",
+                            background: downloading[activity.run_id]
+                              ? (darkMode ? "#334155" : "#e5e7eb")
+                              : "linear-gradient(135deg, #10b981, #059669)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "10px",
+                            cursor: downloading[activity.run_id] ? "wait" : "pointer",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            opacity: downloading[activity.run_id] ? 0.6 : 1,
+                            whiteSpace: "nowrap",
+                            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)"
+                          }}
+                        >
+                          {downloading[activity.run_id] ? "⏳" : "📦"}
+                          {downloading[activity.run_id] ? "Downloading..." : "Download ZIP"}
+                        </button>
                       </div>
 
                       {activity.row_counts && Object.keys(activity.row_counts).length > 0 && (
                         <div style={{
                           display: "flex",
                           gap: 8,
-                          flexWrap: "wrap"
+                          flexWrap: "wrap",
+                          paddingTop: 12,
+                          borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`
                         }}>
                           {Object.entries(activity.row_counts).map(([key, value], i) => (
-                            <div 
+                            <div
                               key={i}
                               style={{
                                 padding: "4px 10px",
-                                background: darkMode ? "#1e293b" : "#ffffff",
-                                border: `1px solid ${theme.border}`,
+                                background: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
                                 borderRadius: "6px",
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: theme.text,
-                                fontWeight: 600,
+                                fontWeight: 500,
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 4
+                                gap: 6
                               }}
                             >
-                              <span style={{ color: theme.textSecondary, fontWeight: 500 }}>
+                              <span style={{ color: theme.textSecondary }}>
                                 {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
                               </span>
-                              <span style={{ color: "#10b981" }}>{value}</span>
+                              <span style={{ color: "#10b981", fontWeight: 700 }}>{value}</span>
                             </div>
                           ))}
                         </div>
@@ -923,16 +940,16 @@ export default function ProfilePage() {
           padding: "16px"
         }}>
           <div style={{
-            background: darkMode 
-              ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" 
+            background: darkMode
+              ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
               : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
             borderRadius: "24px",
             padding: "32px",
             maxWidth: "450px",
             width: "100%",
             border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
-            boxShadow: darkMode 
-              ? "0 20px 60px rgba(0,0,0,0.5)" 
+            boxShadow: darkMode
+              ? "0 20px 60px rgba(0,0,0,0.5)"
               : "0 20px 60px rgba(0,0,0,0.15)",
             position: "relative"
           }}>
@@ -967,8 +984,8 @@ export default function ProfilePage() {
             {/* Header */}
             <div style={{ marginBottom: "24px", textAlign: "center" }}>
               <div style={{ fontSize: "48px", marginBottom: "12px" }}>🔒</div>
-              <Typography variant="h5" style={{ 
-                fontWeight: 700, 
+              <Typography variant="h5" style={{
+                fontWeight: 700,
                 color: theme.text,
                 marginBottom: "8px"
               }}>
@@ -1084,7 +1101,7 @@ export default function ProfilePage() {
                   gap: "8px"
                 }}>
                   <span style={{ fontSize: "20px" }}>⚠️</span>
-                  <span style={{ 
+                  <span style={{
                     color: darkMode ? "#fecaca" : "#dc2626",
                     fontSize: "13px",
                     fontWeight: 600
@@ -1107,7 +1124,7 @@ export default function ProfilePage() {
                   gap: "8px"
                 }}>
                   <span style={{ fontSize: "20px" }}>✅</span>
-                  <span style={{ 
+                  <span style={{
                     color: darkMode ? "#d1fae5" : "#059669",
                     fontSize: "13px",
                     fontWeight: 600
