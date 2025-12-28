@@ -21,11 +21,14 @@
     "axios": "^1.12.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "face-api.js": "^0.22.2",
     "framer-motion": "^12.23.12",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.543.0",
     "motion": "^12.23.12",
     "next": "16.1.0",
+    "ogl": "^1.0.11",
+    "postprocessing": "^6.38.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
@@ -33,6 +36,7 @@
     "simplex-noise": "^4.0.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.182.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

@@ -5,49 +5,12 @@ import { useRouter } from "next/navigation";
 import { isAuthenticated, logout, getUsername } from "../../../lib/auth";
 import { SparklesCore } from "../../../components/ui/sparkles";
 import { WobbleCard } from "../../../components/ui/wobble-card";
+import { SparklesCard } from "../../../components/ui/sparkles-card";
+import { GlassCard } from "../../../components/ui/glass-card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
-import MuiTooltip from "@mui/material/Tooltip";
 import { useDarkMode } from "../../../lib/dark-mode-context";
-
-const PowerIcon = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-    <line x1="12" y1="2" x2="12" y2="12"></line>
-  </svg>
-);
-
-const NavbarSparkles = React.memo(() => (
-  <div style={{
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "100%",
-    pointerEvents: "none",
-    zIndex: 1
-  }}>
-    <SparklesCore
-      id="navbar-sparkles"
-      background="transparent"
-      minSize={0.1}
-      maxSize={0.8}
-      particleDensity={100}
-      className="w-full h-full"
-      particleColor="#FFFFFF"
-    />
-  </div>
-));
+import Lottie from "lottie-react";
 
 const authenticatedFetch = async (url, options = {}) => {
   const token = localStorage.getItem('access_token');
@@ -70,7 +33,15 @@ export default function ProfilePage() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const { darkMode, setDarkMode } = useDarkMode();
+  const { darkMode } = useDarkMode();
+  const [animationData, setAnimationData] = useState(null);
+
+  useEffect(() => {
+    fetch('/animations/loading.json')
+      .then(response => response.json())
+      .then(data => setAnimationData(data))
+      .catch(err => console.error('Failed to load animation:', err));
+  }, []);
 
   // Profile data state
   const [stats, setStats] = useState(null);
@@ -93,15 +64,6 @@ export default function ProfilePage() {
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [sendingVerification, setSendingVerification] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState("");
-
-  const theme = {
-    bg: darkMode ? "#0f172a" : "#ffffff",
-    cardBg: darkMode ? "#1e293b" : "#ffffff",
-    text: darkMode ? "#f1f5f9" : "#000000",
-    textSecondary: darkMode ? "#94a3b8" : "#666666",
-    border: darkMode ? "#334155" : "#e0e0e0",
-    inputBg: darkMode ? "#334155" : "#f8f8f8",
-  };
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -278,12 +240,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = () => {
-    console.log("[Profile] Logout clicked");
-    logout();
-    window.location.href = "/auth/login";
-  };
-
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString('en-IN', {
@@ -298,168 +254,33 @@ export default function ProfilePage() {
   };
 
   return (
-    <div style={{
-      background: theme.bg,
-      minHeight: "100vh",
-      transition: "background 0.3s ease"
-    }}>
-      {/* Navbar */}
-      <div style={{ position: "relative", overflow: "hidden", height: "60px", isolation: "isolate" }}>
-        <nav style={{
-          background: darkMode ? "#0f172a" : "#111111",
-          color: "#fff",
-          padding: "12px 24px",
-          borderRadius: "0 0 6px 6px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          height: "100%",
-          position: "relative",
-          zIndex: 10
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <h1 style={{ margin: 0, fontSize: 20, fontWeight: "bolder" }}>RGCIRC</h1>
-              <p style={{ fontSize: "10px", fontWeight: "bold", margin: 0 }}>User Profile</p>
-            </div>
-          </div>
+    <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950 transition-colors duration-300 relative overflow-hidden">
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <MuiTooltip title="Back to Dashboard" arrow>
-              <button
-                onClick={() => router.push("/dashboard")}
-                style={{
-                  padding: "8px 16px",
-                  background: "rgba(255,255,255,0.1)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
-              >
-                <span>←</span>
-                Dashboard
-              </button>
-            </MuiTooltip>
-
-            <MuiTooltip title="View All History" arrow>
-              <button
-                onClick={() => router.push("/dashboard/history")}
-                style={{
-                  padding: "8px 16px",
-                  background: "rgba(255,255,255,0.1)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
-              >
-                <span>📚</span>
-                History
-              </button>
-            </MuiTooltip>
-
-            <MuiTooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} arrow>
-              <IconButton
-                onClick={() => setDarkMode(!darkMode)}
-                style={{
-                  color: "white",
-                  background: "rgba(255,255,255,0.1)",
-                  padding: "8px",
-                  width: "40px",
-                  height: "40px"
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>{darkMode ? "☀️" : "🌙"}</span>
-              </IconButton>
-            </MuiTooltip>
-
-            <MuiTooltip title="Logout" arrow>
-              <IconButton
-                onClick={handleLogout}
-                style={{
-                  color: "white",
-                  background: "rgba(255,0,0,0.2)",
-                  padding: "8px",
-                  width: "40px",
-                  height: "40px"
-                }}
-              >
-                <PowerIcon />
-              </IconButton>
-            </MuiTooltip>
-          </div>
-        </nav>
-
-        <div style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "100%",
-          pointerEvents: "none",
-          zIndex: 5
-        }}>
-          <NavbarSparkles />
-        </div>
-      </div>
-
-      <main style={{
-        margin: "0 auto",
-        maxWidth: "1200px",
-        width: "100%",
-        padding: "24px 16px",
-        boxSizing: "border-box"
-      }}>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {loading && (
-          <div style={{
-            textAlign: "center",
-            padding: "48px",
-            color: theme.textSecondary
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-            <Typography variant="h6" style={{ color: theme.text }}>Loading profile...</Typography>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500 dark:text-slate-400">
+            <div className="w-48 h-48 mb-4">
+              {animationData && <Lottie animationData={animationData} loop={true} />}
+            </div>
+            <Typography variant="h6" className="text-slate-900 dark:text-slate-100 font-medium animate-pulse">
+              Loading profile...
+            </Typography>
           </div>
         )}
 
         {error && !loading && (
-          <div style={{
-            background: darkMode ? "#7f1d1d" : "#fef2f2",
-            border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
-            borderRadius: 12,
-            padding: 20,
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
-            <Typography variant="h6" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8 }}>
+          <div className="max-w-2xl mx-auto mt-20 p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-center">
+            <div className="text-4xl mb-3">⚠️</div>
+            <Typography variant="h6" className="text-red-700 dark:text-red-400 font-bold mb-2">
               Failed to Load Profile
             </Typography>
-            <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d" }}>
+            <Typography variant="body2" className="text-red-600 dark:text-red-300 mb-4">
               {error}
             </Typography>
             <button
               onClick={fetchProfileData}
-              style={{
-                marginTop: 16,
-                padding: "8px 16px",
-                background: "#dc2626",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontWeight: 600
-              }}
+              className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors shadow-lg shadow-red-600/20"
             >
               Retry
             </button>
@@ -468,383 +289,270 @@ export default function ProfilePage() {
 
         {!loading && !error && stats && (
           <>
-            {/* Header Card with Email Verification Badge */}
-            <div style={{
-              background: darkMode
-                ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
-                : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              padding: "32px",
-              borderRadius: "16px",
-              marginBottom: "24px",
-              color: "white",
-              boxShadow: darkMode
-                ? "0 8px 24px rgba(79, 70, 229, 0.3)"
-                : "0 8px 24px rgba(102, 126, 234, 0.3)"
-            }}>
-              <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <div style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 36
-                  }}>
-                    👤
-                  </div>
-                  <div>
-                    <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800 }}>{username}</h1>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 14, opacity: 0.9 }}>
-                      Member since {new Date(stats.last_activity || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  {/* Change Password Button */}
-                  <button
-                    onClick={() => setPasswordModalOpen(true)}
-                    style={{
-                      padding: "12px 20px",
-                      background: "rgba(255,255,255,0.2)",
-                      color: "white",
-                      border: "2px solid rgba(255,255,255,0.3)",
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      transition: "all 0.2s",
-                      backdropFilter: "blur(10px)",
-                      whiteSpace: "nowrap"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.3)";
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.2)";
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                  >
-                    <span style={{ fontSize: 16 }}>🔒</span>
-                    Change Password
-                  </button>
-
-                  {/* Email Verification Badge */}
-                  {verificationStatus && verificationStatus.has_email && (
-                    <div style={{
-                      background: verificationStatus.email_verified
-                        ? "rgba(16, 185, 129, 0.2)"
-                        : "rgba(251, 191, 36, 0.2)",
-                      border: `2px solid ${verificationStatus.email_verified ? "#10b981" : "#fbbf24"}`,
-                      borderRadius: "12px",
-                      padding: "12px 16px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8
-                    }}>
-                      <span style={{ fontSize: 20 }}>
-                        {verificationStatus.email_verified ? "✅" : "⚠️"}
-                      </span>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>
-                          {verificationStatus.email_verified ? "Email Verified" : "Email Not Verified"}
-                        </div>
-                        <div style={{ fontSize: 11, opacity: 0.9 }}>
-                          {verificationStatus.email}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+            {/* Header Card */}
+            <div className="relative overflow-hidden rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-2xl">
+              {/* Background Sparkles */}
+              <div className="absolute inset-0 w-full h-full pointer-events-none">
+                <SparklesCore
+                  id="profile-header-sparkles"
+                  background="transparent"
+                  minSize={0.6}
+                  maxSize={1.4}
+                  particleDensity={100}
+                  className="w-full h-full"
+                  particleColor={darkMode ? "#FFFFFF" : "#000000"}
+                />
               </div>
 
-              {/* Email Verification Section */}
-              {verificationStatus && verificationStatus.has_email && !verificationStatus.email_verified && (
-                <div style={{
-                  background: "rgba(251, 191, 36, 0.15)",
-                  border: "2px solid rgba(251, 191, 36, 0.4)",
-                  borderRadius: "12px",
-                  padding: "16px",
-                  marginTop: "16px"
-                }}>
-                  <div style={{ display: "flex", alignItems: "start", gap: 12, marginBottom: 12 }}>
-                    <span style={{ fontSize: 24 }}>📧</span>
-                    <div style={{ flex: 1 }}>
-                      <Typography variant="body1" style={{ fontWeight: 600, marginBottom: 4 }}>
-                        Verify your email address
-                      </Typography>
-                      <Typography variant="body2" style={{ fontSize: 13, opacity: 0.9, marginBottom: 12 }}>
-                        We sent a verification link to <strong>{verificationStatus.email}</strong>.
-                        Click the link in the email to verify your account.
-                      </Typography>
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 dark:from-blue-900/10 dark:to-purple-900/10 backdrop-blur-[1px]" />
 
-                      <button
-                        onClick={sendVerificationEmail}
-                        disabled={sendingVerification}
-                        style={{
-                          padding: "10px 20px",
-                          background: sendingVerification ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.9)",
-                          color: "#5b21b6",
-                          border: "none",
-                          borderRadius: "8px",
-                          cursor: sendingVerification ? "wait" : "pointer",
-                          fontSize: "14px",
-                          fontWeight: 600,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 8,
-                          opacity: sendingVerification ? 0.7 : 1
-                        }}
-                      >
-                        {sendingVerification ? "⏳ Sending..." : "📤 Resend Verification Email"}
-                      </button>
-
-                      {verificationMessage && (
-                        <div style={{
-                          marginTop: 12,
-                          padding: "8px 12px",
-                          background: "rgba(255,255,255,0.2)",
-                          borderRadius: "6px",
-                          fontSize: "13px"
-                        }}>
-                          {verificationMessage}
-                        </div>
-                      )}
+              <div className="relative z-10 p-8 md:p-10">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="relative group">
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-full opacity-50 group-hover:opacity-100 transition duration-200 blur"></div>
+                      <div className="relative w-24 h-24 rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-md flex items-center justify-center text-5xl border border-white/50 dark:border-white/10 shadow-xl">
+                        👤
+                      </div>
+                    </div>
+                    <div>
+                      <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        {username}
+                      </h1>
+                      <p className="mt-1 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2">
+                        <span>Member since</span>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 text-sm">
+                          {new Date(stats.last_activity || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </span>
+                      </p>
                     </div>
                   </div>
+
+                  <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                    <button
+                      onClick={() => setPasswordModalOpen(true)}
+                      className="flex-1 md:flex-none px-5 py-2.5 bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 hover:bg-white/80 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 rounded-xl font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 group backdrop-blur-sm"
+                    >
+                      <span className="group-hover:scale-110 transition-transform">🔒</span>
+                      Change Password
+                    </button>
+
+                    {verificationStatus && verificationStatus.has_email && (
+                      <div className={`
+                        flex-1 md:flex-none px-5 py-2.5 rounded-xl border flex items-center justify-center gap-3 shadow-sm backdrop-blur-sm
+                        ${verificationStatus.email_verified
+                          ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400"
+                          : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/50 text-amber-700 dark:text-amber-400"}
+                      `}>
+                        <span className="text-lg">
+                          {verificationStatus.email_verified ? "✅" : "⚠️"}
+                        </span>
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-bold text-sm">
+                            {verificationStatus.email_verified ? "Verified" : "Unverified"}
+                          </span>
+                          <span className="text-[10px] opacity-80 font-mono">
+                            {verificationStatus.email}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+
+                {/* Email Verification Action */}
+                {verificationStatus && verificationStatus.has_email && !verificationStatus.email_verified && (
+                  <div className="mt-8 p-4 bg-amber-50/30 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/50 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4 backdrop-blur-sm">
+                    <div className="p-3 bg-amber-100/50 dark:bg-amber-900/30 rounded-xl text-2xl">📧</div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-slate-900 dark:text-white">Verify your email address</h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                        We sent a verification link to <span className="font-mono font-medium text-slate-900 dark:text-slate-200">{verificationStatus.email}</span>.
+                      </p>
+                    </div>
+                    <button
+                      onClick={sendVerificationEmail}
+                      disabled={sendingVerification}
+                      className="w-full sm:w-auto px-4 py-2 bg-amber-500/90 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm transition-colors shadow-lg shadow-amber-500/20 disabled:opacity-70 disabled:cursor-wait whitespace-nowrap"
+                    >
+                      {sendingVerification ? "Sending..." : "Resend Link"}
+                    </button>
+                  </div>
+                )}
+
+                {verificationMessage && (
+                  <div className="mt-4 p-3 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg text-sm text-center font-medium text-slate-700 dark:text-slate-300 animate-in fade-in slide-in-from-top-2 backdrop-blur-sm">
+                    {verificationMessage}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Rest of the profile page remains the same... */}
-            {/* Stats Grid with WobbleCards */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-              gap: "20px",
-              marginBottom: "32px"
-            }}>
-              <WobbleCard
-                containerClassName="col-span-1 h-full bg-pink-800 min-h-[200px]"
-                className=""
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <SparklesCard
+                containerClassName="col-span-1 h-full"
+                className="p-6"
               >
                 <div className="max-w-xs">
-                  <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
+                  <h2 className="text-left text-balance text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                     {stats.total_reconciliations}
                   </h2>
-                  <p className="mt-4 text-left  text-base/6 text-neutral-200">
+                  <p className="mt-2 text-left text-base text-slate-600 dark:text-slate-400 font-medium">
                     Total Reconciliations
                   </p>
                 </div>
-              </WobbleCard>
+              </SparklesCard>
 
-              <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-blue-900">
-                <h2 className="max-w-80  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
+              <SparklesCard containerClassName="col-span-1 min-h-[160px]" className="p-6">
+                <h2 className="text-left text-balance text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                   {stats.this_week}
                 </h2>
-                <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
+                <p className="mt-2 text-left text-base text-slate-600 dark:text-slate-400 font-medium">
                   Reconciliations This Week
                 </p>
-              </WobbleCard>
+              </SparklesCard>
 
-              <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-indigo-800">
-                <h2 className="max-w-80  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
+              <SparklesCard containerClassName="col-span-1 min-h-[160px]" className="p-6">
+                <h2 className="text-left text-balance text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                   {stats.this_month}
                 </h2>
-                <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
+                <p className="mt-2 text-left text-base text-slate-600 dark:text-slate-400 font-medium">
                   Reconciliations This Month
                 </p>
-              </WobbleCard>
+              </SparklesCard>
 
-              <WobbleCard containerClassName="col-span-1 min-h-[200px] bg-emerald-900">
-                <h2 className="max-w-80  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
-                  {stats.current_streak} Days
+              <SparklesCard containerClassName="col-span-1 min-h-[160px]" className="p-6">
+                <h2 className="text-left text-balance text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  {stats.current_streak} <span className="text-xl">Days</span>
                 </h2>
-                <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
+                <p className="mt-2 text-left text-base text-slate-600 dark:text-slate-400 font-medium">
                   Current Streak 🔥
                 </p>
-              </WobbleCard>
+              </SparklesCard>
             </div>
 
             {/* Activity Chart */}
-            <div style={{
-              background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
-              backdropFilter: "blur(12px)",
-              padding: "32px",
-              borderRadius: "24px",
-              border: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
-              boxShadow: darkMode ? "0 4px 20px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.05)",
-              marginBottom: "32px"
-            }}>
-              <Typography variant="h6" style={{ fontWeight: 700, color: theme.text, marginBottom: 24, fontSize: 20 }}>
-                📈 Activity (Last 30 Days)
-              </Typography>
+            <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-xl">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400">📈</span>
+                  Activity
+                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">(Last 30 Days)</span>
+                </h3>
+              </div>
 
               {dailyActivity.length > 0 ? (
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={dailyActivity}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"} vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      stroke={theme.textSecondary}
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => {
-                        const date = new Date(value);
-                        return `${date.getDate()}/${date.getMonth() + 1}`;
-                      }}
-                      dy={10}
-                    />
-                    <YAxis
-                      stroke={theme.textSecondary}
-                      tick={{ fontSize: 12 }}
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      dx={-10}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: darkMode ? "#1e293b" : "#ffffff",
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 12,
-                        color: theme.text,
-                        boxShadow: "0 4px 20px rgba(0,0,0,0.1)"
-                      }}
-                      cursor={{ fill: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
-                      labelFormatter={(value) => new Date(value).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                    />
-                    <Bar
-                      dataKey="count"
-                      fill="url(#colorCount)"
-                      radius={[6, 6, 0, 0]}
-                      barSize={40}
-                    >
+                <div className="h-[350px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dailyActivity}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        stroke={darkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => {
+                          const date = new Date(value);
+                          return `${date.getDate()}/${date.getMonth() + 1}`;
+                        }}
+                        dy={10}
+                      />
+                      <YAxis
+                        stroke={darkMode ? "#94a3b8" : "#64748b"}
+                        tick={{ fontSize: 12 }}
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                        dx={-10}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: darkMode ? "rgba(30, 41, 59, 0.8)" : "rgba(255, 255, 255, 0.8)",
+                          backdropFilter: "blur(12px)",
+                          border: darkMode ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
+                          borderRadius: "16px",
+                          color: darkMode ? "#f8fafc" : "#0f172a",
+                          boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.2)"
+                        }}
+                        cursor={{ fill: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
+                        labelFormatter={(value) => new Date(value).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      />
+                      <Bar
+                        dataKey="count"
+                        radius={[6, 6, 0, 0]}
+                        barSize={40}
+                      >
+                        {dailyActivity.map((entry, index) => (
+                          <cell key={`cell-${index}`} fill="url(#colorCount)" />
+                        ))}
+                      </Bar>
                       <defs>
                         <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                          <stop offset="100%" stopColor="#818cf8" stopOpacity={0.8} />
+                          <stop offset="100%" stopColor="#a855f7" stopOpacity={0.8} />
                         </linearGradient>
                       </defs>
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
-                <div style={{ textAlign: "center", padding: "48px", color: theme.textSecondary }}>
-                  <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
-                  <Typography variant="body1">No activity data yet. Complete your first reconciliation!</Typography>
+                <div className="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400">
+                  <div className="text-5xl mb-4 opacity-50">📊</div>
+                  <p className="text-lg font-medium">No activity data yet</p>
+                  <p className="text-sm">Complete your first reconciliation to see stats!</p>
                 </div>
               )}
             </div>
 
-            {/* Recent Activity with Download */}
-            {/* Recent Activity with Download */}
-            <div style={{
-              background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
-              backdropFilter: "blur(12px)",
-              padding: "32px",
-              borderRadius: "24px",
-              border: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
-              boxShadow: darkMode ? "0 4px 20px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.05)"
-            }}>
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 24,
-                flexWrap: "wrap",
-                gap: 12
-              }}>
-                <Typography variant="h6" style={{ fontWeight: 700, color: theme.text, fontSize: 20 }}>
-                  📋 Recent Reconciliations
-                </Typography>
+            {/* Recent Activity */}
+            <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-xl">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400">📋</span>
+                  Recent Reconciliations
+                </h3>
                 <button
                   onClick={() => router.push("/dashboard/history")}
-                  style={{
-                    padding: "10px 20px",
-                    background: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
-                    color: theme.text,
-                    border: "none",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}
+                  className="px-4 py-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 backdrop-blur-sm"
                 >
-                  View All History →
+                  View All History <span className="text-lg">→</span>
                 </button>
               </div>
 
               {recentActivity.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="space-y-4">
                   {recentActivity.map((activity, idx) => (
                     <div
                       key={idx}
-                      style={{
-                        padding: "20px",
-                        background: darkMode ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
-                        borderRadius: "16px",
-                        border: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
-                        transition: "transform 0.2s",
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.transform = "translateX(4px)"}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = "translateX(0)"}
+                      className="group relative bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/20 dark:border-white/5 rounded-2xl p-5 transition-all hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600"
                     >
-                      <div style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 16,
-                        flexWrap: "wrap",
-                        gap: 12
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                          <div style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: "12px",
-                            background: activity.bank_type === "ICICI"
-                              ? "linear-gradient(135deg, #bf2a2a, #e63946)"
-                              : "linear-gradient(135deg, #871f42, #be185d)",
-                            color: "white",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: 700,
-                            fontSize: 14,
-                            boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
-                          }}>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className={`
+                            w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg
+                            ${activity.bank_type === "ICICI"
+                              ? "bg-slate-600"
+                              : "bg-slate-500"}
+                          `}>
                             {activity.bank_type.substring(0, 2)}
                           </div>
                           <div>
-                            <Typography variant="body1" style={{ fontWeight: 700, color: theme.text, fontSize: 16 }}>
+                            <h4 className="font-bold text-slate-900 dark:text-white text-lg">
                               {activity.bank_type} Reconciliation
-                            </Typography>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-                              <Typography variant="body2" style={{ color: theme.textSecondary, fontSize: 13 }}>
-                                {formatDate(activity.timestamp)}
-                              </Typography>
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-slate-500 dark:text-slate-400">
+                              <span className="flex items-center gap-1">
+                                📅 {formatDate(activity.timestamp)}
+                              </span>
                               {activity.tpa_name && (
                                 <>
-                                  <span style={{ color: theme.textSecondary }}>•</span>
-                                  <Typography variant="body2" style={{ color: theme.textSecondary, fontSize: 13 }}>
-                                    {activity.tpa_name}
-                                  </Typography>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+                                    🏢 {activity.tpa_name}
+                                  </span>
                                 </>
                               )}
                             </div>
@@ -854,57 +562,30 @@ export default function ProfilePage() {
                         <button
                           onClick={() => downloadZip(activity.run_id)}
                           disabled={downloading[activity.run_id]}
-                          style={{
-                            padding: "8px 16px",
-                            background: downloading[activity.run_id]
-                              ? (darkMode ? "#334155" : "#e5e7eb")
-                              : "linear-gradient(135deg, #10b981, #059669)",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "10px",
-                            cursor: downloading[activity.run_id] ? "wait" : "pointer",
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            opacity: downloading[activity.run_id] ? 0.6 : 1,
-                            whiteSpace: "nowrap",
-                            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)"
-                          }}
+                          className={`
+                            px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-md
+                            ${downloading[activity.run_id]
+                              ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-wait"
+                              : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20"}
+                          `}
                         >
-                          {downloading[activity.run_id] ? "⏳" : "📦"}
-                          {downloading[activity.run_id] ? "Downloading..." : "Download ZIP"}
+                          {downloading[activity.run_id] ? "⏳ Downloading..." : "📦 Download ZIP"}
                         </button>
                       </div>
 
                       {activity.row_counts && Object.keys(activity.row_counts).length > 0 && (
-                        <div style={{
-                          display: "flex",
-                          gap: 8,
-                          flexWrap: "wrap",
-                          paddingTop: 12,
-                          borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`
-                        }}>
+                        <div className="mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-700/50 flex flex-wrap gap-2">
                           {Object.entries(activity.row_counts).map(([key, value], i) => (
                             <div
                               key={i}
-                              style={{
-                                padding: "4px 10px",
-                                background: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
-                                borderRadius: "6px",
-                                fontSize: 12,
-                                color: theme.text,
-                                fontWeight: 500,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6
-                              }}
+                              className="px-3 py-1 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200/50 dark:border-slate-700/50 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2"
                             >
-                              <span style={{ color: theme.textSecondary }}>
-                                {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
+                              <span className="uppercase tracking-wider opacity-70">
+                                {key.replace(/_/g, ' ')}
                               </span>
-                              <span style={{ color: "#10b981", fontWeight: 700 }}>{value}</span>
+                              <span className="font-bold text-slate-900 dark:text-white bg-white/50 dark:bg-slate-800/50 px-1.5 py-0.5 rounded shadow-sm">
+                                {value}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -913,284 +594,88 @@ export default function ProfilePage() {
                   ))}
                 </div>
               ) : (
-                <div style={{ textAlign: "center", padding: "48px", color: theme.textSecondary }}>
-                  <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-                  <Typography variant="body1">No recent activity</Typography>
+                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                  <p>No recent activity found.</p>
                 </div>
               )}
             </div>
           </>
         )}
-      </main>
+      </div>
 
       {/* Change Password Modal */}
       {passwordModalOpen && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0,0,0,0.75)",
-          backdropFilter: "blur(8px)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-          padding: "16px"
-        }}>
-          <div style={{
-            background: darkMode
-              ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
-              : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-            borderRadius: "24px",
-            padding: "32px",
-            maxWidth: "450px",
-            width: "100%",
-            border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
-            boxShadow: darkMode
-              ? "0 20px 60px rgba(0,0,0,0.5)"
-              : "0 20px 60px rgba(0,0,0,0.15)",
-            position: "relative"
-          }}>
-            {/* Close button */}
-            <button
-              onClick={() => {
-                setPasswordModalOpen(false);
-                setPasswordError("");
-                setPasswordSuccess("");
-                setCurrentPassword("");
-                setNewPassword("");
-                setConfirmPassword("");
-              }}
-              style={{
-                position: "absolute",
-                top: "16px",
-                right: "16px",
-                background: "transparent",
-                border: "none",
-                fontSize: "24px",
-                cursor: "pointer",
-                color: theme.textSecondary,
-                padding: "4px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              ✕
-            </button>
-
-            {/* Header */}
-            <div style={{ marginBottom: "24px", textAlign: "center" }}>
-              <div style={{ fontSize: "48px", marginBottom: "12px" }}>🔒</div>
-              <Typography variant="h5" style={{
-                fontWeight: 700,
-                color: theme.text,
-                marginBottom: "8px"
-              }}>
-                Change Password
-              </Typography>
-              <Typography variant="body2" style={{ color: theme.textSecondary }}>
-                Enter your current password and choose a new one
-              </Typography>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Change Password</h3>
+              <button
+                onClick={() => setPasswordModalOpen(false)}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500"
+              >
+                ✕
+              </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleChangePassword}>
-              {/* Current Password */}
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  color: theme.text
-                }}>
-                  Current Password
-                </label>
+            <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+              {passwordError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-xl font-medium border border-red-100 dark:border-red-800">
+                  {passwordError}
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-sm rounded-xl font-medium border border-emerald-100 dark:border-emerald-800">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Current Password</label>
                 <input
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    border: `1px solid ${theme.border}`,
-                    background: theme.inputBg,
-                    color: theme.text,
-                    fontSize: "14px",
-                    boxSizing: "border-box"
-                  }}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   placeholder="Enter current password"
-                  disabled={changingPassword}
                 />
               </div>
 
-              {/* New Password */}
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  color: theme.text
-                }}>
-                  New Password
-                </label>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">New Password</label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    border: `1px solid ${theme.border}`,
-                    background: theme.inputBg,
-                    color: theme.text,
-                    fontSize: "14px",
-                    boxSizing: "border-box"
-                  }}
-                  placeholder="Enter new password (min 6 chars)"
-                  disabled={changingPassword}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="Enter new password"
                 />
               </div>
 
-              {/* Confirm Password */}
-              <div style={{ marginBottom: "24px" }}>
-                <label style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  color: theme.text
-                }}>
-                  Confirm New Password
-                </label>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Confirm New Password</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    border: `1px solid ${theme.border}`,
-                    background: theme.inputBg,
-                    color: theme.text,
-                    fontSize: "14px",
-                    boxSizing: "border-box"
-                  }}
-                  placeholder="Re-enter new password"
-                  disabled={changingPassword}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="Confirm new password"
                 />
               </div>
 
-              {/* Error Message */}
-              {passwordError && (
-                <div style={{
-                  background: darkMode ? "#7f1d1d" : "#fef2f2",
-                  border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
-                  borderRadius: "8px",
-                  padding: "12px",
-                  marginBottom: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}>
-                  <span style={{ fontSize: "20px" }}>⚠️</span>
-                  <span style={{
-                    color: darkMode ? "#fecaca" : "#dc2626",
-                    fontSize: "13px",
-                    fontWeight: 600
-                  }}>
-                    {passwordError}
-                  </span>
-                </div>
-              )}
-
-              {/* Success Message */}
-              {passwordSuccess && (
-                <div style={{
-                  background: darkMode ? "#064e3b" : "#f0fdf4",
-                  border: `2px solid #10b981`,
-                  borderRadius: "8px",
-                  padding: "12px",
-                  marginBottom: "16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}>
-                  <span style={{ fontSize: "20px" }}>✅</span>
-                  <span style={{
-                    color: darkMode ? "#d1fae5" : "#059669",
-                    fontSize: "13px",
-                    fontWeight: 600
-                  }}>
-                    {passwordSuccess}
-                  </span>
-                </div>
-              )}
-
-              {/* Buttons */}
-              <div style={{
-                display: "flex",
-                gap: "12px",
-                flexDirection: "column"
-              }}>
-                <button
-                  type="submit"
-                  disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
-                  style={{
-                    width: "100%",
-                    padding: "14px 24px",
-                    background: changingPassword || !currentPassword || !newPassword || !confirmPassword
-                      ? (darkMode ? "#334155" : "#e5e7eb")
-                      : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "12px",
-                    cursor: changingPassword || !currentPassword || !newPassword || !confirmPassword ? "not-allowed" : "pointer",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    opacity: changingPassword || !currentPassword || !newPassword || !confirmPassword ? 0.6 : 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px"
-                  }}
-                >
-                  {changingPassword ? "⏳" : "🔒"}
-                  {changingPassword ? "Changing Password..." : "Change Password"}
-                </button>
-
+              <div className="pt-4 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setPasswordModalOpen(false);
-                    setPasswordError("");
-                    setPasswordSuccess("");
-                    setCurrentPassword("");
-                    setNewPassword("");
-                    setConfirmPassword("");
-                  }}
-                  disabled={changingPassword}
-                  style={{
-                    width: "100%",
-                    padding: "14px 24px",
-                    background: "transparent",
-                    color: theme.text,
-                    border: `2px solid ${theme.border}`,
-                    borderRadius: "12px",
-                    cursor: changingPassword ? "not-allowed" : "pointer",
-                    fontSize: "16px",
-                    fontWeight: 600,
-                    opacity: changingPassword ? 0.5 : 1
-                  }}
+                  onClick={() => setPasswordModalOpen(false)}
+                  className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold transition-colors"
                 >
                   Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors shadow-lg shadow-blue-600/20 disabled:opacity-70 disabled:cursor-wait"
+                >
+                  {changingPassword ? "Updating..." : "Update Password"}
                 </button>
               </div>
             </form>

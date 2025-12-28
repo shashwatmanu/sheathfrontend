@@ -6,6 +6,7 @@ import { isAuthenticated, logout, getUsername, getToken } from "../../lib/auth";
 import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
+import Hyperspeed from "../../components/ui/hyperspeed";
 import * as XLSX from 'xlsx';
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
@@ -59,17 +60,46 @@ const HeroSparkles = React.memo(() => (
     left: 0,
     right: 0,
     bottom: 0,
-    pointerEvents: "none",
     zIndex: 0
   }}>
-    <SparklesCore
-      id="hero-sparkles"
-      background="transparent"
-      minSize={0.1}
-      maxSize={1.2}
-      particleDensity={80}
-      className="w-full h-full"
-      particleColor="#FFFFFF"
+    <Hyperspeed
+      effectOptions={{
+        onSpeedUp: () => { },
+        onSlowDown: () => { },
+        distortion: 'turbulentDistortion',
+        length: 400,
+        roadWidth: 10,
+        islandWidth: 2,
+        lanesPerRoad: 4,
+        fov: 90,
+        fovSpeedUp: 150,
+        speedUp: 2,
+        carLightsFade: 0.4,
+        totalSideLightSticks: 20,
+        lightPairsPerRoadWay: 40,
+        shoulderLinesWidthPercentage: 0.05,
+        brokenLinesWidthPercentage: 0.1,
+        brokenLinesLengthPercentage: 0.5,
+        lightStickWidth: [0.12, 0.5],
+        lightStickHeight: [1.3, 1.7],
+        movingAwaySpeed: [60, 80],
+        movingCloserSpeed: [-120, -160],
+        carLightsLength: [400 * 0.03, 400 * 0.2],
+        carLightsRadius: [0.05, 0.14],
+        carWidthPercentage: [0.3, 0.5],
+        carShiftX: [-0.8, 0.8],
+        carFloorSeparation: [0, 5],
+        colors: {
+          roadColor: 0x080808,
+          islandColor: 0x0a0a0a,
+          background: 0x000000,
+          shoulderLines: 0xFFFFFF,
+          brokenLines: 0xFFFFFF,
+          leftCars: [0xD856BF, 0x6750A2, 0xC247AC],
+          rightCars: [0x03B3C3, 0x0E5EA5, 0x324555],
+          sticks: 0x03B3C3,
+        }
+      }}
     />
   </div>
 ));
@@ -978,138 +1008,11 @@ export default function Home() {
         transition: "background 0.3s ease"
       }}>
         {/* Navbar with sparkles container */}
-        <div style={{ position: "relative", overflow: "hidden", height: "60px", isolation: "isolate" }}>
-          <nav style={{
-            background: darkMode ? "#0f172a" : "#111111",
-            color: "#fff",
-            padding: "12px 24px",
-            borderRadius: "0 0 6px 6px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            height: "100%",
-            position: "relative",
-            zIndex: 10
-          }}>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <h1 style={{ margin: 0, fontSize: 20, fontWeight: "bolder" }}>RGCIRC</h1>
-              <p style={{ fontSize: "10px", fontWeight: "bold", margin: 0 }}>Recon Dashboard</p>
-            </div>
-
-            {/* User Info + Actions */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-              {/* Username Display - Clickable */}
-              {username && (
-                <Tooltip title="View Profile" arrow>
-                  <button
-                    onClick={() => router.push("/dashboard/profile")}
-                    style={{
-                      background: "rgba(255,255,255,0.1)",
-                      padding: "6px 12px",
-                      borderRadius: "20px",
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      border: "none",
-                      color: "white",
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.2)";
-                      e.currentTarget.style.transform = "translateY(-1px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                  >
-                    👤 {username}
-                  </button>
-                </Tooltip>
-              )}
-
-              {/* ✅ NEW: History Button */}
-              <Tooltip title="View All History" arrow>
-                <button
-                  onClick={() => router.push("/dashboard/history")}
-                  style={{
-                    padding: "8px 16px",
-                    background: "rgba(255,255,255,0.1)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.2)";
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
-                >
-                  <span>📚</span>
-                  History
-                </button>
-              </Tooltip>
-
-              {/* Dark Mode Toggle */}
-              <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} arrow>
-                <IconButton
-                  onClick={() => setDarkMode(!darkMode)}
-                  style={{
-                    color: "white",
-                    background: "rgba(255,255,255,0.1)",
-                    padding: "8px",
-                    width: "40px",
-                    height: "40px"
-                  }}
-                >
-                  <span style={{ fontSize: "20px" }}>{darkMode ? "☀️" : "🌙"}</span>
-                </IconButton>
-              </Tooltip>
-
-              {/* Logout Button */}
-              <Tooltip title="Logout" arrow>
-                <IconButton
-                  onClick={handleLogout}
-                  style={{
-                    color: "white",
-                    background: "rgba(255,0,0,0.2)",
-                    padding: "8px",
-                    width: "40px",
-                    height: "40px"
-                  }}
-                >
-                  <PowerIcon />
-                </IconButton>
-              </Tooltip>
-            </div>
-          </nav>
-
-          {/* Sparkles confined to navbar area - using memoized component */}
-          <div style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "100%",
-            pointerEvents: "none",
-            zIndex: 5
-          }}>
-            <NavbarSparkles />
-          </div>
+        {/* Navbar with sparkles container */}
+        <div style={{ position: "relative", zIndex: 50 }}>
+          {/* Navbar moved to layout */}
         </div>
+
 
         <main style={{
           margin: "0 auto",
@@ -1122,9 +1025,7 @@ export default function Home() {
           {/* Hero Section with sparkles */}
           <div style={{
             position: "relative",
-            background: darkMode
-              ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
-              : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            background: "#000000",
             padding: "48px 32px",
             borderRadius: "16px",
             marginBottom: "32px",
@@ -1137,36 +1038,30 @@ export default function Home() {
 
             {/* Hero content */}
             <div style={{ position: "relative", zIndex: 1 }}>
-              <h1 style={{ fontSize: "40px", marginBottom: "12px", fontWeight: "800", margin: 0 }}>
+              <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white drop-shadow-sm">
                 Bank Reconciliation Dashboard
               </h1>
-              <p style={{ fontSize: "16px", opacity: 0.95, maxWidth: "600px", margin: "12px auto 0" }}>
-                Streamline your financial reconciliation in 4 simple steps.
+              <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-8 leading-relaxed font-light">
+                Streamline your financial reconciliation in 4 simple steps. <br />
                 Process bank statements, match transactions, and generate reports automatically.
               </p>
-              <div style={{
-                display: "flex",
-                gap: "32px",
-                justifyContent: "center",
-                marginTop: "28px",
-                fontSize: "14px",
-                flexWrap: "wrap"
-              }}>
-                <div>
-                  <div style={{ fontSize: "32px", fontWeight: "bold" }}>4</div>
-                  <div style={{ opacity: 0.9 }}>Simple Steps</div>
+
+              <div className="flex flex-wrap justify-center gap-8 mt-8">
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-blue-400 to-blue-600">4</div>
+                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Simple Steps</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: "32px", fontWeight: "bold" }}>3</div>
-                  <div style={{ opacity: 0.9 }}>Bank Types</div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-purple-400 to-purple-600">3</div>
+                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Bank Types</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: "32px", fontWeight: "bold" }}>10+</div>
-                  <div style={{ opacity: 0.9 }}>TPAs</div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-emerald-400 to-emerald-600">10+</div>
+                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">TPAs</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: "32px", fontWeight: "bold" }}>100%</div>
-                  <div style={{ opacity: 0.9 }}>Automated</div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-amber-400 to-amber-600">100%</div>
+                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Automated</div>
                 </div>
               </div>
             </div>
@@ -2246,7 +2141,7 @@ export default function Home() {
               </MuiButton>
             </div>
           )}
-        </main>
+        </main >
 
         {/* ✅ NEW: AI Assistant Modal - Add this component here */}
         {/* <AIAssistantModal
@@ -2255,7 +2150,7 @@ export default function Home() {
         darkMode={darkMode}
         apiBase={API_BASE}
       /> */}
-      </div>
+      </div >
 
       <style>{`
         @keyframes pulse {
