@@ -567,6 +567,8 @@ export default function Home() {
   const [fileResetKey, setFileResetKey] = useState(0);
   const [animationData, setAnimationData] = useState(null);
 
+
+
   // ✅ NEW: AI Assistant Modal state
   // const [aiModalOpen, setAiModalOpen] = useState(false);
 
@@ -1367,7 +1369,7 @@ export default function Home() {
                   <div style={{ marginBottom: 24, opacity: 1, transition: "opacity 0.3s" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                       <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
-                        {pipelineMode === 'v2' ? "Auto-Detecting Bank Type..." : "Select Bank Type"}
+                        {pipelineMode === 'v2' ? "Auto detects Bank Type" : "Select Bank Type"}
                       </label>
                       <Tooltip title={pipelineMode === 'v2' ? "Bank type is auto-detected from the uploaded file" : "Choose between ICICI, AXIS, or Standard Chartered"} arrow>
                         <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
@@ -1385,7 +1387,7 @@ export default function Home() {
                           <WobbleCard
                             containerClassName="h-full transition-all duration-300 shadow-xl group"
                             style={{
-                              backgroundImage: (bankType === bank && pipelineMode !== 'v2')
+                              backgroundImage: (bankType === bank || pipelineMode === 'v2')
                                 ? (bank === "Standard Chartered"
                                   ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
                                   : bank === "ICICI"
@@ -1420,15 +1422,24 @@ export default function Home() {
 
                             <div style={{ marginTop: "auto", position: "relative", zIndex: 10 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "rgba(255,255,255,0.9)" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                  {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
-                                  <span>Bank</span>
-                                </div>
-                                <span style={{ opacity: 0.5 }}>+</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                  {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
-                                  <span>Advance</span>
-                                </div>
+                                {pipelineMode === 'v2' ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                    <FileSpreadsheet size={12} />
+                                    <span>Bank Statement Protocol</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                      {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
+                                      <span>Bank</span>
+                                    </div>
+                                    <span style={{ opacity: 0.5 }}>+</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                      {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
+                                      <span>Advance</span>
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             </div>
 
@@ -1448,7 +1459,7 @@ export default function Home() {
                       ))}
                     </div>
                     <small style={{ display: "block", marginTop: 10, color: theme.textSecondary, fontSize: "13px" }}>
-                      {bankType === "Standard Chartered" ? "📊 Standard Chartered: Format coming soon" : null}
+                      {(bankType === "Standard Chartered" && pipelineMode !== 'v2') ? "📊 Standard Chartered: Format coming soon" : null}
                     </small>
                   </div>
 
@@ -1585,7 +1596,7 @@ export default function Home() {
                       }}>
                         {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
                           <div key={bank}
-                            style={{ cursor: "default", height: "100%", opacity: bankType !== bank ? 0.3 : 1 }}>
+                            style={{ cursor: "default", height: "100%", opacity: 1 }}>
                             <WobbleCard
                               containerClassName="h-full shadow-lg"
                               style={{
@@ -1599,7 +1610,7 @@ export default function Home() {
                                 borderRadius: "1rem",
                                 overflow: "hidden",
                                 position: "relative",
-                                minHeight: "130px",
+                                minHeight: "150px",
                                 border: bankType === bank ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
                               }}
                               className="p-4 flex flex-col justify-between h-full relative"
@@ -1610,7 +1621,24 @@ export default function Home() {
                                     {bank}
                                   </div>
                                 </div>
+                                <div style={{ width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                  {bankType === bank && (
+                                    <div style={{ background: "rgba(255,255,255,0.3)", backdropFilter: "blur(8px)", padding: "5px", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                                      <Check size={14} color="white" strokeWidth={3} />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+
+                              <div style={{ marginTop: "auto", position: "relative", zIndex: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "rgba(255,255,255,0.9)" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                    <FileSpreadsheet size={12} />
+                                    <span>Bank Statement Protocol</span>
+                                  </div>
+                                </div>
+                              </div>
+
                               <div style={{
                                 position: "absolute",
                                 right: "-15px",
