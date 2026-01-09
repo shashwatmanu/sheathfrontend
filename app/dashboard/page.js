@@ -556,6 +556,9 @@ export default function Home() {
   const [misFile, setMisFile] = useState(null);
   const [outstandingFile, setOutstandingFile] = useState(null);
 
+  // ✅ NEW: Pipeline Mode State ('v2' | 'v1') - Default to 'v2'
+  const [pipelineMode, setPipelineMode] = useState("v2");
+
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -567,12 +570,23 @@ export default function Home() {
   // ✅ NEW: AI Assistant Modal state
   // const [aiModalOpen, setAiModalOpen] = useState(false);
 
-  const steps = [
-    { key: "step1", label: "Bank & Advance Statements", description: "Upload both files together" },
-    { key: "step2", label: "Match Bank × Advance", description: "Automatic processing" },
-    { key: "step3", label: "MIS Mapping", description: "Select TPA & upload MIS" },
-    { key: "step4", label: "Outstanding Report", description: "Final matching" },
-  ];
+  // Dynamic steps based on pipeline mode
+  const steps = useMemo(() => {
+    if (pipelineMode === 'v2') {
+      return [
+        { key: "step1", label: "Upload Bank File", description: "Auto-detects Bank Type" },
+        { key: "step2", label: "Upload MIS File", description: "Auto-detects TPA Name" },
+        { key: "step3", label: "Upload Outstanding", description: "Final Reconciliation" },
+      ];
+    } else {
+      return [
+        { key: "step1", label: "Bank & Advance Statements", description: "Upload both files together" },
+        { key: "step2", label: "Match Bank × Advance", description: "Automatic processing" },
+        { key: "step3", label: "MIS Mapping", description: "Select TPA & upload MIS" },
+        { key: "step4", label: "Outstanding Report", description: "Final matching" },
+      ];
+    }
+  }, [pipelineMode]);
 
 
   // Check authentication on mount
@@ -652,20 +666,30 @@ export default function Home() {
       return false;
     }
 
-    if (!bankFile || !advanceFile) {
-      setError("Please select both Bank and Advance files.");
+    if (!bankFile || (pipelineMode !== 'v2' && !advanceFile)) {
+      setError(pipelineMode === 'v2' ? "Please select Bank file." : "Please select both Bank and Advance files.");
       setLoading(false);
       return false;
     }
 
     try {
       const fd = new FormData();
-      fd.append("bank_type", bankType);
-      fd.append("bank_file", bankFile);
-      fd.append("advance_file", advanceFile);
 
-      const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/step1`;
-      console.log("[Step1] Sending request to:", endpoint);
+      // V2 Logic: Bank file only, auto-detect bank type
+      if (pipelineMode === 'v2') {
+        fd.append("bank_file", bankFile);
+      } else {
+        // V1 Logic: Bank + Advance, manual bank type
+        fd.append("bank_type", bankType);
+        fd.append("bank_file", bankFile);
+        fd.append("advance_file", advanceFile);
+      }
+
+      const endpoint = pipelineMode === 'v2'
+        ? `${API_BASE.replace(/\/$/, "")}/reconcile/v2/step1`
+        : `${API_BASE.replace(/\/$/, "")}/reconcile/step1`;
+
+      console.log(`[Step1] Sending request to (${pipelineMode}):`, endpoint);
 
       const res = await authenticatedFetch(endpoint, { method: "POST", body: fd });
 
@@ -695,6 +719,12 @@ export default function Home() {
 
       saveStepResult(0, { ok: true, data: data }); // saveStepResult handles link generation dynamically now
 
+      // V2: Auto-set the detected bank type
+      if (pipelineMode === 'v2' && data.detected_bank_type) {
+        setBankType(data.detected_bank_type);
+        // Optionally show a toast or highlight effect here
+      }
+
       return true;
     } catch (e) {
       const msg = e?.message || "Step-1 upload failed";
@@ -718,10 +748,28 @@ export default function Home() {
     }
 
     try {
-      const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/step2`;
-      console.log("[Step2] Sending request to:", endpoint);
+      let endpoint;
+      let options = { method: "POST" };
 
-      const res = await authenticatedFetch(endpoint, { method: "POST" });
+      if (pipelineMode === 'v2') {
+        // V2 Logic: Upload MIS File
+        if (!misFile) {
+          setError("Please select MIS file.");
+          setLoading(false);
+          return false;
+        }
+        const fd = new FormData();
+        fd.append("mis_file", misFile);
+        endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/v2/step2`;
+        options.body = fd;
+      } else {
+        // V1 Logic: Processing step (Match Bank x Advance)
+        endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/step2`;
+      }
+
+      console.log(`[Step2] Sending request to (${pipelineMode}):`, endpoint);
+
+      const res = await authenticatedFetch(endpoint, options);
 
       if (!res.ok) {
         const text = await res.text();
@@ -749,6 +797,11 @@ export default function Home() {
 
       saveStepResult(1, { ok: true, data: data });
 
+      // V2: Auto-detect TPA from response
+      if (pipelineMode === 'v2' && data.detected_tpa) {
+        setTpaName(data.detected_tpa); // We can use this state for display even if dropdown is hidden
+      }
+
       return true;
     } catch (e) {
       const msg = e?.message || "Step-2 processing failed";
@@ -771,6 +824,61 @@ export default function Home() {
       return false;
     }
 
+    if (pipelineMode === 'v2') {
+      // V2 Logic: Outstanding Upload (Final Step)
+      if (!outstandingFile) {
+        setError("Please select Outstanding file.");
+        setLoading(false);
+        return false;
+      }
+
+      try {
+        const fd = new FormData();
+        fd.append("outstanding_file", outstandingFile);
+
+        const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/v2/step3`;
+        console.log("[Step3-V2] Sending request to:", endpoint);
+
+        const res = await authenticatedFetch(endpoint, { method: "POST", body: fd });
+
+        if (!res.ok) {
+          const text = await res.text();
+          let errorMsg = `HTTP ${res.status}`;
+          try {
+            const json = JSON.parse(text);
+            errorMsg = json?.detail || json?.error || text;
+          } catch {
+            errorMsg = text;
+          }
+          saveStepResult(2, { ok: false, error: errorMsg });
+          setError(errorMsg);
+          return false;
+        }
+
+        const data = await res.json();
+        console.log("[Step3-V2] Response:", data);
+
+        if (data.status !== "success") {
+          const msg = data.error || "Step-3 (V2) failed";
+          saveStepResult(2, { ok: false, error: msg });
+          setError(msg);
+          return false;
+        }
+
+        saveStepResult(2, { ok: true, data: data });
+        return true;
+      } catch (e) {
+        const msg = e?.message || "Step-3 (V2) upload failed";
+        console.error("[Step3-V2] Error:", e);
+        saveStepResult(2, { ok: false, error: msg });
+        setError(msg);
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // V1 Logic: MIS Upload
     if (!misFile) {
       setError("Please select MIS file.");
       setLoading(false);
@@ -910,14 +1018,22 @@ export default function Home() {
     } else if (activeStep === 2) {
       ok = await uploadStep3();
       if (ok) {
-        setMisFile(null);
+        // Correctly clean up based on what step passed
+        if (pipelineMode === 'v2') {
+          setOutstandingFile(null); // Step 3 in V2 consumes Outstanding file
+        } else {
+          setMisFile(null); // Step 3 in V1 consumes MIS file
+        }
         setFileResetKey((k) => k + 1);
       }
     } else if (activeStep === 3) {
-      ok = await uploadStep4();
-      if (ok) {
-        setOutstandingFile(null);
-        setFileResetKey((k) => k + 1);
+      // V1 Only
+      if (pipelineMode !== 'v2') {
+        ok = await uploadStep4();
+        if (ok) {
+          setOutstandingFile(null);
+          setFileResetKey((k) => k + 1);
+        }
       }
     }
 
@@ -944,6 +1060,13 @@ export default function Home() {
     if (tpaChoices.length > 0) setTpaName(tpaChoices[0]);
   };
 
+  // Handle pipeline mode switch
+  const handleModeSwitch = (mode) => {
+    if (mode === pipelineMode) return;
+    setPipelineMode(mode);
+    handleReset(); // Reset everything when switching modes
+  };
+
   // Power/Shutdown Icon Component
   const PowerIcon = () => (
     <svg
@@ -962,12 +1085,21 @@ export default function Home() {
   );
 
   const canProceed = useMemo(() => {
+    // V2 Logic
+    if (pipelineMode === 'v2') {
+      if (activeStep === 0) return bankFile; // Only Bank File needed
+      if (activeStep === 1) return misFile;  // Only MIS File needed
+      if (activeStep === 2) return outstandingFile; // Only Outstanding File needed
+      return false;
+    }
+
+    // V1 Logic
     if (activeStep === 0) return bankFile && advanceFile;
     if (activeStep === 1) return stepResults[0]?.ok;
     if (activeStep === 2) return misFile && tpaName;
     if (activeStep === 3) return outstandingFile;
     return false;
-  }, [activeStep, bankFile, advanceFile, misFile, outstandingFile, tpaName, stepResults]);
+  }, [activeStep, bankFile, advanceFile, misFile, outstandingFile, tpaName, stepResults, pipelineMode]);
 
   const bankShadowColor = bankType === "Standard Chartered"
     ? "rgba(0,114,206,0.2)"
@@ -977,11 +1109,29 @@ export default function Home() {
 
   const getFileAccept = () => {
     if (activeStep === 0) {
+      if (pipelineMode === 'v2') {
+        return {
+          bank: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+        };
+      }
       return {
         bank: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
         advance: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
       };
     }
+    // Step 2 in V2 is MIS upload
+    if (pipelineMode === 'v2' && activeStep === 1) {
+      return {
+        mis: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+      };
+    }
+    // Step 3 in V2 is Outstanding upload
+    if (pipelineMode === 'v2' && activeStep === 2) {
+      return {
+        outstanding: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+      };
+    }
+
     return {
       mis: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
       outstanding: ".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
@@ -1042,9 +1192,36 @@ export default function Home() {
                 Bank Reconciliation Dashboard
               </h1>
               <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-8 leading-relaxed font-light">
-                Streamline your financial reconciliation in 4 simple steps. <br />
+                {pipelineMode === 'v2'
+                  ? "Experience the new fully automated 3-step V2 pipeline."
+                  : "Streamline your financial reconciliation in 4 simple steps."}
+                <br />
                 Process bank statements, match transactions, and generate reports automatically.
               </p>
+
+              {/* Pipeline Toggle Switch */}
+              <div className="flex justify-center mb-8">
+                <div className={`p-1 rounded-full flex relative ${darkMode ? 'bg-slate-800 border border-slate-700' : 'bg-gray-100 border border-gray-200'}`}>
+                  <button
+                    onClick={() => handleModeSwitch('v2')}
+                    className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v2'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg'
+                      : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    🚀 V2 (Auto)
+                  </button>
+                  <button
+                    onClick={() => handleModeSwitch('v1')}
+                    className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v1'
+                      ? 'bg-white text-gray-900 shadow-md'
+                      : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Values (Legacy)
+                  </button>
+                </div>
+              </div>
 
               <div className="flex flex-wrap justify-center gap-8 mt-8">
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
@@ -1186,12 +1363,13 @@ export default function Home() {
 
               {activeStep === 0 && (
                 <>
-                  <div style={{ marginBottom: 24 }}>
+                  {/* Bank Type Selection - Visible in both modes, but disabled in V2 */}
+                  <div style={{ marginBottom: 24, opacity: 1, transition: "opacity 0.3s" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                       <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
-                        Select Bank Type
+                        {pipelineMode === 'v2' ? "Auto-Detecting Bank Type..." : "Select Bank Type"}
                       </label>
-                      <Tooltip title="Choose between ICICI, AXIS, or Standard Chartered (coming soon)" arrow>
+                      <Tooltip title={pipelineMode === 'v2' ? "Bank type is auto-detected from the uploaded file" : "Choose between ICICI, AXIS, or Standard Chartered"} arrow>
                         <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
                       </Tooltip>
                     </div>
@@ -1199,14 +1377,15 @@ export default function Home() {
                       display: "grid",
                       gridTemplateColumns: "repeat(3, 1fr)",
                       gap: "20px",
-                      width: "100%"
+                      width: "100%",
+                      pointerEvents: pipelineMode === 'v2' ? "none" : "auto"
                     }}>
                       {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
                         <div key={bank} onClick={() => setBankType(bank)} style={{ cursor: "pointer", height: "100%" }}>
                           <WobbleCard
                             containerClassName="h-full transition-all duration-300 shadow-xl group"
                             style={{
-                              backgroundImage: bankType === bank
+                              backgroundImage: (bankType === bank && pipelineMode !== 'v2')
                                 ? (bank === "Standard Chartered"
                                   ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
                                   : bank === "ICICI"
@@ -1217,7 +1396,7 @@ export default function Home() {
                               overflow: "hidden",
                               position: "relative",
                               minHeight: "150px",
-                              border: bankType === bank ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
+                              border: (bankType === bank && pipelineMode !== 'v2') ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
                             }}
                             className="p-4 flex flex-col justify-between h-full relative"
                           >
@@ -1231,7 +1410,7 @@ export default function Home() {
                                 </div>
                               </div>
                               <div style={{ width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                {bankType === bank && (
+                                {(bankType === bank && pipelineMode !== 'v2') && (
                                   <div style={{ background: "rgba(255,255,255,0.3)", backdropFilter: "blur(8px)", padding: "5px", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
                                     <Check size={14} color="white" strokeWidth={3} />
                                   </div>
@@ -1274,7 +1453,7 @@ export default function Home() {
                   </div>
 
                   {/* File Upload Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                  <div className={`grid gap-6 mt-6 ${pipelineMode === 'v2' ? 'grid-cols-1 max-w-xl mx-auto' : 'grid-cols-1 md:grid-cols-2'}`}>
                     {/* Bank Statement Card */}
                     <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
                       }`}>
@@ -1328,146 +1507,350 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* Advance Statement Card */}
-                    <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
-                      }`}>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${darkMode ? "bg-purple-900/30 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
-                            📑
-                          </div>
-                          <div>
-                            <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Advance Statement</h3>
-                            <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                              Excel (.xlsx)
-                            </p>
-                          </div>
-                        </div>
-                        {advanceFile && (
-                          <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
-                            Uploaded
-                          </div>
-                        )}
-                      </div>
-
-                      {advanceFile ? (
-                        <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                    {/* Advance Statement Card - Hide in V2 */}
+                    {pipelineMode !== 'v2' && (
+                      <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                        }`}>
+                        <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="text-2xl">📋</div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                {advanceFile.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {(advanceFile.size / 1024).toFixed(1)} KB
+                            <div className={`p-2 rounded-lg ${darkMode ? "bg-purple-900/30 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
+                              📑
+                            </div>
+                            <div>
+                              <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Advance Statement</h3>
+                              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                Excel (.xlsx)
                               </p>
                             </div>
-                            <button
-                              onClick={() => setAdvanceFile(null)}
-                              className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                            >
-                              ✕
-                            </button>
                           </div>
+                          {advanceFile && (
+                            <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
+                              Uploaded
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <FileUpload
-                          key={`advance-${fileResetKey}`}
-                          accept={accepts.advance}
-                          onChange={(files) => setAdvanceFile(files[0] || null)}
-                          uploaderId="advance-upload"
-                          darkMode={darkMode}
-                        />
-                      )}
-                    </div>
+
+                        {advanceFile ? (
+                          <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="text-2xl">📋</div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                  {advanceFile.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {(advanceFile.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => setAdvanceFile(null)}
+                                className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <FileUpload
+                            key={`advance-${fileResetKey}`}
+                            accept={accepts.advance}
+                            onChange={(files) => setAdvanceFile(files[0] || null)}
+                            uploaderId="advance-upload"
+                            darkMode={darkMode}
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
 
               {activeStep === 1 && (
-                <div style={{ textAlign: "center", padding: "32px 0" }}>
-                  <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔄</div>
-                  <Typography variant="h6" style={{ marginBottom: 16, fontWeight: 600, color: theme.text }}>
-                    Bank × Advance Matching
-                  </Typography>
-                  <Typography variant="body2" style={{ maxWidth: "500px", margin: "0 auto", color: theme.textSecondary }}>
-                    This step automatically matches Bank transactions with Advance records using reference numbers.
-                    Click <strong>Next</strong> to process.
-                  </Typography>
-                </div>
+                pipelineMode === 'v2' ? (
+                  <>
+                    <div style={{ marginBottom: 24, opacity: 0.9 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                        <div style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
+                          Detected Bank Account
+                        </div>
+                        <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium border border-emerald-500/20">
+                          Auto-Detected
+                        </div>
+                      </div>
+                      <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, 1fr)",
+                        gap: "20px",
+                        width: "100%"
+                      }}>
+                        {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
+                          <div key={bank}
+                            style={{ cursor: "default", height: "100%", opacity: bankType !== bank ? 0.3 : 1 }}>
+                            <WobbleCard
+                              containerClassName="h-full shadow-lg"
+                              style={{
+                                backgroundImage: bankType === bank
+                                  ? (bank === "Standard Chartered"
+                                    ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
+                                    : bank === "ICICI"
+                                      ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
+                                      : "linear-gradient(135deg, #871242 0%, #be185d 100%)")
+                                  : "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+                                borderRadius: "1rem",
+                                overflow: "hidden",
+                                position: "relative",
+                                minHeight: "130px",
+                                border: bankType === bank ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
+                              }}
+                              className="p-4 flex flex-col justify-between h-full relative"
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 10 }}>
+                                <div>
+                                  <div style={{ fontSize: "1.1rem", fontWeight: "bold", marginBottom: "2px", color: "white" }}>
+                                    {bank}
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{
+                                position: "absolute",
+                                right: "-15px",
+                                bottom: "-15px",
+                                opacity: 0.25,
+                                pointerEvents: "none",
+                                zIndex: 0,
+                                transform: "rotate(-15deg)"
+                              }}>
+                                <Landmark size={100} color="white" />
+                              </div>
+                            </WobbleCard>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                      borderRadius: "12px",
+                      padding: "24px",
+                      textAlign: "center",
+                      background: misFile
+                        ? (darkMode ? "#064e3b" : "#f0fdf4")
+                        : (darkMode ? "#0f172a" : "white"),
+                      transition: "all 0.3s ease"
+                    }}>
+                      <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                        {misFile ? "📄" : "📊"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                        <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                          MIS Extract File
+                        </Typography>
+                        <Tooltip title="Upload your Management Information System extract" arrow>
+                          <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                        </Tooltip>
+                      </div>
+                      <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                        Excel (.xlsx)
+                      </Typography>
+
+                      {misFile ? (
+                        <div style={{
+                          background: darkMode ? "#0f172a" : "white",
+                          padding: "12px",
+                          borderRadius: "8px",
+                          display: "inline-block",
+                          border: darkMode ? "1px solid #334155" : "none"
+                        }}>
+                          <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                          <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                            {(misFile.size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+                      ) : (
+                        <FileUpload
+                          key={`mis-v2-${fileResetKey}`}
+                          accept={accepts.mis}
+                          label="Click or drag to upload"
+                          onChange={(files) => setMisFile(files[0] || null)}
+                          name="mis_file"
+                          uploaderId="mis-upload-v2"
+                          darkMode={darkMode}
+                        />
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "32px 0" }}>
+                    <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔄</div>
+                    <Typography variant="h6" style={{ marginBottom: 16, fontWeight: 600, color: theme.text }}>
+                      Bank × Advance Matching
+                    </Typography>
+                    <Typography variant="body2" style={{ maxWidth: "500px", margin: "0 auto", color: theme.textSecondary }}>
+                      This step automatically matches Bank transactions with Advance records using reference numbers.
+                      Click <strong>Next</strong> to process.
+                    </Typography>
+                  </div>
+                )
               )}
 
               {activeStep === 2 && (
                 <>
-                  <div style={{ position: "relative", marginBottom: 20 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                      <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>Select TPA</label>
-                      <Tooltip title="Choose your Third Party Administrator for MIS mapping" arrow>
-                        <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
-                      </Tooltip>
-                    </div>
-                    <div style={{ position: "relative" }}>
-                      <select
-                        value={tpaName}
-                        onChange={(e) => setTpaName(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "16px 20px",
-                          paddingRight: "48px",
-                          appearance: "none",
-                          background: darkMode ? "rgba(30, 41, 59, 0.7)" : "rgba(255, 255, 255, 0.8)",
-                          backdropFilter: "blur(12px)",
-                          border: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.05)",
-                          borderRadius: "16px",
-                          color: theme.text,
-                          fontSize: "16px",
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          outline: "none",
-                          boxShadow: darkMode ? "0 4px 6px rgba(0, 0, 0, 0.2)" : "0 4px 6px rgba(0, 0, 0, 0.05)",
-                          transition: "all 0.2s ease"
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-                        onBlur={(e) => e.target.style.borderColor = darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"}
-                      >
-                        {tpaChoices.map((tpa) => (
-                          <option key={tpa} value={tpa} style={{ background: darkMode ? "#1e293b" : "white", color: theme.text }}>
-                            {tpa}
-                          </option>
-                        ))}
-                      </select>
+                  {pipelineMode !== 'v2' ? (
+                    <>
+                      <div style={{ position: "relative", marginBottom: 20 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                          <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>Select TPA</label>
+                          <Tooltip title="Choose your Third Party Administrator for MIS mapping" arrow>
+                            <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
+                          </Tooltip>
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <select
+                            value={tpaName}
+                            onChange={(e) => setTpaName(e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "16px 20px",
+                              paddingRight: "48px",
+                              appearance: "none",
+                              background: darkMode ? "rgba(30, 41, 59, 0.7)" : "rgba(255, 255, 255, 0.8)",
+                              backdropFilter: "blur(12px)",
+                              border: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.05)",
+                              borderRadius: "16px",
+                              color: theme.text,
+                              fontSize: "16px",
+                              fontWeight: 500,
+                              cursor: "pointer",
+                              outline: "none",
+                              boxShadow: darkMode ? "0 4px 6px rgba(0, 0, 0, 0.2)" : "0 4px 6px rgba(0, 0, 0, 0.05)",
+                              transition: "all 0.2s ease"
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+                            onBlur={(e) => e.target.style.borderColor = darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"}
+                          >
+                            {tpaChoices.map((tpa) => (
+                              <option key={tpa} value={tpa} style={{ background: darkMode ? "#1e293b" : "white", color: theme.text }}>
+                                {tpa}
+                              </option>
+                            ))}
+                          </select>
+                          <div style={{
+                            position: "absolute",
+                            right: "20px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            pointerEvents: "none",
+                            color: theme.textSecondary
+                          }}>
+                            ▼
+                          </div>
+                        </div>
+                      </div>
+
                       <div style={{
-                        position: "absolute",
-                        right: "20px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        pointerEvents: "none",
-                        color: theme.textSecondary
+                        border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                        borderRadius: "12px",
+                        padding: "24px",
+                        textAlign: "center",
+                        background: misFile
+                          ? (darkMode ? "#064e3b" : "#f0fdf4")
+                          : (darkMode ? "#0f172a" : "white"),
+                        transition: "all 0.3s ease"
                       }}>
-                        ▼
+                        <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                          {misFile ? "📄" : "📊"}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                          <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                            MIS Extract File
+                          </Typography>
+                          <Tooltip title="Upload your Management Information System extract" arrow>
+                            <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                          </Tooltip>
+                        </div>
+                        <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                          Excel (.xlsx)
+                        </Typography>
+
+                        {misFile ? (
+                          <div style={{
+                            background: darkMode ? "#0f172a" : "white",
+                            padding: "12px",
+                            borderRadius: "8px",
+                            display: "inline-block",
+                            border: darkMode ? "1px solid #334155" : "none"
+                          }}>
+                            <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                            <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                              {(misFile.size / 1024).toFixed(1)} KB
+                            </div>
+                          </div>
+                        ) : (
+                          <FileUpload
+                            key={`mis-${fileResetKey}`}
+                            accept={accepts.mis}
+                            label="Click or drag to upload"
+                            onChange={(files) => setMisFile(files[0] || null)}
+                            name="mis_file"
+                            uploaderId="mis-upload"
+                            darkMode={darkMode}
+                          />
+                        )}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              )}
+
+              {(activeStep === 3 || (pipelineMode === 'v2' && activeStep === 2)) && (
+                <>
+                  {pipelineMode === 'v2' && tpaName && (
+                    <div className="mb-8 overflow-hidden rounded-2xl relative">
+                      <div className={`absolute inset-0 opacity-20 ${darkMode ? 'bg-gradient-to-r from-emerald-900 to-teal-900' : 'bg-gradient-to-r from-emerald-100 to-teal-100'}`}></div>
+                      <div className="relative p-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-emerald-500/20 rounded-2xl backdrop-blur-sm">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl shadow-lg shadow-emerald-500/30">
+                            🏥
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-emerald-500/80 uppercase tracking-wider mb-1">
+                              Detected TPA Protocol
+                            </div>
+                            <div className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${darkMode ? 'from-white to-emerald-200' : 'from-slate-800 to-emerald-700'}`}>
+                              {tpaName}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+                          <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                          </span>
+                          <span className="text-sm font-semibold text-emerald-600">Active Pipeline</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* MIS File Card */}
                   <div style={{
-                    border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                    border: `2px dashed ${outstandingFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
                     borderRadius: "12px",
                     padding: "24px",
                     textAlign: "center",
-                    background: misFile
+                    background: outstandingFile
                       ? (darkMode ? "#064e3b" : "#f0fdf4")
                       : (darkMode ? "#0f172a" : "white"),
                     transition: "all 0.3s ease"
                   }}>
                     <div style={{ fontSize: "48px", marginBottom: "12px" }}>
-                      {misFile ? "📄" : "📊"}
+                      {outstandingFile ? "📄" : "📋"}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
                       <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
-                        MIS Extract File
+                        Outstanding Report
                       </Typography>
-                      <Tooltip title="Upload your Management Information System extract" arrow>
+                      <Tooltip title="Upload your outstanding balances report" arrow>
                         <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
                       </Tooltip>
                     </div>
@@ -1475,7 +1858,7 @@ export default function Home() {
                       Excel (.xlsx)
                     </Typography>
 
-                    {misFile ? (
+                    {outstandingFile ? (
                       <div style={{
                         background: darkMode ? "#0f172a" : "white",
                         padding: "12px",
@@ -1483,77 +1866,24 @@ export default function Home() {
                         display: "inline-block",
                         border: darkMode ? "1px solid #334155" : "none"
                       }}>
-                        <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                        <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {outstandingFile.name}</div>
                         <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
-                          {(misFile.size / 1024).toFixed(1)} KB
+                          {(outstandingFile.size / 1024).toFixed(1)} KB
                         </div>
                       </div>
                     ) : (
                       <FileUpload
-                        key={`mis-${fileResetKey}`}
-                        accept={accepts.mis}
+                        key={`outstanding-${fileResetKey}`}
+                        accept={accepts.outstanding}
                         label="Click or drag to upload"
-                        onChange={(files) => setMisFile(files[0] || null)}
-                        name="mis_file"
-                        uploaderId="mis-upload"
+                        onChange={(files) => setOutstandingFile(files[0] || null)}
+                        name="outstanding_file"
+                        uploaderId="outstanding-upload"
                         darkMode={darkMode}
                       />
                     )}
                   </div>
                 </>
-              )}
-
-              {activeStep === 3 && (
-                <div style={{
-                  border: `2px dashed ${outstandingFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
-                  borderRadius: "12px",
-                  padding: "24px",
-                  textAlign: "center",
-                  background: outstandingFile
-                    ? (darkMode ? "#064e3b" : "#f0fdf4")
-                    : (darkMode ? "#0f172a" : "white"),
-                  transition: "all 0.3s ease"
-                }}>
-                  <div style={{ fontSize: "48px", marginBottom: "12px" }}>
-                    {outstandingFile ? "📄" : "📋"}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-                    <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
-                      Outstanding Report
-                    </Typography>
-                    <Tooltip title="Upload your outstanding balances report" arrow>
-                      <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
-                    </Tooltip>
-                  </div>
-                  <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
-                    Excel (.xlsx)
-                  </Typography>
-
-                  {outstandingFile ? (
-                    <div style={{
-                      background: darkMode ? "#0f172a" : "white",
-                      padding: "12px",
-                      borderRadius: "8px",
-                      display: "inline-block",
-                      border: darkMode ? "1px solid #334155" : "none"
-                    }}>
-                      <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {outstandingFile.name}</div>
-                      <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
-                        {(outstandingFile.size / 1024).toFixed(1)} KB
-                      </div>
-                    </div>
-                  ) : (
-                    <FileUpload
-                      key={`outstanding-${fileResetKey}`}
-                      accept={accepts.outstanding}
-                      label="Click or drag to upload"
-                      onChange={(files) => setOutstandingFile(files[0] || null)}
-                      name="outstanding_file"
-                      uploaderId="outstanding-upload"
-                      darkMode={darkMode}
-                    />
-                  )}
-                </div>
               )}
             </div>
           )}
@@ -1985,6 +2315,26 @@ export default function Home() {
                               <Typography style={{ color: darkMode ? "#fca5a5" : "#b91c1c", fontSize: "14px", fontWeight: 500 }}>
                                 {res.error}
                               </Typography>
+                            </div>
+                          )}
+
+                          {/* Auto-Detected Info (V2) */}
+                          {res.ok && res.data && (res.data.detected_bank_type || res.data.detected_tpa) && (
+                            <div style={{
+                              marginTop: 12,
+                              padding: "8px 12px",
+                              background: darkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(59, 130, 246, 0.05)",
+                              borderLeft: "4px solid #3b82f6",
+                              borderRadius: 4,
+                              fontSize: "13px",
+                              color: theme.textSecondary
+                            }}>
+                              {res.data.detected_bank_type && (
+                                <div><strong>Detected Bank:</strong> {res.data.detected_bank_type}</div>
+                              )}
+                              {res.data.detected_tpa && (
+                                <div><strong>Detected TPA:</strong> {res.data.detected_tpa}</div>
+                              )}
                             </div>
                           )}
 
