@@ -1369,7 +1369,7 @@ export default function Home() {
                   <div style={{ marginBottom: 24, opacity: 1, transition: "opacity 0.3s" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                       <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
-                        {pipelineMode === 'v2' ? "Auto detects Bank Type" : "Select Bank Type"}
+                        {pipelineMode === 'v2' ? "Auto-detects Bank Type" : "Select Bank Type"}
                       </label>
                       <Tooltip title={pipelineMode === 'v2' ? "Bank type is auto-detected from the uploaded file" : "Choose between ICICI, AXIS, or Standard Chartered"} arrow>
                         <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
