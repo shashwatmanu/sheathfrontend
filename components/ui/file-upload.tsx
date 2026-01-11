@@ -32,11 +32,13 @@ export const FileUpload = ({
   accept,
   uploaderId, // 👈 expects a unique id per uploader instance
   darkMode,
+  multiple = false,
 }: {
   onChange?: (files: File[]) => void;
   accept?: string;
   uploaderId: string;
   darkMode?: boolean;
+  multiple?: boolean;
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +48,7 @@ export const FileUpload = ({
   });
 
   const handleFileChange = (newFiles: File[]) => {
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    setFiles((prevFiles) => (multiple ? [...prevFiles, ...newFiles] : newFiles));
   };
 
   // notify parent after render
@@ -85,7 +87,7 @@ export const FileUpload = ({
   };
 
   const { getRootProps, isDragActive } = useDropzone({
-    multiple: false,
+    multiple: multiple,
     noClick: true,
     accept: buildAcceptConfig(accept),
     onDrop: handleFileChange,
@@ -134,6 +136,7 @@ export const FileUpload = ({
           ref={fileInputRef}
           type="file"
           accept={accept}
+          multiple={multiple}
           onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
         />
@@ -168,13 +171,13 @@ export const FileUpload = ({
                 <motion.div
                   key={`${uploaderId}-file-${idx}`}
                   layoutId={`${uploaderId}-file-${idx}`}
-                   className={cn(
-                     "relative overflow-hidden z-40 flex flex-col items-start justify-start md:h-24 p-4 mt-4 w-full mx-auto rounded-md shadow-sm",
-                     !effectiveDarkMode && "bg-white"
-                   )}
-                   style={
-                     effectiveDarkMode ? { backgroundColor: DARK_SURFACE } : undefined
-                   }
+                  className={cn(
+                    "relative overflow-hidden z-40 flex flex-col items-start justify-start md:h-24 p-4 mt-4 w-full mx-auto rounded-md shadow-sm",
+                    !effectiveDarkMode && "bg-white"
+                  )}
+                  style={
+                    effectiveDarkMode ? { backgroundColor: DARK_SURFACE } : undefined
+                  }
                 >
                   {/* remove button */}
                   <button
@@ -213,13 +216,13 @@ export const FileUpload = ({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       layout
-                       className={cn(
-                         "rounded-lg px-2 py-1 w-fit shrink-0 text-sm shadow-input",
-                         effectiveDarkMode ? "text-white" : "text-neutral-600 bg-neutral-100"
-                       )}
-                       style={
-                         effectiveDarkMode ? { backgroundColor: DARK_TILE_LIGHT } : undefined
-                       }
+                      className={cn(
+                        "rounded-lg px-2 py-1 w-fit shrink-0 text-sm shadow-input",
+                        effectiveDarkMode ? "text-white" : "text-neutral-600 bg-neutral-100"
+                      )}
+                      style={
+                        effectiveDarkMode ? { backgroundColor: DARK_TILE_LIGHT } : undefined
+                      }
                     >
                       {(file.size / (1024 * 1024)).toFixed(2)} MB
                     </motion.p>
@@ -258,13 +261,13 @@ export const FileUpload = ({
                 layoutId={`${uploaderId}-empty`}
                 variants={mainVariant}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                 className={cn(
-                   "relative group-hover/file:shadow-2xl z-40 flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md shadow-[0px_10px_50px_rgba(0,0,0,0.1)]",
-                   !effectiveDarkMode && "bg-white"
-                 )}
-                 style={
-                   effectiveDarkMode ? { backgroundColor: DARK_SURFACE } : undefined
-                 }
+                className={cn(
+                  "relative group-hover/file:shadow-2xl z-40 flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md shadow-[0px_10px_50px_rgba(0,0,0,0.1)]",
+                  !effectiveDarkMode && "bg-white"
+                )}
+                style={
+                  effectiveDarkMode ? { backgroundColor: DARK_SURFACE } : undefined
+                }
               >
                 {isDragActive ? (
                   <motion.p
@@ -330,20 +333,20 @@ export function GridPattern({ darkMode = false }: { darkMode?: boolean }) {
               className={cn(
                 "w-10 h-10 flex shrink-0 rounded-[2px]",
                 !darkMode &&
-                  cn(
-                    isEven
-                      ? "bg-gray-50"
-                      : "bg-black-50 shadow-[0px_0px_1px_3px_rgba(255,255,255,1)_inset]"
-                  )
+                cn(
+                  isEven
+                    ? "bg-gray-50"
+                    : "bg-black-50 shadow-[0px_0px_1px_3px_rgba(255,255,255,1)_inset]"
+                )
               )}
               style={
                 darkMode
                   ? {
-                      backgroundColor: isEven ? DARK_TILE_LIGHT : DARK_TILE_DARK,
-                      boxShadow: !isEven
-                        ? "0px 0px 1px 3px rgba(8, 14, 24, 0.65) inset"
-                        : undefined,
-                    }
+                    backgroundColor: isEven ? DARK_TILE_LIGHT : DARK_TILE_DARK,
+                    boxShadow: !isEven
+                      ? "0px 0px 1px 3px rgba(8, 14, 24, 0.65) inset"
+                      : undefined,
+                  }
                   : undefined
               }
             />

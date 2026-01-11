@@ -565,12 +565,26 @@ export default function Home() {
 
   const [stepResults, setStepResults] = useState({});
   const [fileResetKey, setFileResetKey] = useState(0);
+
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  // ✅ NEW: Bulk Mode State
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkBankFiles, setBulkBankFiles] = useState([]);
+  const [bulkMisFiles, setBulkMisFiles] = useState([]);
+  const [bulkOutstandingFile, setBulkOutstandingFile] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
+
+  // Reset keys for bulk uploaders to keep them "fresh" after upload
+  const [bulkBankResetKey, setBulkBankResetKey] = useState(0);
+  const [bulkMisResetKey, setBulkMisResetKey] = useState(0);
+  const [bulkOutstandingResetKey, setBulkOutstandingResetKey] = useState(0);
+  const [expandedBulkRow, setExpandedBulkRow] = useState(null);
+  const [activeFileInRow, setActiveFileInRow] = useState(null);
+
   const [animationData, setAnimationData] = useState(null);
 
-
-
-  // ✅ NEW: AI Assistant Modal state
-  // const [aiModalOpen, setAiModalOpen] = useState(false);
 
   // Dynamic steps based on pipeline mode
   const steps = useMemo(() => {
@@ -1004,6 +1018,90 @@ export default function Home() {
     }
   };
 
+  // ✅ NEW: Bulk Reconciliation Handler
+  const handleBulkReconcile = async () => {
+    setError("");
+    setBulkLoading(true);
+    setBulkResult(null);
+
+    if (!API_BASE) {
+      setError("NEXT_PUBLIC_API_BASE_URL is not set.");
+      setBulkLoading(false);
+      return;
+    }
+
+    if (bulkBankFiles.length === 0) {
+      setError("Please select at least one Bank Statement file.");
+      setBulkLoading(false);
+      return;
+    }
+
+    if (bulkMisFiles.length === 0) {
+      setError("Please select at least one MIS file.");
+      setBulkLoading(false);
+      return;
+    }
+
+    if (!bulkOutstandingFile) {
+      setError("Please select the Outstanding file.");
+      setBulkLoading(false);
+      return;
+    }
+
+    try {
+      const fd = new FormData();
+      bulkBankFiles.forEach(file => fd.append("bank_files", file));
+      bulkMisFiles.forEach(file => fd.append("mis_files", file));
+      fd.append("outstanding_file", bulkOutstandingFile);
+
+      const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/v2/bulk`;
+      console.log("[Bulk] Sending request to:", endpoint);
+
+      const res = await authenticatedFetch(endpoint, { method: "POST", body: fd });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let errorMsg = `HTTP ${res.status}`;
+        try {
+          const json = JSON.parse(text);
+          errorMsg = json?.detail || json?.error || text;
+        } catch {
+          errorMsg = text;
+        }
+        setError(errorMsg);
+        setBulkLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      console.log("[Bulk] Response:", data);
+
+      if (data.status !== "success") {
+        const msg = data.error || "Bulk process failed";
+        setError(msg);
+        setBulkLoading(false);
+        return;
+      }
+
+      setBulkResult(data);
+
+      // Auto-trigger ZIP download -> REMOVED per user request
+      /* 
+      if (data.zip_url) {
+        ...
+      } 
+      */
+
+    } catch (e) {
+      const msg = e?.message || "Bulk upload failed";
+      console.error("[Bulk] Error:", e);
+      setError(msg);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+
   const handleNext = async () => {
     setError("");
     let ok = false;
@@ -1060,6 +1158,15 @@ export default function Home() {
     setFileResetKey((k) => k + 1);
     setBankType("Standard Chartered");
     if (tpaChoices.length > 0) setTpaName(tpaChoices[0]);
+    setBulkBankFiles([]);
+    setBulkMisFiles([]);
+    setBulkOutstandingFile(null);
+    setBulkResult(null);
+    setBulkBankResetKey(k => k + 1);
+    setBulkMisResetKey(k => k + 1);
+    setBulkOutstandingResetKey(k => k + 1);
+    setExpandedBulkRow(null);
+    setActiveFileInRow(null);
   };
 
   // Handle pipeline mode switch
@@ -1367,13 +1474,31 @@ export default function Home() {
                 <>
                   {/* Bank Type Selection - Visible in both modes, but disabled in V2 */}
                   <div style={{ marginBottom: 24, opacity: 1, transition: "opacity 0.3s" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                      <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
-                        {pipelineMode === 'v2' ? "Auto-detects Bank Type" : "Select Bank Type"}
-                      </label>
-                      <Tooltip title={pipelineMode === 'v2' ? "Bank type is auto-detected from the uploaded file" : "Choose between ICICI, AXIS, or Standard Chartered"} arrow>
-                        <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
-                      </Tooltip>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
+                          {pipelineMode === 'v2' ? "Auto-detects Bank Type" : "Select Bank Type"}
+                        </label>
+                        <Tooltip title={pipelineMode === 'v2' ? "Bank type is auto-detected from the uploaded file" : "Choose between ICICI, AXIS, or Standard Chartered"} arrow>
+                          <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
+                        </Tooltip>
+                      </div>
+
+                      {/* ✅ NEW: Bulk Mode Toggle */}
+                      {pipelineMode === 'v2' && (
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium ${isBulkMode ? "text-blue-500" : "text-gray-500"}`}>Bulk Mode</span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={isBulkMode}
+                              onChange={(e) => setIsBulkMode(e.target.checked)}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+                      )}
                     </div>
                     <div style={{
                       display: "grid",
@@ -1463,60 +1588,500 @@ export default function Home() {
                     </small>
                   </div>
 
+
+
                   {/* File Upload Cards */}
-                  <div className={`grid gap-6 mt-6 ${pipelineMode === 'v2' ? 'grid-cols-1 max-w-xl mx-auto' : 'grid-cols-1 md:grid-cols-2'}`}>
-                    {/* Bank Statement Card */}
-                    <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
-                      }`}>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
-                            📄
+                  <div className={`grid gap-6 mt-6 ${pipelineMode === 'v2' ? 'grid-cols-1 max-w-xl mx-auto' : 'grid-cols-1 md:grid-cols-2'}`} style={isBulkMode ? { display: isBulkMode ? 'block' : 'grid' } : {}}>
+                    {/* File Upload Cards for Bulk Mode */}
+                    {isBulkMode ? (
+                      <>
+                        {/* Bulk: Bank Statements (Multiple) */}
+                        <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                          }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
+                                📚
+                              </div>
+                              <div>
+                                <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statements</h3>
+                                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                  Multiple Files Allowed
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statement</h3>
-                            <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                              Excel (.xlsx)
-                            </p>
-                          </div>
+
+                          {/* File List displayed ABOVE upload area */}
+                          {bulkBankFiles.length > 0 && (
+                            <div className="mb-4 space-y-2">
+                              {bulkBankFiles.map((file, idx) => (
+                                <div key={idx} className={`flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                                  <div className="flex items-center gap-2 overflow-hidden">
+                                    <span className="text-lg">📄</span>
+                                    <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => setBulkBankFiles(prev => prev.filter((_, i) => i !== idx))}
+                                    className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <FileUpload
+                            key={`bulk-bank-${bulkBankResetKey}`}
+                            accept={accepts.bank}
+                            multiple={true}
+                            onChange={(files) => {
+                              if (files.length > 0) {
+                                setBulkBankFiles(prev => [...prev, ...files]);
+                                setBulkBankResetKey(k => k + 1);
+                              }
+                            }}
+                            uploaderId="bulk-bank-upload"
+                            darkMode={darkMode}
+                          />
                         </div>
-                        {bankFile && (
-                          <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
-                            Uploaded
+
+                        {/* Bulk: MIS Files (Multiple) */}
+                        <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                          }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${darkMode ? "bg-purple-900/30 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
+                                📑
+                              </div>
+                              <div>
+                                <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>MIS Files</h3>
+                                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                  Multiple Files Allowed
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* File List displayed ABOVE upload area */}
+                          {bulkMisFiles.length > 0 && (
+                            <div className="mb-4 space-y-2">
+                              {bulkMisFiles.map((file, idx) => (
+                                <div key={idx} className={`flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                                  <div className="flex items-center gap-2 overflow-hidden">
+                                    <span className="text-lg">📊</span>
+                                    <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => setBulkMisFiles(prev => prev.filter((_, i) => i !== idx))}
+                                    className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <FileUpload
+                            key={`bulk-mis-${bulkMisResetKey}`}
+                            accept={accepts.mis}
+                            multiple={true}
+                            onChange={(files) => {
+                              if (files.length > 0) {
+                                setBulkMisFiles(prev => [...prev, ...files]);
+                                setBulkMisResetKey(k => k + 1);
+                              }
+                            }}
+                            uploaderId="bulk-mis-upload"
+                            darkMode={darkMode}
+                          />
+                        </div>
+
+                        {/* Bulk: Outstanding File (Single) */}
+                        <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                          }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${darkMode ? "bg-amber-900/30 text-amber-400" : "bg-amber-50 text-amber-600"}`}>
+                                📋
+                              </div>
+                              <div>
+                                <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Outstanding Report</h3>
+                                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                  Single File (Master)
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {bulkOutstandingFile && (
+                            <div className={`mb-4 flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <span className="text-lg">✅</span>
+                                <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{bulkOutstandingFile.name}</span>
+                              </div>
+                              <button
+                                onClick={() => setBulkOutstandingFile(null)}
+                                className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+
+                          <FileUpload
+                            key={`bulk-outstanding-${bulkOutstandingResetKey}`}
+                            accept={accepts.outstanding}
+                            multiple={false}
+                            onChange={(files) => {
+                              if (files.length > 0) {
+                                setBulkOutstandingFile(files[0] || null);
+                                setBulkOutstandingResetKey(k => k + 1);
+                              }
+                            }}
+                            uploaderId="bulk-outstanding-upload"
+                            darkMode={darkMode}
+                          />
+                        </div>
+
+                        {/* Run Bulk Button */}
+                        <div className="mt-8 flex justify-center">
+                          <FancyButton
+                            onClick={handleBulkReconcile}
+                            disabled={bulkLoading}
+                            borderRadius="1.75rem"
+                            className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800 w-auto px-8 py-3"
+                          >
+                            {bulkLoading ? "Processing..." : "Run Bulk Reconciliation"}
+                          </FancyButton>
+                        </div>
+
+                        {/* Bulk Results - Full Width Container */}
+                        {bulkResult && (
+                          <div className={`mt-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-6 rounded-none sm:rounded-2xl border-y sm:border ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                Bulk Reconciliation Results
+                              </h3>
+                              <span className={`text-xs px-2 py-1 rounded-full ${darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600"}`}>
+                                Scroll horizontally for more columns
+                              </span>
+                            </div>
+
+                            {/* Main Consolidated Summary File Viewer */}
+                            {bulkResult.files && bulkResult.files['bulk_summary.xlsx'] && (
+                              <div className="mb-8 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <span className="text-xl">📑</span>
+                                  <h4 className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-800"}`}>
+                                    Overall Summary Report
+                                  </h4>
+                                </div>
+                                <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
+                                  <ExcelDataViewer
+                                    url={bulkResult.files['bulk_summary.xlsx']}
+                                    label="bulk_summary.xlsx"
+                                    darkMode={darkMode}
+                                    apiBase={API_BASE}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {bulkResult.summary && (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                  <thead className={`text-xs uppercase ${darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-700"}`}>
+                                    <tr>
+                                      <th className="px-4 py-3 rounded-tl-lg">Bank File</th>
+                                      <th className="px-4 py-3">MIS File</th>
+                                      <th className="px-4 py-3">Bank Type</th>
+                                      <th className="px-4 py-3">TPA</th>
+                                      <th className="px-4 py-3 text-center">Bank Rows</th>
+                                      <th className="px-4 py-3 text-center">MIS Rows</th>
+                                      <th className="px-4 py-3 text-center">Step 2 Match</th>
+                                      <th className="px-4 py-3 text-center">Final Match</th>
+                                      <th className="px-4 py-3">Status</th>
+                                      <th className="px-4 py-3 rounded-tr-lg">Action</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className={darkMode ? "text-slate-300" : "text-gray-600"}>
+                                    {bulkResult.summary.map((row, idx) => {
+                                      const isExpanded = expandedBulkRow === idx;
+                                      // Attempt to resolve the output file from the row data
+                                      // The backend should ideally provide 'Output File' or similar key
+                                      const outputFileName = row["Output File"] || row["Result File"] || `Result_${idx}.xlsx`;
+                                      const fileUrl = bulkResult.files ? (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]) : null;
+
+                                      return (
+                                        <React.Fragment key={idx}>
+                                          <tr className={`border-b ${darkMode ? "border-slate-700" : "border-gray-100"} ${isExpanded ? (darkMode ? "bg-slate-800" : "bg-blue-50/50") : ""}`}>
+                                            <td className="px-4 py-3 font-medium truncate max-w-[150px]" title={row["Bank File"]}>{row["Bank File"]}</td>
+                                            <td className="px-4 py-3 truncate max-w-[150px]" title={row["MIS File"]}>{row["MIS File"]}</td>
+                                            <td className="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">{row["Bank Type"] || "-"}</td>
+                                            <td className="px-4 py-3 font-semibold text-purple-600 dark:text-purple-400">{row["TPA"] || "-"}</td>
+                                            <td className="px-4 py-3 text-center">{row["Bank Rows"] || 0}</td>
+                                            <td className="px-4 py-3 text-center">{row["MIS Rows"] || 0}</td>
+                                            <td className="px-4 py-3 text-center">{row["Step 2 Match"] || 0}</td>
+                                            <td className="px-4 py-3 text-center font-bold">{row["Final Match"] || 0}</td>
+                                            <td className="px-4 py-3">
+                                              <span className={`px-2 py-1 rounded text-xs font-semibold ${row.Status === "Success" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                                                {row.Status}
+                                              </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              {/* Always show View button if we have ANY files (Output File or Produced Files) */}
+                                              {(fileUrl || (row.produced_files && Object.keys(row.produced_files).length > 0)) ? (
+                                                <button
+                                                  onClick={() => {
+                                                    if (isExpanded) {
+                                                      setExpandedBulkRow(null);
+                                                      setActiveFileInRow(null);
+                                                    } else {
+                                                      setExpandedBulkRow(idx);
+                                                      // Auto-select the most relevant file to avoid double clicking
+                                                      if (row.produced_files && Object.values(row.produced_files).length > 0) {
+                                                        // Select the last file in the list logic (usually "Final Result")
+                                                        const files = Object.values(row.produced_files);
+                                                        setActiveFileInRow(files[files.length - 1]);
+                                                      } else {
+                                                        // Fallback Single File Mode
+                                                        setActiveFileInRow(outputFileName);
+                                                      }
+                                                    }
+                                                  }}
+                                                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all border ${isExpanded
+                                                    ? (darkMode ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20")
+                                                    : (darkMode ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50")
+                                                    }`}
+                                                >
+                                                  <span>{isExpanded ? "Hide" : "View"}</span>
+                                                  <span className="text-[10px]">{isExpanded ? "▲" : "▼"}</span>
+                                                </button>
+                                              ) : (
+                                                <span className="text-xs text-gray-400 italic">No File</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                          {isExpanded && (
+                                            <tr className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                              <td colSpan={10} className={`p-6 ${darkMode ? "bg-slate-800/30" : "bg-slate-50/50"}`}>
+                                                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+                                                  <div className={`px-4 py-3 border-b ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-gray-50"} font-semibold flex items-center gap-2`}>
+                                                    <span>📂</span>
+                                                    <span>Reconciliation Outputs</span>
+                                                  </div>
+
+                                                  <div className="p-4 flex flex-col gap-3">
+                                                    {/* Check if we have multiple produced files (New Backend Spec) */}
+                                                    {row.produced_files && typeof row.produced_files === 'object' ? (
+                                                      Object.entries(row.produced_files).map(([label, fileName]) => {
+                                                        const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
+                                                        if (!fUrl) return null;
+                                                        const isActive = activeFileInRow === fileName;
+
+                                                        return (
+                                                          <div key={fileName} className={`border rounded-xl transition-all duration-300 ${isActive ? (darkMode ? "border-blue-500 ring-1 ring-blue-500" : "border-blue-400 ring-1 ring-blue-400") : (darkMode ? "border-slate-700" : "border-gray-200")}`}>
+                                                            <div className={`flex items-center justify-between p-3 ${isActive ? (darkMode ? "bg-slate-800" : "bg-blue-50") : ""}`}>
+                                                              <div className="flex items-center gap-3">
+                                                                <div className={`p-1.5 rounded-lg ${darkMode ? "bg-slate-700" : "bg-white border border-gray-100"}`}>
+                                                                  <FileSpreadsheet size={16} className={darkMode ? "text-blue-400" : "text-blue-600"} />
+                                                                </div>
+                                                                <div>
+                                                                  <div className={`text-sm font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{label}</div>
+                                                                  <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{fileName}</div>
+                                                                </div>
+                                                              </div>
+
+                                                              <div className="flex items-center gap-2">
+                                                                <a
+                                                                  href={fUrl}
+                                                                  download={fileName}
+                                                                  className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                  title="Download File"
+                                                                >
+                                                                  <Download size={16} />
+                                                                </a>
+                                                                <button
+                                                                  onClick={() => setActiveFileInRow(isActive ? null : fileName)}
+                                                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isActive
+                                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                                                                    : (darkMode ? "bg-slate-700 hover:bg-slate-600 text-slate-200" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700")}`}
+                                                                >
+                                                                  {isActive ? "Close Viewer" : "View Data"}
+                                                                </button>
+                                                              </div>
+                                                            </div>
+
+                                                            {isActive && (
+                                                              <div className="border-t border-slate-200 dark:border-slate-700">
+                                                                <ExcelDataViewer
+                                                                  url={fUrl}
+                                                                  label={fileName}
+                                                                  darkMode={darkMode}
+                                                                  apiBase={API_BASE}
+                                                                />
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        );
+                                                      })
+                                                    ) : (
+                                                      /* Fallback for current single-file response */
+                                                      fileUrl && (
+                                                        <div className={`border rounded-xl transition-all duration-300 ${activeFileInRow === outputFileName || (!activeFileInRow) ? (darkMode ? "border-blue-500" : "border-blue-400") : (darkMode ? "border-slate-700" : "border-gray-200")}`}>
+                                                          <div className="flex items-center justify-between p-3">
+                                                            <div className="flex items-center gap-3">
+                                                              <div className={`text-sm font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Final Output</div>
+                                                              <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{outputFileName}</div>
+                                                            </div>
+                                                            <a href={fileUrl} download={outputFileName} className="text-blue-500 hover:underline text-xs flex items-center gap-1">
+                                                              <Download size={12} /> Download
+                                                            </a>
+                                                          </div>
+                                                          <ExcelDataViewer
+                                                            url={fileUrl}
+                                                            label={outputFileName}
+                                                            darkMode={darkMode}
+                                                            apiBase={API_BASE}
+                                                          />
+                                                        </div>
+                                                      )
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </React.Fragment>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                            <div className="mt-6 flex justify-center">
+                              {bulkResult.zip_url && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const token = localStorage.getItem('access_token');
+                                      const headers = {};
+                                      if (token) {
+                                        headers['Authorization'] = `Bearer ${token}`;
+                                      }
+                                      const fullUrl = `${API_BASE.replace(/\/$/, "")}${bulkResult.zip_url}`;
+                                      const dlRes = await authenticatedFetch(fullUrl, { headers });
+                                      const blob = await dlRes.blob();
+                                      const downloadUrl = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = downloadUrl;
+                                      a.download = bulkResult.zip_url.split('/').pop() || 'bulk_reconciliation.zip';
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      window.URL.revokeObjectURL(downloadUrl);
+                                      document.body.removeChild(a);
+                                    } catch (e) {
+                                      console.error("Download failed:", e);
+                                      alert("Failed to download ZIP file.");
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition-all transform hover:scale-105"
+                                >
+                                  <span>📦</span>
+                                  <span>Download Results ZIP</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )}
-                      </div>
 
-                      {bankFile ? (
-                        <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
-                          <div className="flex items-center gap-3">
-                            <div className="text-2xl">📊</div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                {bankFile.name}
+                        {/* Bulk Loading Overlay */}
+                        {bulkLoading && (
+                          <div style={{
+                            position: "fixed",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: "rgba(0,0,0,0.85)",
+                            backdropFilter: "blur(8px)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 9999,
+                          }}>
+                            <div className={`p-10 rounded-3xl text-center ${darkMode ? "bg-slate-900 border border-slate-700" : "bg-white"}`}>
+                              <div className="text-6xl mb-4 animate-bounce">📦</div>
+                              <h2 className={`text-2xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                Processing Bulk Reconciliation
+                              </h2>
+                              <p className={`mb-6 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                Processing cartesian product of files... This may take a while.
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {(bankFile.size / 1024).toFixed(1)} KB
+                              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-600 animate-[shimmer_2s_infinite]" style={{ width: '100%', backgroundSize: '200% auto', backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)' }}></div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // Standard Mode: Bank Statement Card
+                      <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                        }`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
+                              📄
+                            </div>
+                            <div>
+                              <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statement</h3>
+                              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                Excel (.xlsx)
                               </p>
                             </div>
-                            <button
-                              onClick={() => setBankFile(null)}
-                              className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                            >
-                              ✕
-                            </button>
                           </div>
+                          {bankFile && (
+                            <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
+                              Uploaded
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <FileUpload
-                          key={`bank-${fileResetKey}`}
-                          accept={accepts.bank}
-                          onChange={(files) => setBankFile(files[0] || null)}
-                          uploaderId="bank-upload"
-                          darkMode={darkMode}
-                        />
-                      )}
-                    </div>
+
+                        {bankFile ? (
+                          <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="text-2xl">📊</div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                  {bankFile.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {(bankFile.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => setBankFile(null)}
+                                className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <FileUpload
+                            key={`bank-${fileResetKey}`}
+                            accept={accepts.bank}
+                            onChange={(files) => setBankFile(files[0] || null)}
+                            uploaderId="bank-upload"
+                            darkMode={darkMode}
+                          />
+                        )}
+                      </div>
+                    )}
 
                     {/* Advance Statement Card - Hide in V2 */}
                     {pipelineMode !== 'v2' && (
@@ -1916,609 +2481,621 @@ export default function Home() {
             </div>
           )}
 
-          {activeStep < steps.length && (
-            <div style={{
-              display: "flex",
-              flexDirection: typeof window !== 'undefined' && window.innerWidth < 600 ? "column" : "row",
-              gap: 12,
-              alignItems: "center",
-              marginTop: 20,
-              justifyContent: "center",
-              marginBottom: "16px"
-            }}>
-              <MuiButton
-                variant="text"
-                disabled={activeStep === 0 || loading}
-                onClick={handleBack}
-                style={{ minWidth: "80px" }}
-              >
-                Back
-              </MuiButton>
-              <div style={{ flex: "0 0 auto" }}>
-                <FancyButton
-                  onClick={handleNext}
-                  disabled={!canProceed || loading}
-                  borderRadius="1.75rem"
-                  className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
+
+
+          {
+            activeStep < steps.length && !isBulkMode && (
+              <div style={{
+                display: "flex",
+                flexDirection: typeof window !== 'undefined' && window.innerWidth < 600 ? "column" : "row",
+                gap: 12,
+                alignItems: "center",
+                marginTop: 20,
+                justifyContent: "center",
+                marginBottom: "16px"
+              }}>
+                <MuiButton
+                  variant="text"
+                  disabled={activeStep === 0 || loading}
+                  onClick={handleBack}
+                  style={{ minWidth: "80px" }}
                 >
-                  {loading
-                    ? "Processing..."
-                    : activeStep === steps.length - 1
-                      ? "Finish"
-                      : "Next"}
-                </FancyButton>
+                  Back
+                </MuiButton>
+                <div style={{ flex: "0 0 auto" }}>
+                  <FancyButton
+                    onClick={handleNext}
+                    disabled={!canProceed || loading}
+                    borderRadius="1.75rem"
+                    className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
+                  >
+                    {loading
+                      ? "Processing..."
+                      : activeStep === steps.length - 1
+                        ? "Finish"
+                        : "Next"}
+                  </FancyButton>
+                </div>
+                <MuiButton
+                  variant="text"
+                  onClick={handleReset}
+                  disabled={loading}
+                  style={{ minWidth: "80px" }}
+                >
+                  Reset
+                </MuiButton>
               </div>
-              <MuiButton
-                variant="text"
-                onClick={handleReset}
-                disabled={loading}
-                style={{ minWidth: "80px" }}
-              >
-                Reset
-              </MuiButton>
-            </div>
-          )}
+            )
+          }
 
           {/* Enhanced Processing Overlay with Lottie */}
-          {loading && (
-            <div style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "rgba(0,0,0,0.85)",
-              backdropFilter: "blur(8px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-              animation: "fadeIn 0.3s ease"
-            }}>
+          {
+            loading && (
               <div style={{
-                background: darkMode
-                  ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
-                  : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-                padding: "48px 40px",
-                borderRadius: "24px",
-                textAlign: "center",
-                minWidth: "320px",
-                maxWidth: "90%",
-                border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
-                boxShadow: darkMode
-                  ? "0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(79, 70, 229, 0.3)"
-                  : "0 20px 60px rgba(0,0,0,0.15)",
-                position: "relative",
-                overflow: "hidden"
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "rgba(0,0,0,0.85)",
+                backdropFilter: "blur(8px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9999,
+                animation: "fadeIn 0.3s ease"
               }}>
-                {/* Animated gradient background */}
                 <div style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: "linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05))",
-                  opacity: 0.5,
-                  animation: "shimmer 2s infinite"
-                }}></div>
-
-                {/* Step icon */}
-                <div style={{
-                  fontSize: "40px",
-                  marginBottom: "16px",
+                  background: darkMode
+                    ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
+                    : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+                  padding: "48px 40px",
+                  borderRadius: "24px",
+                  textAlign: "center",
+                  minWidth: "320px",
+                  maxWidth: "90%",
+                  border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+                  boxShadow: darkMode
+                    ? "0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(79, 70, 229, 0.3)"
+                    : "0 20px 60px rgba(0,0,0,0.15)",
                   position: "relative",
-                  zIndex: 1
+                  overflow: "hidden"
                 }}>
-                  {activeStep === 0 && "📁"}
-                  {activeStep === 1 && "🔄"}
-                  {activeStep === 2 && "📊"}
-                  {activeStep === 3 && "📋"}
-                </div>
-
-                {/* Lottie Animation */}
-                <div style={{
-                  width: "160px",
-                  height: "160px",
-                  margin: "0 auto 24px",
-                  position: "relative",
-                  zIndex: 1
-                }}>
-                  {animationData ? (
-                    <Lottie
-                      animationData={animationData}
-                      loop={true}
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                  ) : (
-                    // Fallback spinner if Lottie fails to load
-                    <div style={{
-                      width: "100%",
-                      height: "100%",
-                      border: `6px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
-                      borderTop: "6px solid #3b82f6",
-                      borderRadius: "50%",
-                      animation: "spin 1s linear infinite"
-                    }}></div>
-                  )}
-                </div>
-
-                {/* Step indicator with progress */}
-                <div style={{
-                  background: darkMode ? "#334155" : "#f1f5f9",
-                  borderRadius: "20px",
-                  padding: "8px 20px",
-                  display: "inline-block",
-                  marginBottom: "16px",
-                  position: "relative",
-                  zIndex: 1
-                }}>
-                  <span style={{
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: "#3b82f6",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px"
-                  }}>
-                    Step {activeStep + 1} of {steps.length}
-                  </span>
-                </div>
-
-                {/* Main heading */}
-                <Typography variant="h5" style={{
-                  marginBottom: "12px",
-                  color: theme.text,
-                  fontWeight: 700,
-                  fontSize: "24px",
-                  position: "relative",
-                  zIndex: 1
-                }}>
-                  Processing {steps[activeStep]?.label}
-                </Typography>
-
-                {/* Description */}
-                <Typography variant="body1" style={{
-                  color: theme.textSecondary,
-                  marginBottom: "24px",
-                  fontSize: "15px",
-                  position: "relative",
-                  zIndex: 1
-                }}>
-                  {steps[activeStep]?.description || "Please wait..."}
-                </Typography>
-
-                {/* Progress bar */}
-                <div style={{
-                  width: "100%",
-                  height: "6px",
-                  background: darkMode ? "#334155" : "#e2e8f0",
-                  borderRadius: "3px",
-                  overflow: "hidden",
-                  marginBottom: "16px",
-                  position: "relative",
-                  zIndex: 1
-                }}>
+                  {/* Animated gradient background */}
                   <div style={{
-                    height: "100%",
-                    width: `${((activeStep + 1) / steps.length) * 100}%`,
-                    background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-                    borderRadius: "3px",
-                    transition: "width 0.5s ease",
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: "linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05))",
+                    opacity: 0.5,
                     animation: "shimmer 2s infinite"
                   }}></div>
-                </div>
 
-                {/* Loading dots */}
-                <div style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: "8px",
-                  marginTop: "20px",
-                  position: "relative",
-                  zIndex: 1
-                }}>
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: "8px",
-                        height: "8px",
+                  {/* Step icon */}
+                  <div style={{
+                    fontSize: "40px",
+                    marginBottom: "16px",
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    {activeStep === 0 && "📁"}
+                    {activeStep === 1 && "🔄"}
+                    {activeStep === 2 && "📊"}
+                    {activeStep === 3 && "📋"}
+                  </div>
+
+                  {/* Lottie Animation */}
+                  <div style={{
+                    width: "160px",
+                    height: "160px",
+                    margin: "0 auto 24px",
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    {animationData ? (
+                      <Lottie
+                        animationData={animationData}
+                        loop={true}
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    ) : (
+                      // Fallback spinner if Lottie fails to load
+                      <div style={{
+                        width: "100%",
+                        height: "100%",
+                        border: `6px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
+                        borderTop: "6px solid #3b82f6",
                         borderRadius: "50%",
-                        background: "#3b82f6",
-                        animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
-                      }}
-                    ></div>
-                  ))}
-                </div>
+                        animation: "spin 1s linear infinite"
+                      }}></div>
+                    )}
+                  </div>
 
-                {/* Additional info */}
-                <div style={{
-                  marginTop: "24px",
-                  padding: "12px",
-                  background: darkMode ? "rgba(51, 65, 85, 0.5)" : "rgba(241, 245, 249, 0.8)",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                  color: theme.textSecondary,
-                  position: "relative",
-                  zIndex: 1
-                }}>
-                  <div style={{ marginBottom: "4px" }}>⏱️ This may take a few moments</div>
-                  <div style={{ fontSize: "11px", opacity: 0.7 }}>
-                    Please do not close or refresh this page
+                  {/* Step indicator with progress */}
+                  <div style={{
+                    background: darkMode ? "#334155" : "#f1f5f9",
+                    borderRadius: "20px",
+                    padding: "8px 20px",
+                    display: "inline-block",
+                    marginBottom: "16px",
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    <span style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "#3b82f6",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px"
+                    }}>
+                      Step {activeStep + 1} of {steps.length}
+                    </span>
+                  </div>
+
+                  {/* Main heading */}
+                  <Typography variant="h5" style={{
+                    marginBottom: "12px",
+                    color: theme.text,
+                    fontWeight: 700,
+                    fontSize: "24px",
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    Processing {steps[activeStep]?.label}
+                  </Typography>
+
+                  {/* Description */}
+                  <Typography variant="body1" style={{
+                    color: theme.textSecondary,
+                    marginBottom: "24px",
+                    fontSize: "15px",
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    {steps[activeStep]?.description || "Please wait..."}
+                  </Typography>
+
+                  {/* Progress bar */}
+                  <div style={{
+                    width: "100%",
+                    height: "6px",
+                    background: darkMode ? "#334155" : "#e2e8f0",
+                    borderRadius: "3px",
+                    overflow: "hidden",
+                    marginBottom: "16px",
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${((activeStep + 1) / steps.length) * 100}%`,
+                      background: "linear-gradient(90deg, #3b82f6, #2563eb)",
+                      borderRadius: "3px",
+                      transition: "width 0.5s ease",
+                      animation: "shimmer 2s infinite"
+                    }}></div>
+                  </div>
+
+                  {/* Loading dots */}
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: "8px",
+                    marginTop: "20px",
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          background: "#3b82f6",
+                          animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
+                        }}
+                      ></div>
+                    ))}
+                  </div>
+
+                  {/* Additional info */}
+                  <div style={{
+                    marginTop: "24px",
+                    padding: "12px",
+                    background: darkMode ? "rgba(51, 65, 85, 0.5)" : "rgba(241, 245, 249, 0.8)",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                    color: theme.textSecondary,
+                    position: "relative",
+                    zIndex: 1
+                  }}>
+                    <div style={{ marginBottom: "4px" }}>⏱️ This may take a few moments</div>
+                    <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                      Please do not close or refresh this page
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          }
 
           {/* Enhanced Error Display */}
-          {error && (
-            <div style={{
-              marginTop: 16,
-              background: darkMode ? "#7f1d1d" : "#fef2f2",
-              border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
-              borderRadius: 12,
-              padding: 20,
-              display: "flex",
-              alignItems: "start",
-              gap: 16
-            }}>
+          {
+            error && (
               <div style={{
-                fontSize: 32,
-                flexShrink: 0
-              }}>⚠️</div>
-              <div style={{ flex: 1 }}>
-                <Typography variant="h6" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
-                  Processing Error
-                </Typography>
-                <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 16, fontSize: "14px" }}>
-                  {error}
-                </Typography>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    onClick={() => setError("")}
-                    style={{
-                      padding: "8px 16px",
-                      background: "#dc2626",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontSize: 14
-                    }}
-                  >
-                    Dismiss
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    disabled={!canProceed}
-                    style={{
-                      padding: "8px 16px",
-                      background: darkMode ? "#1e293b" : "white",
-                      color: "#dc2626",
-                      border: "2px solid #dc2626",
-                      borderRadius: 6,
-                      cursor: canProceed ? "pointer" : "not-allowed",
-                      fontWeight: 600,
-                      fontSize: 14,
-                      opacity: canProceed ? 1 : 0.5
-                    }}
-                  >
-                    Retry
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Enhanced Results Display with Excel Viewer */}
-          {Object.keys(stepResults).length > 0 && (
-            <div style={{
-              marginTop: 32,
-              background: theme.cardBg,
-              borderRadius: 16,
-              padding: 24,
-              boxShadow: darkMode ? "0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.08)",
-              border: darkMode ? "1px solid #334155" : "none",
-              width: "100%",
-              boxSizing: "border-box"
-            }}>
-              <div style={{
+                marginTop: 16,
+                background: darkMode ? "#7f1d1d" : "#fef2f2",
+                border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
+                borderRadius: 12,
+                padding: 20,
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 24,
-                flexWrap: "wrap",
-                gap: 12
+                alignItems: "start",
+                gap: 16
               }}>
-                <Typography variant="h5" style={{ fontWeight: 700, margin: 0, color: theme.text }}>
-                  📊 Results
-                </Typography>
                 <div style={{
-                  background: "#10b981",
-                  color: "white",
-                  padding: "6px 16px",
-                  borderRadius: "20px",
-                  fontSize: "14px",
-                  fontWeight: 600
-                }}>
-                  {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} / {steps.length} Complete
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gap: "16px" }}>
-                {steps.map((s, idx) => {
-                  const res = stepResults[idx];
-                  if (!res) return null;
-
-                  return (
-                    <div
-                      key={s.key}
+                  fontSize: 32,
+                  flexShrink: 0
+                }}>⚠️</div>
+                <div style={{ flex: 1 }}>
+                  <Typography variant="h6" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
+                    Processing Error
+                  </Typography>
+                  <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 16, fontSize: "14px" }}>
+                    {error}
+                  </Typography>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => setError("")}
                       style={{
-                        background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
-                        backdropFilter: "blur(12px)",
-                        border: `1px solid ${res.ok ? (darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.3)") : (darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.3)")}`,
-                        borderRadius: 24,
-                        padding: 24,
-                        marginBottom: 20,
-                        width: "100%",
-                        boxSizing: "border-box",
-                        boxShadow: darkMode ? "0 8px 32px rgba(0, 0, 0, 0.2)" : "0 8px 32px rgba(0, 0, 0, 0.05)",
-                        animation: "slideUpFade 0.5s ease-out forwards",
-                        animationDelay: `${idx * 0.1}s`,
-                        opacity: 0,
-                        transform: "translateY(20px)"
+                        padding: "8px 16px",
+                        background: "#dc2626",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: 14
                       }}
                     >
-                      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-                        {/* Status Icon */}
-                        <div style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: "50%",
-                          background: res.ok
-                            ? "linear-gradient(135deg, #10b981, #059669)"
-                            : "linear-gradient(135deg, #ef4444, #b91c1c)",
-                          color: "white",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "24px",
-                          flexShrink: 0,
-                          boxShadow: res.ok
-                            ? "0 0 20px rgba(16, 185, 129, 0.4)"
-                            : "0 0 20px rgba(239, 68, 68, 0.4)"
-                        }}>
-                          {res.ok ? "✓" : "✕"}
-                        </div>
+                      Dismiss
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      disabled={!canProceed}
+                      style={{
+                        padding: "8px 16px",
+                        background: darkMode ? "#1e293b" : "white",
+                        color: "#dc2626",
+                        border: "2px solid #dc2626",
+                        borderRadius: 6,
+                        cursor: canProceed ? "pointer" : "not-allowed",
+                        fontWeight: 600,
+                        fontSize: 14,
+                        opacity: canProceed ? 1 : 0.5
+                      }}
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          }
 
-                        <div style={{ flex: 1 }}>
-                          {/* Header */}
-                          <div style={{ marginBottom: 12 }}>
-                            <Typography variant="h6" style={{
-                              fontWeight: 700,
-                              fontSize: "18px",
-                              color: theme.text,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8
-                            }}>
-                              Step {idx + 1}: {s.label}
-                              {res.ok && (
-                                <span style={{
-                                  fontSize: "12px",
-                                  padding: "2px 8px",
-                                  borderRadius: "12px",
-                                  background: darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.1)",
-                                  color: "#10b981",
-                                  border: "1px solid rgba(16, 185, 129, 0.2)"
-                                }}>
-                                  Completed
-                                </span>
-                              )}
-                            </Typography>
-                            <Typography variant="body2" style={{
-                              fontSize: "14px",
-                              color: theme.textSecondary,
-                              marginTop: 4
-                            }}>
-                              {s.description}
-                            </Typography>
+          {/* Enhanced Results Display with Excel Viewer */}
+          {
+            Object.keys(stepResults).length > 0 && (
+              <div style={{
+                marginTop: 32,
+                background: theme.cardBg,
+                borderRadius: 16,
+                padding: 24,
+                boxShadow: darkMode ? "0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.08)",
+                border: darkMode ? "1px solid #334155" : "none",
+                width: "100%",
+                boxSizing: "border-box"
+              }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 24,
+                  flexWrap: "wrap",
+                  gap: 12
+                }}>
+                  <Typography variant="h5" style={{ fontWeight: 700, margin: 0, color: theme.text }}>
+                    📊 Results
+                  </Typography>
+                  <div style={{
+                    background: "#10b981",
+                    color: "white",
+                    padding: "6px 16px",
+                    borderRadius: "20px",
+                    fontSize: "14px",
+                    fontWeight: 600
+                  }}>
+                    {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} / {steps.length} Complete
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: "16px" }}>
+                  {steps.map((s, idx) => {
+                    const res = stepResults[idx];
+                    if (!res) return null;
+
+                    return (
+                      <div
+                        key={s.key}
+                        style={{
+                          background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
+                          backdropFilter: "blur(12px)",
+                          border: `1px solid ${res.ok ? (darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.3)") : (darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.3)")}`,
+                          borderRadius: 24,
+                          padding: 24,
+                          marginBottom: 20,
+                          width: "100%",
+                          boxSizing: "border-box",
+                          boxShadow: darkMode ? "0 8px 32px rgba(0, 0, 0, 0.2)" : "0 8px 32px rgba(0, 0, 0, 0.05)",
+                          animation: "slideUpFade 0.5s ease-out forwards",
+                          animationDelay: `${idx * 0.1}s`,
+                          opacity: 0,
+                          transform: "translateY(20px)"
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+                          {/* Status Icon */}
+                          <div style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: "50%",
+                            background: res.ok
+                              ? "linear-gradient(135deg, #10b981, #059669)"
+                              : "linear-gradient(135deg, #ef4444, #b91c1c)",
+                            color: "white",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "24px",
+                            flexShrink: 0,
+                            boxShadow: res.ok
+                              ? "0 0 20px rgba(16, 185, 129, 0.4)"
+                              : "0 0 20px rgba(239, 68, 68, 0.4)"
+                          }}>
+                            {res.ok ? "✓" : "✕"}
                           </div>
 
-                          {/* Error Message */}
-                          {res.ok === false && (
-                            <div style={{
-                              background: darkMode ? "rgba(239, 68, 68, 0.1)" : "rgba(254, 242, 242, 1)",
-                              border: `1px solid ${darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
-                              borderRadius: 12,
-                              padding: "12px 16px",
-                              marginTop: 12,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12
-                            }}>
-                              <span style={{ fontSize: "20px" }}>⚠️</span>
-                              <Typography style={{ color: darkMode ? "#fca5a5" : "#b91c1c", fontSize: "14px", fontWeight: 500 }}>
-                                {res.error}
+                          <div style={{ flex: 1 }}>
+                            {/* Header */}
+                            <div style={{ marginBottom: 12 }}>
+                              <Typography variant="h6" style={{
+                                fontWeight: 700,
+                                fontSize: "18px",
+                                color: theme.text,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8
+                              }}>
+                                Step {idx + 1}: {s.label}
+                                {res.ok && (
+                                  <span style={{
+                                    fontSize: "12px",
+                                    padding: "2px 8px",
+                                    borderRadius: "12px",
+                                    background: darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.1)",
+                                    color: "#10b981",
+                                    border: "1px solid rgba(16, 185, 129, 0.2)"
+                                  }}>
+                                    Completed
+                                  </span>
+                                )}
+                              </Typography>
+                              <Typography variant="body2" style={{
+                                fontSize: "14px",
+                                color: theme.textSecondary,
+                                marginTop: 4
+                              }}>
+                                {s.description}
                               </Typography>
                             </div>
-                          )}
 
-                          {/* Auto-Detected Info (V2) */}
-                          {res.ok && res.data && (res.data.detected_bank_type || res.data.detected_tpa) && (
-                            <div style={{
-                              marginTop: 12,
-                              padding: "8px 12px",
-                              background: darkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(59, 130, 246, 0.05)",
-                              borderLeft: "4px solid #3b82f6",
-                              borderRadius: 4,
-                              fontSize: "13px",
-                              color: theme.textSecondary
-                            }}>
-                              {res.data.detected_bank_type && (
-                                <div><strong>Detected Bank:</strong> {res.data.detected_bank_type}</div>
-                              )}
-                              {res.data.detected_tpa && (
-                                <div><strong>Detected TPA:</strong> {res.data.detected_tpa}</div>
-                              )}
-                            </div>
-                          )}
+                            {/* Error Message */}
+                            {res.ok === false && (
+                              <div style={{
+                                background: darkMode ? "rgba(239, 68, 68, 0.1)" : "rgba(254, 242, 242, 1)",
+                                border: `1px solid ${darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
+                                borderRadius: 12,
+                                padding: "12px 16px",
+                                marginTop: 12,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 12
+                              }}>
+                                <span style={{ fontSize: "20px" }}>⚠️</span>
+                                <Typography style={{ color: darkMode ? "#fca5a5" : "#b91c1c", fontSize: "14px", fontWeight: 500 }}>
+                                  {res.error}
+                                </Typography>
+                              </div>
+                            )}
 
-                          {/* Excel Viewer */}
-                          {res.ok && res.downloadLinks && (
-                            <div style={{ marginTop: 20 }}>
-                              {res.downloadLinks.map((link, i) => (
-                                <div key={i} style={{ marginBottom: 16 }}>
-                                  <div style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    marginBottom: 8,
-                                    color: theme.textSecondary,
-                                    fontSize: "13px",
-                                    fontFamily: "monospace"
-                                  }}>
-                                    <span>📄</span>
-                                    {link.label}
+                            {/* Auto-Detected Info (V2) */}
+                            {res.ok && res.data && (res.data.detected_bank_type || res.data.detected_tpa) && (
+                              <div style={{
+                                marginTop: 12,
+                                padding: "8px 12px",
+                                background: darkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(59, 130, 246, 0.05)",
+                                borderLeft: "4px solid #3b82f6",
+                                borderRadius: 4,
+                                fontSize: "13px",
+                                color: theme.textSecondary
+                              }}>
+                                {res.data.detected_bank_type && (
+                                  <div><strong>Detected Bank:</strong> {res.data.detected_bank_type}</div>
+                                )}
+                                {res.data.detected_tpa && (
+                                  <div><strong>Detected TPA:</strong> {res.data.detected_tpa}</div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Excel Viewer */}
+                            {res.ok && res.downloadLinks && (
+                              <div style={{ marginTop: 20 }}>
+                                {res.downloadLinks.map((link, i) => (
+                                  <div key={i} style={{ marginBottom: 16 }}>
+                                    <div style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 8,
+                                      marginBottom: 8,
+                                      color: theme.textSecondary,
+                                      fontSize: "13px",
+                                      fontFamily: "monospace"
+                                    }}>
+                                      <span>📄</span>
+                                      {link.label}
+                                    </div>
+                                    <ExcelDataViewer
+                                      url={link.url}
+                                      label={link.label}
+                                      darkMode={darkMode}
+                                      apiBase={API_BASE}
+                                    />
                                   </div>
-                                  <ExcelDataViewer
-                                    url={link.url}
-                                    label={link.label}
-                                    darkMode={darkMode}
-                                    apiBase={API_BASE}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                                ))}
+                              </div>
+                            )}
 
-                          {/* ZIP Download Button */}
-                          {res.zipUrl && (
-                            <div style={{
-                              marginTop: 24,
-                              paddingTop: 24,
-                              borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
-                              display: "flex",
-                              justifyContent: "flex-end"
-                            }}>
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    const token = localStorage.getItem('access_token');
-                                    const headers = {};
-                                    if (token) {
-                                      headers['Authorization'] = `Bearer ${token}`;
+                            {/* ZIP Download Button */}
+                            {res.zipUrl && (
+                              <div style={{
+                                marginTop: 24,
+                                paddingTop: 24,
+                                borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
+                                display: "flex",
+                                justifyContent: "flex-end"
+                              }}>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const token = localStorage.getItem('access_token');
+                                      const headers = {};
+                                      if (token) {
+                                        headers['Authorization'] = `Bearer ${token}`;
+                                      }
+
+                                      const fullUrl = `${API_BASE.replace(/\/$/, "")}${res.zipUrl}`;
+                                      console.log('[ZIP Download] Fetching:', fullUrl);
+
+                                      const response = await fetch(fullUrl, { headers });
+
+                                      if (!response.ok) {
+                                        throw new Error(`Download failed: ${response.status}`);
+                                      }
+
+                                      const blob = await response.blob();
+                                      const downloadUrl = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = downloadUrl;
+                                      a.download = res.zipUrl.split('/').pop() || 'reconciliation.zip';
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      window.URL.revokeObjectURL(downloadUrl);
+                                      document.body.removeChild(a);
+
+                                      console.log('[ZIP Download] ✓ Success!');
+                                    } catch (err) {
+                                      console.error('[ZIP Download] Error:', err);
+                                      alert('ZIP download failed. Please try again.');
                                     }
-
-                                    const fullUrl = `${API_BASE.replace(/\/$/, "")}${res.zipUrl}`;
-                                    console.log('[ZIP Download] Fetching:', fullUrl);
-
-                                    const response = await fetch(fullUrl, { headers });
-
-                                    if (!response.ok) {
-                                      throw new Error(`Download failed: ${response.status}`);
-                                    }
-
-                                    const blob = await response.blob();
-                                    const downloadUrl = window.URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
-                                    a.href = downloadUrl;
-                                    a.download = res.zipUrl.split('/').pop() || 'reconciliation.zip';
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    window.URL.revokeObjectURL(downloadUrl);
-                                    document.body.removeChild(a);
-
-                                    console.log('[ZIP Download] ✓ Success!');
-                                  } catch (err) {
-                                    console.error('[ZIP Download] Error:', err);
-                                    alert('ZIP download failed. Please try again.');
-                                  }
-                                }}
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 12,
-                                  padding: "16px 32px",
-                                  background: bankType === "Standard Chartered"
-                                    ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
-                                    : bankType === "ICICI"
-                                      ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
-                                      : "linear-gradient(135deg, #871242 0%, #be185d 100%)",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: 16,
-                                  cursor: "pointer",
-                                  fontSize: 16,
-                                  fontWeight: 700,
-                                  boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-                                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                  animation: "pulse 2s infinite"
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.transform = "translateY(-2px) scale(1.02)";
-                                  e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.3)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.transform = "translateY(0) scale(1)";
-                                  e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
-                                }}
-                              >
-                                <span style={{ fontSize: 24 }}>📦</span>
-                                <div>
-                                  <div style={{ fontSize: "12px", opacity: 0.9, fontWeight: 500 }}>Reconciliation Complete</div>
-                                  <div>Download Package</div>
-                                </div>
-                              </button>
-                            </div>
-                          )}
+                                  }}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    padding: "16px 32px",
+                                    background: bankType === "Standard Chartered"
+                                      ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
+                                      : bankType === "ICICI"
+                                        ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
+                                        : "linear-gradient(135deg, #871242 0%, #be185d 100%)",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: 16,
+                                    cursor: "pointer",
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+                                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                    animation: "pulse 2s infinite"
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = "translateY(-2px) scale(1.02)";
+                                    e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.3)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = "translateY(0) scale(1)";
+                                    e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
+                                  }}
+                                >
+                                  <span style={{ fontSize: 24 }}>📦</span>
+                                  <div>
+                                    <div style={{ fontSize: "12px", opacity: 0.9, fontWeight: 500 }}>Reconciliation Complete</div>
+                                    <div>Download Package</div>
+                                  </div>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          }
 
-          {activeStep >= steps.length && (
-            <div style={{
-              marginTop: 24,
-              textAlign: "center",
-              padding: "32px",
-              background: theme.cardBg,
-              borderRadius: 16,
-              boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
-              border: darkMode ? "1px solid #334155" : "none"
-            }}>
-              <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
-              <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: theme.text }}>
-                Reconciliation Completed!
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 3, color: theme.textSecondary }}>
-                All steps have been processed successfully. You can view and download the results above or reset to start over.
-              </Typography>
-              <MuiButton
-                variant="contained"
-                onClick={handleReset}
-                style={{
-                  background: darkMode
-                    ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
-                    : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  color: "white",
-                  padding: "12px 32px",
-                  fontSize: "16px",
-                  fontWeight: 600,
-                  textTransform: "none",
-                  borderRadius: "8px"
-                }}
-              >
-                Start New Reconciliation
-              </MuiButton>
-            </div>
-          )}
+          {
+            activeStep >= steps.length && (
+              <div style={{
+                marginTop: 24,
+                textAlign: "center",
+                padding: "32px",
+                background: theme.cardBg,
+                borderRadius: 16,
+                boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
+                border: darkMode ? "1px solid #334155" : "none"
+              }}>
+                <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
+                <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: theme.text }}>
+                  Reconciliation Completed!
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 3, color: theme.textSecondary }}>
+                  All steps have been processed successfully. You can view and download the results above or reset to start over.
+                </Typography>
+                <MuiButton
+                  variant="contained"
+                  onClick={handleReset}
+                  style={{
+                    background: darkMode
+                      ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
+                      : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
+                    padding: "12px 32px",
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    textTransform: "none",
+                    borderRadius: "8px"
+                  }}
+                >
+                  Start New Reconciliation
+                </MuiButton>
+              </div>
+            )
+          }
         </main >
 
         {/* ✅ NEW: AI Assistant Modal - Add this component here */}
