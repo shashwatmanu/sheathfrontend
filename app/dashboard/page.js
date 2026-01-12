@@ -1790,6 +1790,26 @@ export default function Home() {
                               </div>
                             )}
 
+                            {/* Consolidated Matches File Viewer */}
+                            {bulkResult.files && bulkResult.files['Consolidated_Matches.xlsx'] && (
+                              <div className="mb-8 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <span className="text-xl">📊</span>
+                                  <h4 className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-800"}`}>
+                                    Consolidated Matches Report
+                                  </h4>
+                                </div>
+                                <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
+                                  <ExcelDataViewer
+                                    url={bulkResult.files['Consolidated_Matches.xlsx']}
+                                    label="Consolidated_Matches.xlsx"
+                                    darkMode={darkMode}
+                                    apiBase={API_BASE}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
                             {bulkResult.summary && (
                               <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
