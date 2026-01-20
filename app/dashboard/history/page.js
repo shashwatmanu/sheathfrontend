@@ -282,11 +282,11 @@ export default function HistoryPage() {
                                 <div className="flex justify-between items-start mb-6">
                                     <div className={`
                                         px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg
-                                        ${recon.bank_type === "ICICI"
+                                        ${(recon.bank_type || "??") === "ICICI"
                                             ? "bg-slate-600"
                                             : "bg-slate-500"}
                                     `}>
-                                        {recon.bank_type}
+                                        {recon.bank_type || "Unknown"}
                                     </div>
                                     <button
                                         onClick={() => deleteReconciliation(recon.run_id)}

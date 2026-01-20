@@ -533,25 +533,25 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-4">
                           <div className={`
                             w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg
-                            ${activity.bank_type === "ICICI"
+                            ${(activity.bank_type || "??") === "ICICI"
                               ? "bg-slate-600"
                               : "bg-slate-500"}
                           `}>
-                            {activity.bank_type.substring(0, 2)}
+                            {(activity.bank_type || "??").substring(0, 2)}
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900 dark:text-white text-lg">
-                              {activity.bank_type} Reconciliation
+                              {activity.bank_type || "Unknown Bank"} Reconciliation
                             </h4>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-slate-500 dark:text-slate-400">
                               <span className="flex items-center gap-1">
                                 📅 {formatDate(activity.timestamp)}
                               </span>
-                              {activity.tpa_name && (
+                              {(activity.tpa_name || activity.pipeline_mode === 'v2_bulk') && (
                                 <>
                                   <span className="hidden sm:inline">•</span>
                                   <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
-                                    🏢 {activity.tpa_name}
+                                    🏢 {activity.tpa_name || "Bulk Process"}
                                   </span>
                                 </>
                               )}
