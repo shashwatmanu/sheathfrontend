@@ -1318,7 +1318,7 @@ export default function Home() {
                       : 'text-gray-500 hover:text-gray-700'
                       }`}
                   >
-                    🚀 V2 (Auto)
+                    🚀 V2 (Auto + Bulk)
                   </button>
                   <button
                     onClick={() => handleModeSwitch('v1')}
@@ -1647,6 +1647,8 @@ export default function Home() {
                           />
                         </div>
 
+                        <div className="h-12"></div>
+
                         {/* Bulk: MIS Files (Multiple) */}
                         <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
                           }`}>
@@ -1699,6 +1701,8 @@ export default function Home() {
                           />
                         </div>
 
+                        <div className="h-12"></div>
+
                         {/* Bulk: Outstanding File (Single) */}
                         <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
                           }`}>
@@ -1747,7 +1751,7 @@ export default function Home() {
                         </div>
 
                         {/* Run Bulk Button */}
-                        <div className="mt-8 flex justify-center">
+                        <div className="mt-12 flex justify-center">
                           <FancyButton
                             onClick={handleBulkReconcile}
                             disabled={bulkLoading}
@@ -1760,14 +1764,23 @@ export default function Home() {
 
                         {/* Bulk Results - Full Width Container */}
                         {bulkResult && (
-                          <div className={`mt-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-6 rounded-none sm:rounded-2xl border-y sm:border ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                          <div
+                            className={`mt-12 py-8 border-y shadow-sm ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-gray-50 border-gray-200"}`}
+                            style={{
+                              width: "100vw",
+                              position: "relative",
+                              left: "50%",
+                              right: "50%",
+                              marginLeft: "-50vw",
+                              marginRight: "-50vw",
+                              paddingLeft: "max(2rem, calc((100vw - 1600px) / 2))",
+                              paddingRight: "max(2rem, calc((100vw - 1600px) / 2))",
+                            }}
+                          >
+                            <div className="flex items-center justify-between mb-6 px-4">
+                              <h3 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
                                 Bulk Reconciliation Results
                               </h3>
-                              <span className={`text-xs px-2 py-1 rounded-full ${darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600"}`}>
-                                Scroll horizontally for more columns
-                              </span>
                             </div>
 
                             {/* Main Consolidated Summary File Viewer */}
@@ -1811,48 +1824,45 @@ export default function Home() {
                             )}
 
                             {bulkResult.summary && (
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                  <thead className={`text-xs uppercase ${darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-700"}`}>
+                              <div className={`overflow-auto max-h-[600px] border rounded-xl shadow-inner relative ${darkMode ? "border-slate-700 bg-slate-900/20" : "border-slate-200 bg-gray-50/50"}`}>
+                                <table className="w-full text-sm text-left border-collapse">
+                                  <thead className={`text-xs uppercase sticky top-0 z-20 shadow-sm ${darkMode ? "bg-slate-800 text-slate-300" : "bg-white text-gray-700"}`}>
                                     <tr>
-                                      <th className="px-4 py-3 rounded-tl-lg">Bank File</th>
-                                      <th className="px-4 py-3">MIS File</th>
-                                      <th className="px-4 py-3">Bank Type</th>
-                                      <th className="px-4 py-3">TPA</th>
-                                      <th className="px-4 py-3 text-center">Bank Rows</th>
-                                      <th className="px-4 py-3 text-center">MIS Rows</th>
-                                      <th className="px-4 py-3 text-center">Step 2 Match</th>
-                                      <th className="px-4 py-3 text-center">Final Match</th>
-                                      <th className="px-4 py-3">Status</th>
-                                      <th className="px-4 py-3 rounded-tr-lg">Action</th>
+                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Bank File</th>
+                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">MIS File</th>
+                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Bank Type</th>
+                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">TPA</th>
+                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">Bank Rows</th>
+                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">MIS Rows</th>
+                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">Step 2 Match</th>
+                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">Final Match</th>
+                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Status</th>
+                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Action</th>
                                     </tr>
                                   </thead>
-                                  <tbody className={darkMode ? "text-slate-300" : "text-gray-600"}>
+                                  <tbody className={`divide-y ${darkMode ? "divide-slate-700 text-slate-300" : "divide-slate-100 text-gray-600"}`}>
                                     {bulkResult.summary.map((row, idx) => {
                                       const isExpanded = expandedBulkRow === idx;
-                                      // Attempt to resolve the output file from the row data
-                                      // The backend should ideally provide 'Output File' or similar key
                                       const outputFileName = row["Output File"] || row["Result File"] || `Result_${idx}.xlsx`;
                                       const fileUrl = bulkResult.files ? (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]) : null;
 
                                       return (
                                         <React.Fragment key={idx}>
-                                          <tr className={`border-b ${darkMode ? "border-slate-700" : "border-gray-100"} ${isExpanded ? (darkMode ? "bg-slate-800" : "bg-blue-50/50") : ""}`}>
-                                            <td className="px-4 py-3 font-medium truncate max-w-[150px]" title={row["Bank File"]}>{row["Bank File"]}</td>
-                                            <td className="px-4 py-3 truncate max-w-[150px]" title={row["MIS File"]}>{row["MIS File"]}</td>
-                                            <td className="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">{row["Bank Type"] || "-"}</td>
-                                            <td className="px-4 py-3 font-semibold text-purple-600 dark:text-purple-400">{row["TPA"] || "-"}</td>
-                                            <td className="px-4 py-3 text-center">{row["Bank Rows"] || 0}</td>
-                                            <td className="px-4 py-3 text-center">{row["MIS Rows"] || 0}</td>
-                                            <td className="px-4 py-3 text-center">{row["Step 2 Match"] || 0}</td>
-                                            <td className="px-4 py-3 text-center font-bold">{row["Final Match"] || 0}</td>
-                                            <td className="px-4 py-3">
-                                              <span className={`px-2 py-1 rounded text-xs font-semibold ${row.Status === "Success" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                                          <tr className={`transition-colors duration-150 group ${darkMode ? "hover:bg-slate-800/50" : "hover:bg-blue-50/30"} ${isExpanded ? (darkMode ? "!bg-slate-800 border-l-4 border-l-blue-500" : "!bg-blue-50 border-l-4 border-l-blue-500") : "border-l-4 border-l-transparent"}`}>
+                                            <td className="px-6 py-4 font-medium truncate max-w-[200px]" title={row["Bank File"]}>{row["Bank File"]}</td>
+                                            <td className="px-6 py-4 truncate max-w-[200px]" title={row["MIS File"]}>{row["MIS File"]}</td>
+                                            <td className="px-6 py-4 font-semibold text-blue-600 dark:text-blue-400">{row["Bank Type"] || "-"}</td>
+                                            <td className="px-6 py-4 font-semibold text-purple-600 dark:text-purple-400">{row["TPA"] || "-"}</td>
+                                            <td className="px-4 py-4 text-center">{row["Bank Rows"] || 0}</td>
+                                            <td className="px-4 py-4 text-center">{row["MIS Rows"] || 0}</td>
+                                            <td className="px-4 py-4 text-center">{row["Step 2 Match"] || 0}</td>
+                                            <td className="px-4 py-4 text-center font-bold text-lg">{row["Final Match"] || 0}</td>
+                                            <td className="px-6 py-4">
+                                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${row.Status === "Success" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
                                                 {row.Status}
                                               </span>
                                             </td>
-                                            <td className="px-4 py-3">
-                                              {/* Always show View button if we have ANY files (Output File or Produced Files) */}
+                                            <td className="px-6 py-4">
                                               {(fileUrl || (row.produced_files && Object.keys(row.produced_files).length > 0)) ? (
                                                 <button
                                                   onClick={() => {
@@ -1861,41 +1871,45 @@ export default function Home() {
                                                       setActiveFileInRow(null);
                                                     } else {
                                                       setExpandedBulkRow(idx);
-                                                      // Auto-select the most relevant file to avoid double clicking
                                                       if (row.produced_files && Object.values(row.produced_files).length > 0) {
-                                                        // Select the last file in the list logic (usually "Final Result")
                                                         const files = Object.values(row.produced_files);
                                                         setActiveFileInRow(files[files.length - 1]);
                                                       } else {
-                                                        // Fallback Single File Mode
                                                         setActiveFileInRow(outputFileName);
                                                       }
                                                     }
                                                   }}
-                                                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all border ${isExpanded
-                                                    ? (darkMode ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20")
-                                                    : (darkMode ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50")
+                                                  className={`flex items-center gap-2 text-xs px-4 py-2 rounded-lg transition-all border font-medium ${isExpanded
+                                                    ? "bg-blue-600 border-blue-600 text-white shadow-md"
+                                                    : (darkMode ? "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white" : "bg-white border-gray-200 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200")
                                                     }`}
                                                 >
-                                                  <span>{isExpanded ? "Hide" : "View"}</span>
-                                                  <span className="text-[10px]">{isExpanded ? "▲" : "▼"}</span>
+                                                  <span>{isExpanded ? "Hide Files" : "View Files"}</span>
+                                                  <span className={`text-[10px] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▼</span>
                                                 </button>
                                               ) : (
-                                                <span className="text-xs text-gray-400 italic">No File</span>
+                                                <span className="text-xs text-gray-400 italic">No Output</span>
                                               )}
                                             </td>
                                           </tr>
                                           {isExpanded && (
-                                            <tr className="animate-in fade-in slide-in-from-top-2 duration-200">
-                                              <td colSpan={10} className={`p-6 ${darkMode ? "bg-slate-800/30" : "bg-slate-50/50"}`}>
-                                                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
-                                                  <div className={`px-4 py-3 border-b ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-gray-50"} font-semibold flex items-center gap-2`}>
-                                                    <span>📂</span>
-                                                    <span>Reconciliation Outputs</span>
+                                            <tr className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                              <td colSpan={10} className={`p-4 sm:p-8 ${darkMode ? "bg-slate-800/30" : "bg-slate-50/50"}`}>
+                                                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+                                                  <div className={`px-6 py-4 border-b ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-100 bg-gray-50"} font-semibold flex items-center justify-between`}>
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-xl">📂</span>
+                                                      <span className={darkMode ? "text-slate-200" : "text-gray-800"}>Reconciliation Outputs</span>
+                                                    </div>
+                                                    <button
+                                                      onClick={() => setExpandedBulkRow(null)}
+                                                      className={`p-1 rounded-full ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-200 text-gray-500"}`}
+                                                    >
+                                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                                    </button>
                                                   </div>
 
-                                                  <div className="p-4 flex flex-col gap-3">
-                                                    {/* Check if we have multiple produced files (New Backend Spec) */}
+                                                  <div className="p-6 grid gap-4 grid-cols-1">
                                                     {row.produced_files && typeof row.produced_files === 'object' ? (
                                                       Object.entries(row.produced_files).map(([label, fileName]) => {
                                                         const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
@@ -1903,40 +1917,44 @@ export default function Home() {
                                                         const isActive = activeFileInRow === fileName;
 
                                                         return (
-                                                          <div key={fileName} className={`border rounded-xl transition-all duration-300 ${isActive ? (darkMode ? "border-blue-500 ring-1 ring-blue-500" : "border-blue-400 ring-1 ring-blue-400") : (darkMode ? "border-slate-700" : "border-gray-200")}`}>
-                                                            <div className={`flex items-center justify-between p-3 ${isActive ? (darkMode ? "bg-slate-800" : "bg-blue-50") : ""}`}>
-                                                              <div className="flex items-center gap-3">
-                                                                <div className={`p-1.5 rounded-lg ${darkMode ? "bg-slate-700" : "bg-white border border-gray-100"}`}>
-                                                                  <FileSpreadsheet size={16} className={darkMode ? "text-blue-400" : "text-blue-600"} />
+                                                          <div key={fileName} className={`border rounded-xl transition-all duration-300 overflow-hidden ${isActive ? (darkMode ? "border-blue-500 ring-1 ring-blue-500 shadow-md" : "border-blue-400 ring-1 ring-blue-400 shadow-md") : (darkMode ? "border-slate-700 hover:border-slate-600" : "border-gray-200 hover:border-blue-300")}`}>
+                                                            <div
+                                                              className={`flex items-center justify-between p-4 cursor-pointer ${isActive ? (darkMode ? "bg-slate-800" : "bg-blue-50") : (darkMode ? "bg-slate-900" : "bg-white")}`}
+                                                              onClick={() => setActiveFileInRow(isActive ? null : fileName)}
+                                                            >
+                                                              <div className="flex items-center gap-4">
+                                                                <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
+                                                                  <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
                                                                 </div>
                                                                 <div>
-                                                                  <div className={`text-sm font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{label}</div>
-                                                                  <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{fileName}</div>
+                                                                  <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{label}</div>
+                                                                  <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>{fileName}</div>
                                                                 </div>
                                                               </div>
 
-                                                              <div className="flex items-center gap-2">
+                                                              <div className="flex items-center gap-3">
                                                                 <a
                                                                   href={fUrl}
                                                                   download={fileName}
-                                                                  className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                  onClick={(e) => e.stopPropagation()}
+                                                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
                                                                   title="Download File"
                                                                 >
-                                                                  <Download size={16} />
+                                                                  <Download size={14} />
+                                                                  <span className="hidden sm:inline">Download</span>
                                                                 </a>
                                                                 <button
-                                                                  onClick={() => setActiveFileInRow(isActive ? null : fileName)}
-                                                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isActive
-                                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                                                                    : (darkMode ? "bg-slate-700 hover:bg-slate-600 text-slate-200" : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700")}`}
+                                                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isActive
+                                                                    ? "bg-blue-600 text-white shadow-sm"
+                                                                    : (darkMode ? "bg-slate-700 hover:bg-slate-600 text-slate-200" : "bg-gray-100 hover:bg-gray-200 text-gray-700")}`}
                                                                 >
-                                                                  {isActive ? "Close Viewer" : "View Data"}
+                                                                  {isActive ? "Close Preview" : "Preview Data"}
                                                                 </button>
                                                               </div>
                                                             </div>
 
                                                             {isActive && (
-                                                              <div className="border-t border-slate-200 dark:border-slate-700">
+                                                              <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1">
                                                                 <ExcelDataViewer
                                                                   url={fUrl}
                                                                   label={fileName}
@@ -1949,16 +1967,15 @@ export default function Home() {
                                                         );
                                                       })
                                                     ) : (
-                                                      /* Fallback for current single-file response */
                                                       fileUrl && (
                                                         <div className={`border rounded-xl transition-all duration-300 ${activeFileInRow === outputFileName || (!activeFileInRow) ? (darkMode ? "border-blue-500" : "border-blue-400") : (darkMode ? "border-slate-700" : "border-gray-200")}`}>
-                                                          <div className="flex items-center justify-between p-3">
+                                                          <div className="flex items-center justify-between p-4">
                                                             <div className="flex items-center gap-3">
                                                               <div className={`text-sm font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Final Output</div>
                                                               <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{outputFileName}</div>
                                                             </div>
                                                             <a href={fileUrl} download={outputFileName} className="text-blue-500 hover:underline text-xs flex items-center gap-1">
-                                                              <Download size={12} /> Download
+                                                              <Download size={14} /> Download
                                                             </a>
                                                           </div>
                                                           <ExcelDataViewer
@@ -2033,16 +2050,61 @@ export default function Home() {
                             justifyContent: "center",
                             zIndex: 9999,
                           }}>
-                            <div className={`p-10 rounded-3xl text-center ${darkMode ? "bg-slate-900 border border-slate-700" : "bg-white"}`}>
-                              <div className="text-6xl mb-4 animate-bounce">📦</div>
-                              <h2 className={`text-2xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                            <div className={`p-10 rounded-3xl text-center relative overflow-hidden ${darkMode ? "bg-slate-900 border border-slate-700" : "bg-white"}`}
+                              style={{
+                                boxShadow: darkMode
+                                  ? "0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(79, 70, 229, 0.3)"
+                                  : "0 20px 60px rgba(0,0,0,0.15)",
+                                minWidth: "320px"
+                              }}>
+
+                              {/* Animated gradient background - simplified version for consistency */}
+                              <div style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: "linear-gradient(45deg, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.02))",
+                                opacity: 0.5,
+                                pointerEvents: "none"
+                              }}></div>
+
+                              {/* Lottie Animation */}
+                              <div style={{
+                                width: "160px",
+                                height: "160px",
+                                margin: "0 auto 24px",
+                                position: "relative",
+                                zIndex: 1
+                              }}>
+                                {animationData ? (
+                                  <Lottie
+                                    animationData={animationData}
+                                    loop={true}
+                                    style={{ width: "100%", height: "100%" }}
+                                  />
+                                ) : (
+                                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-500 mx-auto"></div>
+                                )}
+                              </div>
+
+                              <h2 className={`text-2xl font-bold mb-2 relative z-10 ${darkMode ? "text-white" : "text-gray-900"}`}>
                                 Processing Bulk Reconciliation
                               </h2>
-                              <p className={`mb-6 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                              <p className={`mb-6 relative z-10 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
                                 Processing cartesian product of files... This may take a while.
                               </p>
-                              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-600 animate-[shimmer_2s_infinite]" style={{ width: '100%', backgroundSize: '200% auto', backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)' }}></div>
+
+                              {/* Progress indication */}
+                              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden relative z-10">
+                                <div className="h-full bg-emerald-500 animate-[shimmer_2s_infinite]"
+                                  style={{
+                                    width: '100%',
+                                    backgroundSize: '200% auto',
+                                    backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)'
+                                  }}>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -2164,7 +2226,7 @@ export default function Home() {
               {activeStep === 1 && (
                 pipelineMode === 'v2' ? (
                   <>
-                    <div style={{ marginBottom: 24, opacity: 0.9 }}>
+                    <div style={{ marginBottom: 40, opacity: 0.9 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                         <div style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
                           Detected Bank Account
@@ -2249,7 +2311,8 @@ export default function Home() {
                       background: misFile
                         ? (darkMode ? "#064e3b" : "#f0fdf4")
                         : (darkMode ? "#0f172a" : "white"),
-                      transition: "all 0.3s ease"
+                      marginBottom: 40,
+                      boxShadow: theme.shadows?.[3] || "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
                     }}>
                       <div style={{ fontSize: "48px", marginBottom: "12px" }}>
                         {misFile ? "📄" : "📊"}
@@ -2454,7 +2517,9 @@ export default function Home() {
                     background: outstandingFile
                       ? (darkMode ? "#064e3b" : "#f0fdf4")
                       : (darkMode ? "#0f172a" : "white"),
-                    transition: "all 0.3s ease"
+                    marginBottom: 40,
+                    transition: "all 0.3s ease",
+                    boxShadow: theme.shadows?.[3] || "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
                   }}>
                     <div style={{ fontSize: "48px", marginBottom: "12px" }}>
                       {outstandingFile ? "📄" : "📋"}
