@@ -310,28 +310,16 @@ export default function HistoryPage() {
 
                                 {/* Stats Grid */}
                                 <div className="grid grid-cols-2 gap-3 mb-6">
-                                    <div className="p-3 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total Amount</div>
-                                        <div className="font-bold text-slate-900 dark:text-white">
-                                            ₹{(recon.summary.total_amount / 100000).toFixed(2)} L
-                                        </div>
-                                    </div>
                                     <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100/50 dark:border-emerald-900/20">
-                                        <div className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">Matches</div>
+                                        <div className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">Settled Claims</div>
                                         <div className="font-bold text-emerald-700 dark:text-emerald-300">
                                             {recon.summary.step2_matches}
                                         </div>
                                     </div>
                                     <div className="p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-100/50 dark:border-amber-900/20">
-                                        <div className="text-xs text-amber-600 dark:text-amber-400 mb-1">Outstanding</div>
+                                        <div className="text-xs text-amber-600 dark:text-amber-400 mb-1">Found in Outstanding</div>
                                         <div className="font-bold text-amber-700 dark:text-amber-300">
                                             {recon.summary.step4_outstanding}
-                                        </div>
-                                    </div>
-                                    <div className="p-3 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Patients</div>
-                                        <div className="font-bold text-slate-900 dark:text-white">
-                                            {recon.summary.unique_patients}
                                         </div>
                                     </div>
                                 </div>

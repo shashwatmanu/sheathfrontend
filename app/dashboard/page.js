@@ -1858,40 +1858,80 @@ export default function Home() {
 
                             {/* Main Consolidated Summary File Viewer */}
                             {bulkResult.files && bulkResult.files['bulk_summary.xlsx'] && (
-                              <div className="mb-8 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                <div className="flex items-center gap-2 mb-4">
-                                  <span className="text-xl">📑</span>
-                                  <h4 className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-800"}`}>
-                                    Overall Summary Report
-                                  </h4>
-                                </div>
-                                <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
-                                  <ExcelDataViewer
-                                    url={bulkResult.files['bulk_summary.xlsx']}
-                                    label="bulk_summary.xlsx"
-                                    darkMode={darkMode}
-                                    apiBase={API_BASE}
-                                  />
+                              <div className="mb-6 px-4">
+                                <div className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}>
+                                  <div className="flex items-center justify-between p-4">
+                                    <div className="flex items-center gap-4">
+                                      <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
+                                        <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
+                                      </div>
+                                      <div>
+                                        <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Overall Summary Report</div>
+                                        <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>bulk_summary.xlsx</div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        onClick={() => handleAuthenticatedDownload(bulkResult.files['bulk_summary.xlsx'], 'bulk_summary.xlsx')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
+                                      >
+                                        <Download size={14} />
+                                        <span className="hidden sm:inline">Download</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handlePreviewFile(bulkResult.files['bulk_summary.xlsx'], 'bulk_summary.xlsx')}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                                      >
+                                        {previewLoading && previewFilename === 'bulk_summary.xlsx' ? (
+                                          <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+                                        ) : (
+                                          <FileText size={14} />
+                                        )}
+                                        <span>Preview</span>
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             )}
 
                             {/* Consolidated Matches File Viewer */}
-                            {bulkResult.files && bulkResult.files['Consolidated_Matches.xlsx'] && (
-                              <div className="mb-8 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                <div className="flex items-center gap-2 mb-4">
-                                  <span className="text-xl">📊</span>
-                                  <h4 className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-800"}`}>
-                                    Consolidated Matches Report
-                                  </h4>
-                                </div>
-                                <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
-                                  <ExcelDataViewer
-                                    url={bulkResult.files['Consolidated_Matches.xlsx']}
-                                    label="Consolidated_Matches.xlsx"
-                                    darkMode={darkMode}
-                                    apiBase={API_BASE}
-                                  />
+                            {bulkResult.files && bulkResult.files['Final posting sheet (Consolidated).xlsx'] && (
+                              <div className="mb-6 px-4">
+                                <div className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}>
+                                  <div className="flex items-center justify-between p-4">
+                                    <div className="flex items-center gap-4">
+                                      <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
+                                        <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
+                                      </div>
+                                      <div>
+                                        <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Consolidated Matches Report</div>
+                                        <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>Final posting sheet (Consolidated).xlsx</div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        onClick={() => handleAuthenticatedDownload(bulkResult.files['Final posting sheet (Consolidated).xlsx'], 'Final posting sheet (Consolidated).xlsx')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
+                                      >
+                                        <Download size={14} />
+                                        <span className="hidden sm:inline">Download</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handlePreviewFile(bulkResult.files['Final posting sheet (Consolidated).xlsx'], 'Final posting sheet (Consolidated).xlsx')}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                                      >
+                                        {previewLoading && previewFilename === 'Final posting sheet (Consolidated).xlsx' ? (
+                                          <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+                                        ) : (
+                                          <FileText size={14} />
+                                        )}
+                                        <span>Preview</span>
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             )}
