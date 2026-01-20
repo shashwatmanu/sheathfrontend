@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx';
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
-import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download } from "lucide-react";
+import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X } from "lucide-react";
 // import AIAssistantModal from '../../components/ui/AIAssistantModal.jsx';  // ✅ NEW: AI Assistant
 
 import Box from "@mui/material/Box";
@@ -576,12 +576,85 @@ export default function Home() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
 
+  // Preview Modal State
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewData, setPreviewData] = useState([]);
+  const [previewColumns, setPreviewColumns] = useState([]);
+  const [previewFilename, setPreviewFilename] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   // Reset keys for bulk uploaders to keep them "fresh" after upload
   const [bulkBankResetKey, setBulkBankResetKey] = useState(0);
   const [bulkMisResetKey, setBulkMisResetKey] = useState(0);
   const [bulkOutstandingResetKey, setBulkOutstandingResetKey] = useState(0);
   const [expandedBulkRow, setExpandedBulkRow] = useState(null);
-  const [activeFileInRow, setActiveFileInRow] = useState(null);
+
+  const handleAuthenticatedDownload = async (url, filename) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const fullUrl = `${API_BASE.replace(/\/$/, "")}${url}`;
+      const response = await fetch(fullUrl, { headers });
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Download failed. Please try again.');
+    }
+  };
+
+  const handlePreviewFile = async (url, filename) => {
+    setPreviewLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const fullUrl = `${API_BASE.replace(/\/$/, "")}${url}`;
+      const response = await fetch(fullUrl, { headers });
+
+      if (!response.ok) throw new Error("Failed to fetch file");
+
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      if (jsonData.length > 0) {
+        setPreviewColumns(Object.keys(jsonData[0]));
+        setPreviewData(jsonData);
+      } else {
+        setPreviewColumns([]);
+        setPreviewData([]);
+      }
+      setPreviewFilename(filename);
+      setPreviewModalOpen(true);
+    } catch (e) {
+      console.error("Preview failed", e);
+      alert("Failed to load file for preview. " + (e.message || ""));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const [animationData, setAnimationData] = useState(null);
 
@@ -1844,7 +1917,10 @@ export default function Home() {
                                     {bulkResult.summary.map((row, idx) => {
                                       const isExpanded = expandedBulkRow === idx;
                                       const outputFileName = row["Output File"] || row["Result File"] || `Result_${idx}.xlsx`;
-                                      const fileUrl = bulkResult.files ? (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]) : null;
+
+                                      // Determine if we have any files to show
+                                      const hasFiles = (row.produced_files && Object.keys(row.produced_files).length > 0) ||
+                                        (bulkResult.files && (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]));
 
                                       return (
                                         <React.Fragment key={idx}>
@@ -1863,22 +1939,9 @@ export default function Home() {
                                               </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                              {(fileUrl || (row.produced_files && Object.keys(row.produced_files).length > 0)) ? (
+                                              {hasFiles ? (
                                                 <button
-                                                  onClick={() => {
-                                                    if (isExpanded) {
-                                                      setExpandedBulkRow(null);
-                                                      setActiveFileInRow(null);
-                                                    } else {
-                                                      setExpandedBulkRow(idx);
-                                                      if (row.produced_files && Object.values(row.produced_files).length > 0) {
-                                                        const files = Object.values(row.produced_files);
-                                                        setActiveFileInRow(files[files.length - 1]);
-                                                      } else {
-                                                        setActiveFileInRow(outputFileName);
-                                                      }
-                                                    }
-                                                  }}
+                                                  onClick={() => setExpandedBulkRow(isExpanded ? null : idx)}
                                                   className={`flex items-center gap-2 text-xs px-4 py-2 rounded-lg transition-all border font-medium ${isExpanded
                                                     ? "bg-blue-600 border-blue-600 text-white shadow-md"
                                                     : (darkMode ? "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white" : "bg-white border-gray-200 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200")
@@ -1905,7 +1968,7 @@ export default function Home() {
                                                       onClick={() => setExpandedBulkRow(null)}
                                                       className={`p-1 rounded-full ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-200 text-gray-500"}`}
                                                     >
-                                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                                      <X size={20} />
                                                     </button>
                                                   </div>
 
@@ -1914,14 +1977,10 @@ export default function Home() {
                                                       Object.entries(row.produced_files).map(([label, fileName]) => {
                                                         const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
                                                         if (!fUrl) return null;
-                                                        const isActive = activeFileInRow === fileName;
 
                                                         return (
-                                                          <div key={fileName} className={`border rounded-xl transition-all duration-300 overflow-hidden ${isActive ? (darkMode ? "border-blue-500 ring-1 ring-blue-500 shadow-md" : "border-blue-400 ring-1 ring-blue-400 shadow-md") : (darkMode ? "border-slate-700 hover:border-slate-600" : "border-gray-200 hover:border-blue-300")}`}>
-                                                            <div
-                                                              className={`flex items-center justify-between p-4 cursor-pointer ${isActive ? (darkMode ? "bg-slate-800" : "bg-blue-50") : (darkMode ? "bg-slate-900" : "bg-white")}`}
-                                                              onClick={() => setActiveFileInRow(isActive ? null : fileName)}
-                                                            >
+                                                          <div key={fileName} className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 hover:border-slate-600 bg-slate-900" : "border-gray-200 hover:border-blue-300 bg-white"}`}>
+                                                            <div className="flex items-center justify-between p-4">
                                                               <div className="flex items-center gap-4">
                                                                 <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
                                                                   <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
@@ -1933,59 +1992,70 @@ export default function Home() {
                                                               </div>
 
                                                               <div className="flex items-center gap-3">
-                                                                <a
-                                                                  href={fUrl}
-                                                                  download={fileName}
-                                                                  onClick={(e) => e.stopPropagation()}
+                                                                <button
+                                                                  onClick={() => handleAuthenticatedDownload(fUrl, fileName)}
                                                                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
-                                                                  title="Download File"
                                                                 >
                                                                   <Download size={14} />
                                                                   <span className="hidden sm:inline">Download</span>
-                                                                </a>
+                                                                </button>
                                                                 <button
-                                                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isActive
-                                                                    ? "bg-blue-600 text-white shadow-sm"
-                                                                    : (darkMode ? "bg-slate-700 hover:bg-slate-600 text-slate-200" : "bg-gray-100 hover:bg-gray-200 text-gray-700")}`}
+                                                                  onClick={() => handlePreviewFile(fUrl, fileName)}
+                                                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                                                                 >
-                                                                  {isActive ? "Close Preview" : "Preview Data"}
+                                                                  {previewLoading && previewFilename === fileName ? (
+                                                                    <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+                                                                  ) : (
+                                                                    <FileText size={14} />
+                                                                  )}
+                                                                  <span>Preview</span>
                                                                 </button>
                                                               </div>
                                                             </div>
-
-                                                            {isActive && (
-                                                              <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1">
-                                                                <ExcelDataViewer
-                                                                  url={fUrl}
-                                                                  label={fileName}
-                                                                  darkMode={darkMode}
-                                                                  apiBase={API_BASE}
-                                                                />
-                                                              </div>
-                                                            )}
                                                           </div>
                                                         );
                                                       })
                                                     ) : (
-                                                      fileUrl && (
-                                                        <div className={`border rounded-xl transition-all duration-300 ${activeFileInRow === outputFileName || (!activeFileInRow) ? (darkMode ? "border-blue-500" : "border-blue-400") : (darkMode ? "border-slate-700" : "border-gray-200")}`}>
-                                                          <div className="flex items-center justify-between p-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className={`text-sm font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Final Output</div>
-                                                              <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{outputFileName}</div>
+                                                      // Fallback for single file logic
+                                                      (() => {
+                                                        const fUrl = bulkResult.files ? (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]) : null;
+                                                        if (!fUrl) return null;
+                                                        return (
+                                                          <div className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}>
+                                                            <div className="flex items-center justify-between p-4">
+                                                              <div className="flex items-center gap-4">
+                                                                <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
+                                                                  <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
+                                                                </div>
+                                                                <div>
+                                                                  <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Final Output</div>
+                                                                  <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>{outputFileName}</div>
+                                                                </div>
+                                                              </div>
+                                                              <div className="flex items-center gap-3">
+                                                                <button
+                                                                  onClick={() => handleAuthenticatedDownload(fUrl, outputFileName)}
+                                                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
+                                                                >
+                                                                  <Download size={14} />
+                                                                  <span className="hidden sm:inline">Download</span>
+                                                                </button>
+                                                                <button
+                                                                  onClick={() => handlePreviewFile(fUrl, outputFileName)}
+                                                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                                                                >
+                                                                  {previewLoading && previewFilename === outputFileName ? (
+                                                                    <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+                                                                  ) : (
+                                                                    <FileText size={14} />
+                                                                  )}
+                                                                  <span>Preview</span>
+                                                                </button>
+                                                              </div>
                                                             </div>
-                                                            <a href={fileUrl} download={outputFileName} className="text-blue-500 hover:underline text-xs flex items-center gap-1">
-                                                              <Download size={14} /> Download
-                                                            </a>
                                                           </div>
-                                                          <ExcelDataViewer
-                                                            url={fileUrl}
-                                                            label={outputFileName}
-                                                            darkMode={darkMode}
-                                                            apiBase={API_BASE}
-                                                          />
-                                                        </div>
-                                                      )
+                                                        );
+                                                      })()
                                                     )}
                                                   </div>
                                                 </div>
@@ -3234,6 +3304,15 @@ export default function Home() {
           }
         }
       `}</style>
+      {/* Preview Modal */}
+      <DataModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        data={previewData}
+        columns={previewColumns}
+        filename={previewFilename}
+        darkMode={darkMode}
+      />
     </>
   );
 }
