@@ -12,6 +12,7 @@ import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
 import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X } from "lucide-react";
+import SideNote from "../../components/ui/SideNote.jsx";
 // import AIAssistantModal from '../../components/ui/AIAssistantModal.jsx';  // ✅ NEW: AI Assistant
 
 import Box from "@mui/material/Box";
@@ -1345,6 +1346,8 @@ export default function Home() {
           {/* Navbar moved to layout */}
         </div>
 
+
+        <SideNote darkMode={darkMode} />
 
         <main style={{
           margin: "0 auto",
