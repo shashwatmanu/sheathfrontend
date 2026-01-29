@@ -8,7 +8,6 @@ import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
 import Hyperspeed from "../../components/ui/hyperspeed";
 import Lottie from 'lottie-react';
-import { parseExcelInWorker } from "../../lib/excel-parser";
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
 import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X } from "lucide-react";
@@ -29,6 +28,27 @@ import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
 import Collapse from "@mui/material/Collapse";
 import { useDarkMode } from "../../lib/dark-mode-context";
+
+// Helper to offload Excel parsing to a Web Worker
+const parseExcelWithWorker = (arrayBuffer) => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('/workers/excel-worker.js');
+    worker.onmessage = (event) => {
+      const { status, data, message } = event.data;
+      if (status === 'success') {
+        resolve(data);
+      } else {
+        reject(new Error(message || 'Worker error'));
+      }
+      worker.terminate();
+    };
+    worker.onerror = (error) => {
+      reject(error);
+      worker.terminate();
+    };
+    worker.postMessage(arrayBuffer, [arrayBuffer]);
+  });
+};
 
 // Separate component for navbar sparkles - won't re-render on state changes
 const NavbarSparkles = React.memo(() => (
@@ -128,7 +148,6 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
     setLoading(true);
     setError("");
     try {
-      const XLSX = await import('xlsx');
       const fullUrl = `${apiBase.replace(/\/$/, "")}${url}`;
 
       // Add Bearer token for authentication
@@ -145,7 +164,8 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      const jsonData = await parseExcelInWorker(arrayBuffer);
+
+      const jsonData = await parseExcelWithWorker(arrayBuffer);
 
       if (jsonData.length > 0) {
         setColumns(Object.keys(jsonData[0]));
@@ -621,7 +641,6 @@ export default function Home() {
   const handlePreviewFile = async (url, filename) => {
     setPreviewLoading(true);
     try {
-      const XLSX = await import('xlsx');
       const token = localStorage.getItem('access_token');
       const headers = {};
       if (token) {
@@ -634,7 +653,8 @@ export default function Home() {
       if (!response.ok) throw new Error("Failed to fetch file");
 
       const arrayBuffer = await response.arrayBuffer();
-      const jsonData = await parseExcelInWorker(arrayBuffer);
+
+      const jsonData = await parseExcelWithWorker(arrayBuffer);
 
       if (jsonData.length > 0) {
         setPreviewColumns(Object.keys(jsonData[0]));
