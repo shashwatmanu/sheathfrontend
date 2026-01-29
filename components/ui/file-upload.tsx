@@ -1,5 +1,5 @@
 import { cn } from "../../utils";
-import React, { useRef, useState, useEffect, useId } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { IconUpload, IconX } from "@tabler/icons-react";
 import { useDropzone } from "react-dropzone";
@@ -313,106 +313,46 @@ export const FileUpload = ({
 export function GridPattern({ darkMode = false }: { darkMode?: boolean }) {
   const columns = 41;
   const rows = 11;
-  const id = useId();
-  const patternId = `grid-pattern-${id}`;
-  const clipId = `cell-clip-${id}`;
-
   return (
     <div
       className={cn(
-        "flex shrink-0 justify-center items-center scale-105",
+        "grid shrink-0 justify-center items-center gap-x-px gap-y-px scale-105",
         !darkMode && "bg-gray-100"
       )}
       style={{
         backgroundColor: darkMode ? DARK_BG : undefined,
-        width: "fit-content",
-        height: "fit-content",
+        gridTemplateColumns: `repeat(${columns}, 2.5rem)`,
       }}
     >
-      <svg
-        width={columns * 40 + (columns - 1)}
-        height={rows * 40 + (rows - 1)}
-        style={{ overflow: "visible" }}
-      >
-        <defs>
-          <pattern
-            id={patternId}
-            x="0"
-            y="0"
-            width="82"
-            height="82"
-            patternUnits="userSpaceOnUse"
-          >
-            {/* Even Cells */}
-            <rect
-              x="0"
-              y="0"
-              width="40"
-              height="40"
-              rx="2"
-              fill={darkMode ? DARK_TILE_LIGHT : "#F9FAFB"}
+      {Array.from({ length: rows }).map((_, row) =>
+        Array.from({ length: columns }).map((_, col) => {
+          const isEven = (row + col) % 2 === 0;
+          return (
+            <div
+              key={`${col}-${row}`}
+              className={cn(
+                "w-10 h-10 flex shrink-0 rounded-[2px]",
+                !darkMode &&
+                cn(
+                  isEven
+                    ? "bg-gray-50"
+                    : "bg-black-50 shadow-[0px_0px_1px_3px_rgba(255,255,255,1)_inset]"
+                )
+              )}
+              style={
+                darkMode
+                  ? {
+                    backgroundColor: isEven ? DARK_TILE_LIGHT : DARK_TILE_DARK,
+                    boxShadow: !isEven
+                      ? "0px 0px 1px 3px rgba(8, 14, 24, 0.65) inset"
+                      : undefined,
+                  }
+                  : undefined
+              }
             />
-            <rect
-              x="41"
-              y="41"
-              width="40"
-              height="40"
-              rx="2"
-              fill={darkMode ? DARK_TILE_LIGHT : "#F9FAFB"}
-            />
-
-            {/* Odd Cells */}
-            <g>
-              <rect
-                x="41"
-                y="0"
-                width="40"
-                height="40"
-                rx="2"
-                fill={darkMode ? DARK_TILE_DARK : "transparent"}
-              />
-              <rect
-                x="0"
-                y="41"
-                width="40"
-                height="40"
-                rx="2"
-                fill={darkMode ? DARK_TILE_DARK : "transparent"}
-              />
-
-              {/* Shadow Overlay */}
-              <clipPath id={clipId}>
-                <rect x="41" y="0" width="40" height="40" rx="2" />
-                <rect x="0" y="41" width="40" height="40" rx="2" />
-              </clipPath>
-
-              <g clipPath={`url(#${clipId})`}>
-                <rect
-                  x="41"
-                  y="0"
-                  width="40"
-                  height="40"
-                  rx="2"
-                  fill="none"
-                  stroke={darkMode ? "rgba(8, 14, 24, 0.65)" : "white"}
-                  strokeWidth="6"
-                />
-                <rect
-                  x="0"
-                  y="41"
-                  width="40"
-                  height="40"
-                  rx="2"
-                  fill="none"
-                  stroke={darkMode ? "rgba(8, 14, 24, 0.65)" : "white"}
-                  strokeWidth="6"
-                />
-              </g>
-            </g>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-      </svg>
+          );
+        })
+      )}
     </div>
   );
 }
