@@ -7,7 +7,6 @@ import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
 import Hyperspeed from "../../components/ui/hyperspeed";
-import * as XLSX from 'xlsx';
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
@@ -128,6 +127,7 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
     setLoading(true);
     setError("");
     try {
+      const XLSX = await import('xlsx');
       const fullUrl = `${apiBase.replace(/\/$/, "")}${url}`;
 
       // Add Bearer token for authentication
@@ -623,6 +623,7 @@ export default function Home() {
   const handlePreviewFile = async (url, filename) => {
     setPreviewLoading(true);
     try {
+      const XLSX = await import('xlsx');
       const token = localStorage.getItem('access_token');
       const headers = {};
       if (token) {
