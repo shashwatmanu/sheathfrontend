@@ -109,9 +109,9 @@ const SideNote = ({ darkMode }) => {
                     <li style={{ marginBottom: '10px', paddingLeft: '4px' }}>
                         <strong style={{ color: theme.text }}>Download dumps</strong> directly from the portal (apply filters as needed during download, without modifying the file content afterwards).
                     </li>
-                    <li style={{ marginBottom: '10px', paddingLeft: '4px' }}>
+                    {/* <li style={{ marginBottom: '10px', paddingLeft: '4px' }}>
                         <strong style={{ color: theme.text }}>Verify</strong> the file format is <code>.xlsx</code>; convert it if necessary.
-                    </li>
+                    </li> */}
                     <li style={{ marginBottom: '10px', paddingLeft: '4px' }}>
                         <strong style={{ color: theme.text }}>Upload</strong> the bank and TPA files, along with the outstanding, and let RecoWiz handle the rest 😊.
                     </li>

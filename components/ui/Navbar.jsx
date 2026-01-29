@@ -67,7 +67,7 @@ export const Navbar = () => {
                         RGCIRC
                     </span>
                     <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Recon Dashboard
+                        RecoWiz Dashboard
                     </span>
                 </div>
             </div>

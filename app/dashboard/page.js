@@ -1240,7 +1240,7 @@ export default function Home() {
     setBulkMisResetKey(k => k + 1);
     setBulkOutstandingResetKey(k => k + 1);
     setExpandedBulkRow(null);
-    setActiveFileInRow(null);
+
   };
 
   // Handle pipeline mode switch
@@ -1374,7 +1374,7 @@ export default function Home() {
             {/* Hero content */}
             <div style={{ position: "relative", zIndex: 1 }}>
               <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white drop-shadow-sm">
-                Bank Reconciliation Dashboard
+                Reconciliation Wizard
               </h1>
               <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-8 leading-relaxed font-light">
                 {pipelineMode === 'v2'
@@ -1418,7 +1418,7 @@ export default function Home() {
                   <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Bank Types</div>
                 </div>
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
-                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-emerald-400 to-emerald-600">10+</div>
+                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-emerald-400 to-emerald-600">15+</div>
                   <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">TPAs</div>
                 </div>
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
