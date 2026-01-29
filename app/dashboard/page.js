@@ -7,7 +7,6 @@ import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
 import Hyperspeed from "../../components/ui/hyperspeed";
-import * as XLSX from 'xlsx';
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
@@ -29,6 +28,27 @@ import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
 import Collapse from "@mui/material/Collapse";
 import { useDarkMode } from "../../lib/dark-mode-context";
+
+// Helper to offload Excel parsing to a Web Worker
+const parseExcelWithWorker = (arrayBuffer) => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('/workers/excel-worker.js');
+    worker.onmessage = (event) => {
+      const { status, data, message } = event.data;
+      if (status === 'success') {
+        resolve(data);
+      } else {
+        reject(new Error(message || 'Worker error'));
+      }
+      worker.terminate();
+    };
+    worker.onerror = (error) => {
+      reject(error);
+      worker.terminate();
+    };
+    worker.postMessage(arrayBuffer, [arrayBuffer]);
+  });
+};
 
 // Separate component for navbar sparkles - won't re-render on state changes
 const NavbarSparkles = React.memo(() => (
@@ -144,10 +164,8 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      const jsonData = await parseExcelWithWorker(arrayBuffer);
 
       if (jsonData.length > 0) {
         setColumns(Object.keys(jsonData[0]));
@@ -635,10 +653,8 @@ export default function Home() {
       if (!response.ok) throw new Error("Failed to fetch file");
 
       const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      const jsonData = await parseExcelWithWorker(arrayBuffer);
 
       if (jsonData.length > 0) {
         setPreviewColumns(Object.keys(jsonData[0]));
