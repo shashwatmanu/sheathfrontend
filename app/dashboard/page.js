@@ -7,8 +7,8 @@ import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
 import Hyperspeed from "../../components/ui/hyperspeed";
-import * as XLSX from 'xlsx';
 import Lottie from 'lottie-react';
+import { parseExcelInWorker } from "../../lib/excel-parser";
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
 import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X } from "lucide-react";
@@ -144,10 +144,7 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+      const jsonData = await parseExcelInWorker(arrayBuffer);
 
       if (jsonData.length > 0) {
         setColumns(Object.keys(jsonData[0]));
@@ -635,10 +632,7 @@ export default function Home() {
       if (!response.ok) throw new Error("Failed to fetch file");
 
       const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+      const jsonData = await parseExcelInWorker(arrayBuffer);
 
       if (jsonData.length > 0) {
         setPreviewColumns(Object.keys(jsonData[0]));
