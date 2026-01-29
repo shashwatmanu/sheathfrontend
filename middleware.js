@@ -9,10 +9,20 @@ export function middleware(request) {
                      request.nextUrl.pathname.startsWith("/auth/register");
   
   const isProtectedPage = request.nextUrl.pathname.startsWith("/dashboard");
+  const isRootPage = request.nextUrl.pathname === "/";
 
   // If trying to access protected page without token, redirect to login
   if (isProtectedPage && !token) {
     return NextResponse.redirect(new URL("/auth/login", request.url));
+  }
+
+  // Handle root page redirection based on authentication
+  if (isRootPage) {
+    if (token) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    } else {
+      return NextResponse.redirect(new URL("/auth/login", request.url));
+    }
   }
 
   // If trying to access auth pages with token, redirect to dashboard
