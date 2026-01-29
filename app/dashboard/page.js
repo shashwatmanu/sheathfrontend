@@ -128,6 +128,7 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
     setLoading(true);
     setError("");
     try {
+      const XLSX = await import('xlsx');
       const fullUrl = `${apiBase.replace(/\/$/, "")}${url}`;
 
       // Add Bearer token for authentication
@@ -620,6 +621,7 @@ export default function Home() {
   const handlePreviewFile = async (url, filename) => {
     setPreviewLoading(true);
     try {
+      const XLSX = await import('xlsx');
       const token = localStorage.getItem('access_token');
       const headers = {};
       if (token) {
