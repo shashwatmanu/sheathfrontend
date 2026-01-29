@@ -501,6 +501,31 @@ const Hyperspeed = ({
 
                 this.container.addEventListener('contextmenu', this.onContextMenu);
 
+                this.isVisible = true;
+                if ('IntersectionObserver' in window) {
+                    this.observer = new IntersectionObserver(
+                        entries => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    if (!this.isVisible) {
+                                        this.isVisible = true;
+                                        this.clock.getDelta();
+                                        this.tick();
+                                    }
+                                } else {
+                                    this.isVisible = false;
+                                }
+                            });
+                        },
+                        {
+                            root: null,
+                            rootMargin: '0px',
+                            threshold: 0
+                        }
+                    );
+                    this.observer.observe(this.container);
+                }
+
                 this.tick();
             }
 
@@ -608,6 +633,7 @@ const Hyperspeed = ({
 
             tick() {
                 if (this.disposed || !this) return;
+                if (!this.isVisible) return;
                 if (resizeRendererToDisplaySize(this.renderer, this.setSize)) {
                     const canvas = this.renderer.domElement;
                     this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
