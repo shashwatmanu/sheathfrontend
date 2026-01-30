@@ -10,7 +10,7 @@ import Hyperspeed from "../../components/ui/hyperspeed";
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
-import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X } from "lucide-react";
+import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X, Eye } from "lucide-react";
 import SideNote from "../../components/ui/SideNote.jsx";
 // import AIAssistantModal from '../../components/ui/AIAssistantModal.jsx';  // ✅ NEW: AI Assistant
 
@@ -1869,266 +1869,269 @@ export default function Home() {
                               paddingRight: "max(2rem, calc((100vw - 1600px) / 2))",
                             }}
                           >
-                            <div className="flex items-center justify-between mb-6 px-4">
-                              <h3 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                            <div className="flex items-center justify-between mb-8 px-4">
+                              <h3 className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
                                 Bulk Reconciliation Results
                               </h3>
                             </div>
 
-                            {/* Main Consolidated Summary File Viewer */}
-                            {bulkResult.files && bulkResult.files['bulk_summary.xlsx'] && (
-                              <div className="mb-6 px-4">
-                                <div className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}>
-                                  <div className="flex items-center justify-between p-4">
-                                    <div className="flex items-center gap-4">
-                                      <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
-                                        <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
-                                      </div>
-                                      <div>
-                                        <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Overall Summary Report</div>
-                                        <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>bulk_summary.xlsx</div>
-                                      </div>
-                                    </div>
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 px-4">
+                              {/* Overall Summary Report Card */}
+                              {(() => {
+                                const summaryKey = Object.keys(bulkResult.files || {}).find(k => k.toLowerCase().includes("summary"));
+                                const fileUrl = summaryKey ? bulkResult.files[summaryKey] : null;
+                                const fileName = summaryKey || "Overall Summary Report.xlsx";
 
-                                    <div className="flex items-center gap-3">
-                                      <button
-                                        onClick={() => handleAuthenticatedDownload(bulkResult.files['bulk_summary.xlsx'], 'bulk_summary.xlsx')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
-                                      >
-                                        <Download size={14} />
-                                        <span className="hidden sm:inline">Download</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handlePreviewFile(bulkResult.files['bulk_summary.xlsx'], 'bulk_summary.xlsx')}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                                      >
-                                        {previewLoading && previewFilename === 'bulk_summary.xlsx' ? (
-                                          <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                                        ) : (
-                                          <FileText size={14} />
-                                        )}
-                                        <span>Preview</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                                return (
+                                  <div className={`p-6 rounded-2xl border transition-all duration-300 shadow-sm relative overflow-hidden group hover:shadow-lg ${darkMode ? "border-slate-700 hover:shadow-slate-700/50" : "border-blue-100 hover:shadow-blue-100"}`}>
+                                    {/* Gradient Background */}
+                                    <div className={`absolute inset-0 opacity-10 ${darkMode ? "bg-gradient-to-br from-blue-600 to-cyan-400" : "bg-gradient-to-br from-blue-500 to-cyan-300"}`} />
 
-                            {/* Consolidated Matches File Viewer */}
-                            {bulkResult.files && bulkResult.files['Final posting sheet (Consolidated).xlsx'] && (
-                              <div className="mb-6 px-4">
-                                <div className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}>
-                                  <div className="flex items-center justify-between p-4">
-                                    <div className="flex items-center gap-4">
-                                      <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
-                                        <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
-                                      </div>
-                                      <div>
-                                        <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Final posting sheet (Consolidated)</div>
-                                        <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>Final posting sheet (Consolidated).xlsx</div>
-                                      </div>
-                                    </div>
+                                    <div className="relative z-10 flex items-start justify-between">
+                                      <div className="flex gap-4">
+                                        <div className={`p-3 rounded-xl h-fit shadow-sm ${darkMode ? "bg-slate-800 text-blue-400" : "bg-white text-blue-600"}`}>
+                                          <FileText size={32} strokeWidth={1.5} />
+                                        </div>
+                                        <div>
+                                          <h4 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Overall Summary Report</h4>
+                                          <p className={`text-sm mb-4 font-medium opacity-80 ${darkMode ? "text-slate-300" : "text-gray-600"}`}>{fileName}</p>
 
-                                    <div className="flex items-center gap-3">
-                                      <button
-                                        onClick={() => handleAuthenticatedDownload(bulkResult.files['Final posting sheet (Consolidated).xlsx'], 'Final posting sheet (Consolidated).xlsx')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
-                                      >
-                                        <Download size={14} />
-                                        <span className="hidden sm:inline">Download</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handlePreviewFile(bulkResult.files['Final posting sheet (Consolidated).xlsx'], 'Final posting sheet (Consolidated).xlsx')}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                                      >
-                                        {previewLoading && previewFilename === 'Final posting sheet (Consolidated).xlsx' ? (
-                                          <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                                        ) : (
-                                          <FileText size={14} />
-                                        )}
-                                        <span>Preview</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {bulkResult.summary && (
-                              <div className={`overflow-auto max-h-[600px] border rounded-xl shadow-inner relative ${darkMode ? "border-slate-700 bg-slate-900/20" : "border-slate-200 bg-gray-50/50"}`}>
-                                <table className="w-full text-sm text-left border-collapse">
-                                  <thead className={`text-xs uppercase sticky top-0 z-20 shadow-sm ${darkMode ? "bg-slate-800 text-slate-300" : "bg-white text-gray-700"}`}>
-                                    <tr>
-                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Bank File</th>
-                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">MIS File</th>
-                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Bank Type</th>
-                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">TPA</th>
-                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">Bank Rows</th>
-                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">MIS Rows</th>
-                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">Step 2 Match</th>
-                                      <th className="px-4 py-4 text-center whitespace-nowrap font-bold tracking-wider">Final Match</th>
-                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Status</th>
-                                      <th className="px-6 py-4 whitespace-nowrap font-bold tracking-wider">Action</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className={`divide-y ${darkMode ? "divide-slate-700 text-slate-300" : "divide-slate-100 text-gray-600"}`}>
-                                    {bulkResult.summary.map((row, idx) => {
-                                      const isExpanded = expandedBulkRow === idx;
-                                      const outputFileName = row["Output File"] || row["Result File"] || `Result_${idx}.xlsx`;
-
-                                      // Determine if we have any files to show
-                                      const hasFiles = (row.produced_files && Object.keys(row.produced_files).length > 0) ||
-                                        (bulkResult.files && (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]));
-
-                                      return (
-                                        <React.Fragment key={idx}>
-                                          <tr className={`transition-colors duration-150 group ${darkMode ? "hover:bg-slate-800/50" : "hover:bg-blue-50/30"} ${isExpanded ? (darkMode ? "!bg-slate-800 border-l-4 border-l-blue-500" : "!bg-blue-50 border-l-4 border-l-blue-500") : "border-l-4 border-l-transparent"}`}>
-                                            <td className="px-6 py-4 font-medium truncate max-w-[200px]" title={row["Bank File"]}>{row["Bank File"]}</td>
-                                            <td className="px-6 py-4 truncate max-w-[200px]" title={row["MIS File"]}>{row["MIS File"]}</td>
-                                            <td className="px-6 py-4 font-semibold text-blue-600 dark:text-blue-400">{row["Bank Type"] || "-"}</td>
-                                            <td className="px-6 py-4 font-semibold text-purple-600 dark:text-purple-400">{row["TPA"] || "-"}</td>
-                                            <td className="px-4 py-4 text-center">{row["Bank Rows"] || 0}</td>
-                                            <td className="px-4 py-4 text-center">{row["MIS Rows"] || 0}</td>
-                                            <td className="px-4 py-4 text-center">{row["Step 2 Match"] || 0}</td>
-                                            <td className="px-4 py-4 text-center font-bold text-lg">{row["Final Match"] || 0}</td>
-                                            <td className="px-6 py-4">
-                                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${row.Status === "Success" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
-                                                {row.Status}
-                                              </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                              {hasFiles ? (
+                                          <div className="flex gap-3">
+                                            {fileUrl ? (
+                                              <>
                                                 <button
-                                                  onClick={() => setExpandedBulkRow(isExpanded ? null : idx)}
-                                                  className={`flex items-center gap-2 text-xs px-4 py-2 rounded-lg transition-all border font-medium ${isExpanded
-                                                    ? "bg-blue-600 border-blue-600 text-white shadow-md"
-                                                    : (darkMode ? "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white" : "bg-white border-gray-200 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200")
-                                                    }`}
+                                                  onClick={() => handleAuthenticatedDownload(fileUrl, fileName)}
+                                                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
                                                 >
-                                                  <span>{isExpanded ? "Hide Files" : "View Files"}</span>
-                                                  <span className={`text-[10px] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+                                                  <Download size={16} />
+                                                  Download
                                                 </button>
-                                              ) : (
-                                                <span className="text-xs text-gray-400 italic">No Output</span>
-                                              )}
-                                            </td>
-                                          </tr>
-                                          {isExpanded && (
-                                            <tr className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                              <td colSpan={10} className={`p-4 sm:p-8 ${darkMode ? "bg-slate-800/30" : "bg-slate-50/50"}`}>
-                                                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
-                                                  <div className={`px-6 py-4 border-b ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-100 bg-gray-50"} font-semibold flex items-center justify-between`}>
-                                                    <div className="flex items-center gap-2">
-                                                      <span className="text-xl">📂</span>
-                                                      <span className={darkMode ? "text-slate-200" : "text-gray-800"}>Reconciliation Outputs</span>
-                                                    </div>
-                                                    <button
-                                                      onClick={() => setExpandedBulkRow(null)}
-                                                      className={`p-1 rounded-full ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-200 text-gray-500"}`}
-                                                    >
-                                                      <X size={20} />
-                                                    </button>
-                                                  </div>
+                                                <button
+                                                  onClick={() => handlePreviewFile(fileUrl, fileName)}
+                                                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-all active:scale-95 ${darkMode ? "bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700" : "bg-white/60 border-blue-200 text-blue-700 hover:bg-white"}`}
+                                                >
+                                                  {previewLoading && previewFilename === fileName ? (
+                                                    <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                                  ) : (
+                                                    <Eye size={16} />
+                                                  )}
+                                                  Preview
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <span className="text-sm text-gray-400 italic">File not found</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
 
-                                                  <div className="p-6 grid gap-4 grid-cols-1">
-                                                    {row.produced_files && typeof row.produced_files === 'object' ? (
-                                                      Object.entries(row.produced_files).map(([label, fileName]) => {
-                                                        const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
-                                                        if (!fUrl) return null;
+                              {/* Consolidated Matches Card */}
+                              {(() => {
+                                const consolidatedKey = Object.keys(bulkResult.files || {}).find(k => k.toLowerCase().includes("consolidated") || k.toLowerCase().includes("posting"));
+                                const fileUrl = consolidatedKey ? bulkResult.files[consolidatedKey] : null;
+                                const fileName = consolidatedKey || "Final posting sheet (Consolidated).xlsx";
 
-                                                        return (
-                                                          <div key={fileName} className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 hover:border-slate-600 bg-slate-900" : "border-gray-200 hover:border-blue-300 bg-white"}`}>
-                                                            <div className="flex items-center justify-between p-4">
-                                                              <div className="flex items-center gap-4">
-                                                                <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
-                                                                  <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
-                                                                </div>
-                                                                <div>
-                                                                  <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{label}</div>
-                                                                  <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>{fileName}</div>
-                                                                </div>
+                                return (
+                                  <div className={`p-6 rounded-2xl border transition-all duration-300 shadow-sm relative overflow-hidden group hover:shadow-lg ${darkMode ? "border-slate-700 hover:shadow-slate-700/50" : "border-blue-100 hover:shadow-blue-100"}`}>
+                                    {/* Gradient Background */}
+                                    <div className={`absolute inset-0 opacity-10 ${darkMode ? "bg-gradient-to-br from-emerald-600 to-teal-400" : "bg-gradient-to-br from-emerald-500 to-teal-300"}`} />
+
+                                    <div className="relative z-10 flex items-start justify-between">
+                                      <div className="flex gap-4">
+                                        <div className={`p-3 rounded-xl h-fit shadow-sm ${darkMode ? "bg-slate-800 text-emerald-400" : "bg-white text-emerald-600"}`}>
+                                          <FileSpreadsheet size={32} strokeWidth={1.5} />
+                                        </div>
+                                        <div>
+                                          <h4 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Final posting sheet (Consolidated)</h4>
+                                          <p className={`text-sm mb-4 font-medium opacity-80 ${darkMode ? "text-slate-300" : "text-gray-600"}`}>{fileName}</p>
+
+                                          <div className="flex gap-3">
+                                            {fileUrl ? (
+                                              <>
+                                                <button
+                                                  onClick={() => handleAuthenticatedDownload(fileUrl, fileName)}
+                                                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95"
+                                                >
+                                                  <Download size={16} />
+                                                  Download
+                                                </button>
+                                                <button
+                                                  onClick={() => handlePreviewFile(fileUrl, fileName)}
+                                                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-all active:scale-95 ${darkMode ? "bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700" : "bg-white/60 border-emerald-200 text-emerald-700 hover:bg-white"}`}
+                                                >
+                                                  {previewLoading && previewFilename === fileName ? (
+                                                    <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                                  ) : (
+                                                    <Eye size={16} />
+                                                  )}
+                                                  Preview
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <span className="text-sm text-gray-400 italic">File not found</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Results Table */}
+                            {bulkResult.summary && (
+                              <div className={`mx-4 overflow-hidden border rounded-xl shadow-sm ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-white"}`}>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm text-left">
+                                    <thead className={`text-xs uppercase font-semibold ${darkMode ? "bg-slate-700/50 text-slate-300" : "bg-gray-50 text-gray-500"}`}>
+                                      <tr>
+                                        <th className="px-6 py-4 whitespace-nowrap">Bank File</th>
+                                        <th className="px-6 py-4 whitespace-nowrap">MIS File</th>
+                                        <th className="px-6 py-4 whitespace-nowrap">Bank Type</th>
+                                        <th className="px-6 py-4 whitespace-nowrap">TPA</th>
+                                        <th className="px-4 py-4 text-center whitespace-nowrap">Bank Rows</th>
+                                        <th className="px-4 py-4 text-center whitespace-nowrap">MIS Rows</th>
+                                        <th className="px-4 py-4 text-center whitespace-nowrap">Step 2 Match</th>
+                                        <th className="px-4 py-4 text-center whitespace-nowrap">Final Match</th>
+                                        <th className="px-6 py-4 whitespace-nowrap">Status</th>
+                                        <th className="px-6 py-4 whitespace-nowrap text-right">Action</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className={`divide-y ${darkMode ? "divide-slate-700" : "divide-gray-100"}`}>
+                                      {bulkResult.summary.map((row, idx) => {
+                                        const isExpanded = expandedBulkRow === idx;
+                                        const outputFileName = row["Output File"] || row["Result File"] || `Result_${idx}.xlsx`;
+
+                                        // Determine if we have any files to show
+                                        const hasFiles = (row.produced_files && Object.keys(row.produced_files).length > 0) ||
+                                          (bulkResult.files && (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]));
+
+                                        // Bank Card Style Helper
+                                        const getBankCardStyle = (type) => {
+                                          const t = (type || "").toLowerCase();
+                                          if (t.includes("standard")) return { background: "linear-gradient(135deg, #003087 0%, #0056b3 100%)", icon: "💎" }; // Standard Chartered Blue
+                                          if (t.includes("icici")) return { background: "linear-gradient(135deg, #871f42 0%, #f37021 100%)", icon: "🟠" }; // ICICI Orange/Red
+                                          if (t.includes("axis")) return { background: "linear-gradient(135deg, #871242 0%, #be185d 100%)", icon: "🔴" }; // Axis Maroon/Pink
+                                          return { background: "linear-gradient(135deg, #64748b 0%, #94a3b8 100%)", icon: "🏦" }; // Default Gray
+                                        };
+                                        const bankStyle = getBankCardStyle(row["Bank Type"]);
+
+                                        return (
+                                          <React.Fragment key={idx}>
+                                            <tr className={`transition-colors ${darkMode ? "hover:bg-slate-700/30" : "hover:bg-gray-50"} ${isExpanded ? (darkMode ? "bg-slate-700/30" : "bg-gray-50") : ""}`}>
+                                              <td className={`px-6 py-4 font-medium max-w-[200px] truncate ${darkMode ? "text-slate-200" : "text-gray-900"}`} title={row["Bank File"]}>
+                                                {row["Bank File"]}
+                                              </td>
+                                              <td className={`px-6 py-4 max-w-[200px] truncate ${darkMode ? "text-slate-400" : "text-gray-600"}`} title={row["MIS File"]}>
+                                                {row["MIS File"]}
+                                              </td>
+                                              <td className="px-6 py-4">
+                                                <span
+                                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold text-white shadow-sm uppercase tracking-wide"
+                                                  style={{ background: bankStyle.background }}
+                                                >
+                                                  {row["Bank Type"] || "UNKNOWN"}
+                                                </span>
+                                              </td>
+                                              <td className="px-6 py-4 text-blue-500 font-medium max-w-[150px] truncate">
+                                                {row["TPA"] || "IHX (Original MIS)"}
+                                              </td>
+                                              <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
+                                                {row["Bank Rows"] || 0}
+                                              </td>
+                                              <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
+                                                {row["MIS Rows"] || 0}
+                                              </td>
+                                              <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
+                                                {row["Step 2 Match"] || 0}
+                                              </td>
+                                              <td className={`px-4 py-4 text-center font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                                {row["Final Match"] || 0}
+                                              </td>
+                                              <td className="px-6 py-4">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${row.Status === "Success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+                                                  {row.Status}
+                                                </span>
+                                              </td>
+                                              <td className="px-6 py-4 text-right">
+                                                {hasFiles ? (
+                                                  <button
+                                                    onClick={() => setExpandedBulkRow(isExpanded ? null : idx)}
+                                                    className={`inline-flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-medium border transition-all ${isExpanded
+                                                      ? "bg-slate-100 border-slate-300 text-slate-700 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+                                                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"}`}
+                                                  >
+                                                    View Files
+                                                    <span className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+                                                  </button>
+                                                ) : (
+                                                  <span className="text-xs text-gray-400 italic">No Files</span>
+                                                )}
+                                              </td>
+                                            </tr>
+
+                                            {/* Expanded File Details */}
+                                            {isExpanded && (
+                                              <tr className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <td colSpan={10} className={`p-0 ${darkMode ? "bg-slate-800/30" : "bg-gray-50/50"}`}>
+                                                  <div className={`p-6 border-b border-t ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                      {row.produced_files && typeof row.produced_files === 'object' ? (
+                                                        Object.entries(row.produced_files).map(([label, fileName]) => {
+                                                          const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
+                                                          if (!fUrl) return null;
+
+                                                          return (
+                                                            <div key={fileName} className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-gray-200"}`}>
+                                                              <div className="min-w-0 mr-4">
+                                                                <div className={`text-xs font-semibold uppercase mb-0.5 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{label}</div>
+                                                                <div className={`text-sm truncate font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{fileName}</div>
                                                               </div>
-
-                                                              <div className="flex items-center gap-3">
+                                                              <div className="flex gap-2 shrink-0">
                                                                 <button
                                                                   onClick={() => handleAuthenticatedDownload(fUrl, fileName)}
-                                                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
+                                                                  className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                  title="Download"
                                                                 >
-                                                                  <Download size={14} />
-                                                                  <span className="hidden sm:inline">Download</span>
+                                                                  <Download size={16} />
                                                                 </button>
                                                                 <button
                                                                   onClick={() => handlePreviewFile(fUrl, fileName)}
-                                                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                                                                  className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                  title="Preview"
                                                                 >
-                                                                  {previewLoading && previewFilename === fileName ? (
-                                                                    <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                                                                  ) : (
-                                                                    <FileText size={14} />
-                                                                  )}
-                                                                  <span>Preview</span>
+                                                                  <Eye size={16} />
                                                                 </button>
                                                               </div>
                                                             </div>
-                                                          </div>
-                                                        );
-                                                      })
-                                                    ) : (
-                                                      // Fallback for single file logic
-                                                      (() => {
-                                                        const fUrl = bulkResult.files ? (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]) : null;
-                                                        if (!fUrl) return null;
-                                                        return (
-                                                          <div className={`border rounded-xl transition-all duration-300 overflow-hidden ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}>
-                                                            <div className="flex items-center justify-between p-4">
-                                                              <div className="flex items-center gap-4">
-                                                                <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100 shadow-sm"}`}>
-                                                                  <FileSpreadsheet size={20} className={darkMode ? "text-blue-400" : "text-blue-600"} />
-                                                                </div>
-                                                                <div>
-                                                                  <div className={`text-sm font-semibold ${darkMode ? "text-slate-200" : "text-gray-900"}`}>Final Output</div>
-                                                                  <div className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"} mt-0.5`}>{outputFileName}</div>
-                                                                </div>
-                                                              </div>
-                                                              <div className="flex items-center gap-3">
-                                                                <button
-                                                                  onClick={() => handleAuthenticatedDownload(fUrl, outputFileName)}
-                                                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700" : "bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 border border-gray-200"}`}
-                                                                >
-                                                                  <Download size={14} />
-                                                                  <span className="hidden sm:inline">Download</span>
-                                                                </button>
-                                                                <button
-                                                                  onClick={() => handlePreviewFile(fUrl, outputFileName)}
-                                                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                                                                >
-                                                                  {previewLoading && previewFilename === outputFileName ? (
-                                                                    <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                                                                  ) : (
-                                                                    <FileText size={14} />
-                                                                  )}
-                                                                  <span>Preview</span>
-                                                                </button>
-                                                              </div>
-                                                            </div>
-                                                          </div>
-                                                        );
-                                                      })()
-                                                    )}
+                                                          );
+                                                        })
+                                                      ) : (
+                                                        // Fallback logic
+                                                        null
+                                                      )}
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              </td>
-                                            </tr>
-                                          )}
-                                        </React.Fragment>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
+                                                </td>
+                                              </tr>
+                                            )}
+                                          </React.Fragment>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
                               </div>
                             )}
-                            <div className="mt-6 flex justify-center">
+
+                            {/* Download ZIP Button */}
+                            <div className="mt-12 flex justify-center pb-8">
                               {bulkResult.zip_url && (
                                 <button
                                   onClick={async () => {
@@ -2154,9 +2157,9 @@ export default function Home() {
                                       alert("Failed to download ZIP file.");
                                     }
                                   }}
-                                  className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition-all transform hover:scale-105"
+                                  className="flex items-center gap-3 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-bold shadow-lg shadow-emerald-500/30 transition-all transform hover:-translate-y-1 active:translate-y-0"
                                 >
-                                  <span>📦</span>
+                                  <Download />
                                   <span>Download Results ZIP</span>
                                 </button>
                               )}
