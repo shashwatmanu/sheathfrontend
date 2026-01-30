@@ -132,7 +132,7 @@ export const Navbar = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 font-medium text-sm transition-all"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 font-medium text-sm transition-all"
                     >
                         <LogOut size={18} />
                         <span>Logout</span>

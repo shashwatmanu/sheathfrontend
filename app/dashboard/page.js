@@ -1407,7 +1407,7 @@ export default function Home() {
                     onClick={() => handleModeSwitch('v2')}
                     className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v2'
                       ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg'
-                      : 'text-gray-500 hover:text-gray-700'
+                      : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')
                       }`}
                   >
                     🚀 V2 (Auto + Bulk)
@@ -1416,7 +1416,7 @@ export default function Home() {
                     onClick={() => handleModeSwitch('v1')}
                     className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v1'
                       ? 'bg-white text-gray-900 shadow-md'
-                      : 'text-gray-500 hover:text-gray-700'
+                      : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')
                       }`}
                   >
                     Values (Legacy)
@@ -1469,7 +1469,7 @@ export default function Home() {
             border: darkMode ? "1px solid #334155" : "none"
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", alignItems: "center" }}>
-              <Typography variant="h6" style={{ fontWeight: 600, margin: 0, color: theme.text }}>
+              <Typography variant="h6" component="h2" style={{ fontWeight: 600, margin: 0, color: theme.text }}>
                 Reconciliation Progress
               </Typography>
               <Typography variant="body2" style={{ color: theme.textSecondary }}>
@@ -1586,6 +1586,7 @@ export default function Home() {
                               className="sr-only peer"
                               checked={isBulkMode}
                               onChange={(e) => setIsBulkMode(e.target.checked)}
+                              aria-label="Bulk Mode Toggle"
                             />
                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                           </label>
@@ -2450,7 +2451,7 @@ export default function Home() {
                         {misFile ? "📄" : "📊"}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-                        <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                        <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
                           MIS Extract File
                         </Typography>
                         <Tooltip title="Upload your Management Information System extract" arrow>
@@ -2490,7 +2491,7 @@ export default function Home() {
                 ) : (
                   <div style={{ textAlign: "center", padding: "32px 0" }}>
                     <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔄</div>
-                    <Typography variant="h6" style={{ marginBottom: 16, fontWeight: 600, color: theme.text }}>
+                    <Typography variant="h6" component="h2" style={{ marginBottom: 16, fontWeight: 600, color: theme.text }}>
                       Bank × Advance Matching
                     </Typography>
                     <Typography variant="body2" style={{ maxWidth: "500px", margin: "0 auto", color: theme.textSecondary }}>
@@ -2569,7 +2570,7 @@ export default function Home() {
                           {misFile ? "📄" : "📊"}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-                          <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                          <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
                             MIS Extract File
                           </Typography>
                           <Tooltip title="Upload your Management Information System extract" arrow>
@@ -2657,7 +2658,7 @@ export default function Home() {
                       {outstandingFile ? "📄" : "📋"}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-                      <Typography variant="h6" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                      <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
                         Outstanding Report
                       </Typography>
                       <Tooltip title="Upload your outstanding balances report" arrow>
@@ -2957,7 +2958,7 @@ export default function Home() {
                   flexShrink: 0
                 }}>⚠️</div>
                 <div style={{ flex: 1 }}>
-                  <Typography variant="h6" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
+                  <Typography variant="h6" component="h3" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
                     Processing Error
                   </Typography>
                   <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 16, fontSize: "14px" }}>
@@ -3087,7 +3088,7 @@ export default function Home() {
                           <div style={{ flex: 1 }}>
                             {/* Header */}
                             <div style={{ marginBottom: 12 }}>
-                              <Typography variant="h6" style={{
+                              <Typography variant="h6" component="h3" style={{
                                 fontWeight: 700,
                                 fontSize: "18px",
                                 color: theme.text,
