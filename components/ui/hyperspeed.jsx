@@ -49,10 +49,9 @@ const Hyperspeed = ({
     useEffect(() => {
         if (appRef.current) {
             appRef.current.dispose();
-            const container = document.getElementById('lights');
-            if (container) {
-                while (container.firstChild) {
-                    container.removeChild(container.firstChild);
+            if (hyperspeed.current) {
+                while (hyperspeed.current.firstChild) {
+                    hyperspeed.current.removeChild(hyperspeed.current.firstChild);
                 }
             }
         }
@@ -354,14 +353,14 @@ const Hyperspeed = ({
                     antialias: false,
                     alpha: true
                 });
-                this.renderer.setSize(container.offsetWidth, container.offsetHeight, false);
+                this.renderer.setSize(container.clientWidth, container.clientHeight, false);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
                 this.composer = new EffectComposer(this.renderer);
                 container.append(this.renderer.domElement);
 
                 this.camera = new THREE.PerspectiveCamera(
                     options.fov,
-                    container.offsetWidth / container.offsetHeight,
+                    container.clientWidth / container.clientHeight,
                     0.1,
                     10000
                 );
@@ -413,18 +412,6 @@ const Hyperspeed = ({
                 this.onTouchStart = this.onTouchStart.bind(this);
                 this.onTouchEnd = this.onTouchEnd.bind(this);
                 this.onContextMenu = this.onContextMenu.bind(this);
-
-                window.addEventListener('resize', this.onWindowResize.bind(this));
-            }
-
-            onWindowResize() {
-                const width = this.container.offsetWidth;
-                const height = this.container.offsetHeight;
-
-                this.renderer.setSize(width, height);
-                this.camera.aspect = width / height;
-                this.camera.updateProjectionMatrix();
-                this.composer.setSize(width, height);
             }
 
             initPasses() {
@@ -500,6 +487,22 @@ const Hyperspeed = ({
                 this.container.addEventListener('touchcancel', this.onTouchEnd, { passive: true });
 
                 this.container.addEventListener('contextmenu', this.onContextMenu);
+
+                // Initialize ResizeObserver
+                this.resizeObserver = new ResizeObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.target === this.container) {
+                            const { width, height } = entry.contentRect;
+                            if (width > 0 && height > 0) {
+                                this.renderer.setSize(width, height, false);
+                                this.camera.aspect = width / height;
+                                this.camera.updateProjectionMatrix();
+                                this.composer.setSize(width, height);
+                            }
+                        }
+                    }
+                });
+                this.resizeObserver.observe(this.container);
 
                 this.tick();
             }
@@ -588,8 +591,10 @@ const Hyperspeed = ({
                 if (this.scene) {
                     this.scene.clear();
                 }
+                if (this.resizeObserver) {
+                    this.resizeObserver.disconnect();
+                }
 
-                window.removeEventListener('resize', this.onWindowResize.bind(this));
                 if (this.container) {
                     this.container.removeEventListener('mousedown', this.onMouseDown);
                     this.container.removeEventListener('mouseup', this.onMouseUp);
@@ -608,11 +613,7 @@ const Hyperspeed = ({
 
             tick() {
                 if (this.disposed || !this) return;
-                if (resizeRendererToDisplaySize(this.renderer, this.setSize)) {
-                    const canvas = this.renderer.domElement;
-                    this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
-                    this.camera.updateProjectionMatrix();
-                }
+
                 const delta = this.clock.getDelta();
                 this.render(delta);
                 this.update(delta);
@@ -1089,26 +1090,13 @@ const Hyperspeed = ({
       }
     `;
 
-        function resizeRendererToDisplaySize(renderer, setSize) {
-            const canvas = renderer.domElement;
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-            const needResize = canvas.width !== width || canvas.height !== height;
-            if (needResize) {
-                setSize(width, height, false);
-            }
-            return needResize;
-        }
+        const container = hyperspeed.current;
+        const options = { ...effectOptions };
+        options.distortion = distortions[options.distortion];
 
-        (function () {
-            const container = document.getElementById('lights');
-            const options = { ...effectOptions };
-            options.distortion = distortions[options.distortion];
-
-            const myApp = new App(container, options);
-            appRef.current = myApp;
-            myApp.loadAssets().then(myApp.init);
-        })();
+        const myApp = new App(container, options);
+        appRef.current = myApp;
+        myApp.loadAssets().then(myApp.init);
 
         return () => {
             if (appRef.current) {
@@ -1117,7 +1105,7 @@ const Hyperspeed = ({
         };
     }, [effectOptions]);
 
-    return <div id="lights" ref={hyperspeed}></div>;
+    return <div id="lights" ref={hyperspeed} style={{ width: '100%', height: '100%' }}></div>;
 };
 
 export default Hyperspeed;
