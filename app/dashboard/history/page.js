@@ -2,22 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, logout, getUsername } from "../../../lib/auth";
+import { isAuthenticated, logout, getUsername, authenticatedFetch } from "../../../lib/auth";
 import { SparklesCore } from "../../../components/ui/sparkles";
 import { SparklesCard } from "../../../components/ui/sparkles-card";
 import { GlassCard } from "../../../components/ui/glass-card";
 import { useDarkMode } from "../../../lib/dark-mode-context";
 import Lottie from "lottie-react";
 import Typography from "@mui/material/Typography";
-
-const authenticatedFetch = async (url, options = {}) => {
-    const token = localStorage.getItem('access_token');
-    const headers = { ...options.headers };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    return fetch(url, { ...options, headers });
-};
 
 export default function HistoryPage() {
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";

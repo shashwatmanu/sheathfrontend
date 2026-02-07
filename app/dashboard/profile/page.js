@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, logout, getUsername } from "../../../lib/auth";
+import { isAuthenticated, logout, getUsername, authenticatedFetch } from "../../../lib/auth";
 import { SparklesCore } from "../../../components/ui/sparkles";
 import { WobbleCard } from "../../../components/ui/wobble-card";
 import { SparklesCard } from "../../../components/ui/sparkles-card";
@@ -11,23 +11,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import Typography from "@mui/material/Typography";
 import { useDarkMode } from "../../../lib/dark-mode-context";
 import Lottie from "lottie-react";
-
-const authenticatedFetch = async (url, options = {}) => {
-  const token = localStorage.getItem('access_token');
-
-  const headers = {
-    ...options.headers,
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  return fetch(url, {
-    ...options,
-    headers: headers,
-  });
-};
 
 export default function ProfilePage() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";

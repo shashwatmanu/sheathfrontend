@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, logout, getUsername, getToken } from "../../lib/auth";
+import { isAuthenticated, logout, getUsername, getToken, authenticatedFetch } from "../../lib/auth";
 import { FileUpload } from "../../components/ui/file-upload.tsx";
 import { Button as FancyButton } from "../../components/ui/moving-border";
 import { SparklesCore } from "../../components/ui/sparkles";
@@ -522,26 +522,6 @@ const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
       />
     </div>
   );
-};
-
-// Helper function for authenticated API calls with Bearer token
-const authenticatedFetch = async (url, options = {}) => {
-  const token = localStorage.getItem('access_token');
-
-  const headers = {
-    ...options.headers,
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  console.log('[Auth] API Request:', url);
-
-  return fetch(url, {
-    ...options,
-    headers: headers,
-  });
 };
 
 // Helper to format file keys into readable labels
