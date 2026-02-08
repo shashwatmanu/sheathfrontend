@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, logout, getUsername, authenticatedFetch } from "../../../lib/auth";
+import { isAuthenticated, logout, getUsername, authenticatedFetch, getStoredProfile, isAdmin, getUserProfile } from "../../../lib/auth";
 import { SparklesCore } from "../../../components/ui/sparkles";
 import { SparklesCard } from "../../../components/ui/sparkles-card";
 import { GlassCard } from "../../../components/ui/glass-card";
@@ -15,6 +15,7 @@ export default function HistoryPage() {
     const router = useRouter();
     const [username, setUsername] = useState("");
     const { darkMode } = useDarkMode();
+    const [userIsAdmin, setUserIsAdmin] = useState(false);
 
     const [reconciliations, setReconciliations] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -35,24 +36,40 @@ export default function HistoryPage() {
         } else {
             const user = getUsername();
             setUsername(user || "User");
-            fetchHistory();
+
+            // Check if user is admin
+            const adminStatus = isAdmin();
+            setUserIsAdmin(adminStatus);
+            console.log("[History] User is admin:", adminStatus);
+
+            // Pass admin status directly to avoid race condition with state
+            fetchHistory(adminStatus);
         }
     }, [router]);
 
-    const fetchHistory = async () => {
+    const fetchHistory = async (adminStatusOverride) => {
         setLoading(true);
         setError("");
 
         try {
-            const response = await authenticatedFetch(
-                `${API_BASE.replace(/\/$/, "")}/reconciliations/history?limit=50`
-            );
+            // Use the passed parameter if available, otherwise use state
+            const isAdminUser = adminStatusOverride !== undefined ? adminStatusOverride : userIsAdmin;
+
+            // Use admin endpoint if user is admin
+            const endpoint = isAdminUser
+                ? `${API_BASE.replace(/\/$/, "")}/admin/reconciliations/history?limit=50`
+                : `${API_BASE.replace(/\/$/, "")}/reconciliations/history?limit=50`;
+
+            console.log("[History] Fetching from endpoint:", endpoint);
+            console.log("[History] Using admin status:", isAdminUser);
+            const response = await authenticatedFetch(endpoint);
 
             if (!response.ok) {
                 throw new Error("Failed to fetch history");
             }
 
             const data = await response.json();
+            console.log("[History] Loaded reconciliations:", data.length);
             setReconciliations(data);
         } catch (err) {
             console.error("[History] Error:", err);
@@ -71,9 +88,12 @@ export default function HistoryPage() {
         setDownloading(prev => ({ ...prev, [runId]: true }));
 
         try {
-            const response = await authenticatedFetch(
-                `${API_BASE.replace(/\/$/, "")}/reconciliations/${runId}/download-zip`
-            );
+            // Use admin endpoint if user is admin
+            const endpoint = userIsAdmin
+                ? `${API_BASE.replace(/\/$/, "")}/admin/reconciliations/${runId}/download-zip`
+                : `${API_BASE.replace(/\/$/, "")}/reconciliations/${runId}/download-zip`;
+
+            const response = await authenticatedFetch(endpoint);
 
             if (!response.ok) {
                 throw new Error("Download failed");
@@ -158,10 +178,10 @@ export default function HistoryPage() {
                     <div className="relative z-10 p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div>
                             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">
-                                Reconciliation History
+                                {userIsAdmin ? "🔧 Admin Dashboard - All Reconciliations" : "Reconciliation History"}
                             </h1>
                             <p className="mt-2 text-slate-500 dark:text-slate-400 font-medium">
-                                Track and manage your past reconciliation runs
+                                {userIsAdmin ? "View and manage reconciliations from all users" : "Track and manage your past reconciliation runs"}
                             </p>
                         </div>
                         <button
@@ -271,13 +291,20 @@ export default function HistoryPage() {
                             >
                                 {/* Card Header */}
                                 <div className="flex justify-between items-start mb-6">
-                                    <div className={`
-                                        px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg
-                                        ${(recon.bank_type || "??") === "ICICI"
-                                            ? "bg-slate-600"
-                                            : "bg-slate-500"}
-                                    `}>
-                                        {recon.bank_type || "Unknown"}
+                                    <div className="flex items-center gap-2">
+                                        <div className={`
+                                            px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg
+                                            ${(recon.bank_type || "??") === "ICICI"
+                                                ? "bg-slate-600"
+                                                : "bg-slate-500"}
+                                        `}>
+                                            {recon.bank_type || "Unknown"}
+                                        </div>
+                                        {userIsAdmin && recon.username && (
+                                            <div className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/90 text-white shadow-lg flex items-center gap-1">
+                                                👤 {recon.username}
+                                            </div>
+                                        )}
                                     </div>
                                     <button
                                         onClick={() => deleteReconciliation(recon.run_id)}

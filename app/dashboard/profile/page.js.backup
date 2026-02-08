@@ -7,7 +7,7 @@ import { SparklesCore } from "../../../components/ui/sparkles";
 import { WobbleCard } from "../../../components/ui/wobble-card";
 import { SparklesCard } from "../../../components/ui/sparkles-card";
 import { GlassCard } from "../../../components/ui/glass-card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Typography from "@mui/material/Typography";
 import { useDarkMode } from "../../../lib/dark-mode-context";
 import Lottie from "lottie-react";
@@ -20,7 +20,6 @@ export default function ProfilePage() {
   const [animationData, setAnimationData] = useState(null);
   const [userIsAdmin, setUserIsAdmin] = useState(false);
   const [adminChartData, setAdminChartData] = useState([]);
-  const [adminUsers, setAdminUsers] = useState([]); // For tracking unique usernames in admin chart
 
   useEffect(() => {
     fetch('/animations/loading.json')
@@ -89,8 +88,9 @@ export default function ProfilePage() {
   };
 
   const fetchAdminStats = async () => {
-    console.log("[Profile] Fetching admin stats for last 7 days...");
+    console.log("[Profile] Fetching admin stats...");
     try {
+      // Fetch all reconciliations and aggregate by username
       const response = await authenticatedFetch(
         `${API_BASE.replace(/\/$/, "")}/admin/reconciliations/history?limit=1000`
       );
@@ -99,41 +99,20 @@ export default function ProfilePage() {
         const data = await response.json();
         console.log("[Profile] Admin reconciliations fetched:", data.length);
 
-        // Calculate last 7 days
-        const today = new Date();
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-          const date = new Date(today);
-          date.setDate(date.getDate() - (6 - i));
-          return date.toISOString().split('T')[0];
-        });
+        // Aggregate by username
+        const userCounts = data.reduce((acc, recon) => {
+          const username = recon.username || 'Unknown';
+          acc[username] = (acc[username] || 0) + 1;
+          return acc;
+        }, {});
 
-        // Filter to last 7 days
-        const recentData = data.filter(recon => {
-          if (!recon.created_at) return false;
-          const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-          return last7Days.includes(reconDate);
-        });
+        // Transform to chart format and sort by count descending
+        const chartData = Object.entries(userCounts)
+          .map(([username, count]) => ({ username, count }))
+          .sort((a, b) => b.count - a.count);
 
-        // Get unique usernames
-        const usernames = [...new Set(recentData.map(r => r.username || 'Unknown'))];
-
-        // Build stacked chart data: one object per day
-        const chartData = last7Days.map(date => {
-          const dayData = { date };
-          usernames.forEach(username => { dayData[username] = 0; });
-          recentData.forEach(recon => {
-            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-            if (reconDate === date) {
-              const username = recon.username || 'Unknown';
-              dayData[username]++;
-            }
-          });
-          return dayData;
-        });
-
-        console.log("[Profile] Stacked chart data:", chartData);
+        console.log("[Profile] Admin chart data:", chartData);
         setAdminChartData(chartData);
-        setAdminUsers(usernames);
       }
     } catch (err) {
       console.error("[Profile] Failed to fetch admin stats:", err);
@@ -495,28 +474,14 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span className="p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400">
-                    {userIsAdmin ? "📊" : "📈"}
+                    {userIsAdmin ? "👥" : "📈"}
                   </span>
-                  {userIsAdmin ? "Daily Reconciliations (Last 7 Days)" : "Activity"}
+                  {userIsAdmin ? "Reconciliations by User" : "Activity"}
                   {!userIsAdmin && <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">(Last 30 Days)</span>}
                 </h3>
               </div>
 
               {/* Conditional chart based on user role */}
-              {/* User color palette */}
-              {(() => {
-                const USER_COLORS = [
-                  "#f59e0b", // Amber
-                  "#3b82f6", // Blue
-                  "#10b981", // Green
-                  "#8b5cf6", // Purple
-                  "#ef4444", // Red
-                  "#14b8a6", // Teal
-                  "#f97316", // Orange
-                  "#ec4899", // Pink
-                ];
-                return null;
-              })()}
               {userIsAdmin ? (
                 /* Admin: Show per-user reconciliation stats */
                 adminChartData.length > 0 ? (
@@ -525,15 +490,14 @@ export default function ProfilePage() {
                       <BarChart data={adminChartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} vertical={false} />
                         <XAxis
-                          dataKey="date"
+                          dataKey="username"
                           stroke={darkMode ? "#94a3b8" : "#64748b"}
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: 10 }}
                           tickLine={false}
                           axisLine={false}
-                          tickFormatter={(value) => {
-                            const date = new Date(value);
-                            return `${date.getDate()}/${date.getMonth() + 1}`;
-                          }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={100}
                         />
                         <YAxis
                           stroke={darkMode ? "#94a3b8" : "#64748b"}
@@ -553,29 +517,22 @@ export default function ProfilePage() {
                             boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.2)"
                           }}
                           cursor={{ fill: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
-                          labelFormatter={(value) => new Date(value).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         />
-                        <Legend
-                          verticalAlign="top"
-                          height={36}
-                          wrapperStyle={{ paddingBottom: '10px' }}
-                        />
-                        {/* Dynamic stacked bars for each user */}
-                        {adminUsers.map((username, index) => {
-                          const USER_COLORS = [
-                            "#f59e0b", "#3b82f6", "#10b981", "#8b5cf6",
-                            "#ef4444", "#14b8a6", "#f97316", "#ec4899"
-                          ];
-                          return (
-                            <Bar
-                              key={username}
-                              dataKey={username}
-                              stackId="reconciliations"
-                              fill={USER_COLORS[index % USER_COLORS.length]}
-                              radius={index === adminUsers.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]}
-                            />
-                          );
-                        })}
+                        <Bar
+                          dataKey="count"
+                          radius={[6, 6, 0, 0]}
+                          barSize={40}
+                        >
+                          {adminChartData.map((entry, index) => (
+                            <cell key={`cell-${index}`} fill="url(#colorAdminCount)" />
+                          ))}
+                        </Bar>
+                        <defs>
+                          <linearGradient id="colorAdminCount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
+                            <stop offset="100%" stopColor="#ea580c" stopOpacity={0.8} />
+                          </linearGradient>
+                        </defs>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -643,13 +600,8 @@ export default function ProfilePage() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400">
-                    <div className="text-5xl mb-4 opacity-50">📊</div>
-                    <p className="text-lg font-medium">No activity data yet</p>
-                    <p className="text-sm">Complete your first reconciliation to see stats!</p>
-                  </div>
-                ))}
+                )
+              )}
             </div>
 
             {/* Recent Activity */}

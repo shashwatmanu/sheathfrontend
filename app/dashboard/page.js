@@ -684,6 +684,20 @@ export default function Home() {
       const user = getUsername();
       setUsername(user || "User");
       console.log("[Dashboard] Authenticated as:", user);
+
+      // Redirect admins to profile page - admins don't use the reconciliation wizard
+      const checkAdminAndRedirect = async () => {
+        // Import admin check functions
+        const { isAdmin } = await import("../../lib/auth");
+
+        if (isAdmin()) {
+          console.log("[Dashboard] Admin user detected, redirecting to profile");
+          router.push("/dashboard/profile");
+          return;
+        }
+      };
+
+      checkAdminAndRedirect();
     }
   }, [router]);
 
