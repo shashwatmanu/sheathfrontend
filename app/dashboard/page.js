@@ -574,6 +574,7 @@ export default function Home() {
   const [bulkOutstandingFile, setBulkOutstandingFile] = useState(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
+  const [processingStatus, setProcessingStatus] = useState("");
 
   // Preview Modal State
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -1102,11 +1103,12 @@ export default function Home() {
     }
   };
 
-  // ✅ NEW: Bulk Reconciliation Handler
+  // ✅ NEW: Bulk Reconciliation Handler (Streaming NDJSON)
   const handleBulkReconcile = async () => {
     setError("");
     setBulkLoading(true);
-    setBulkResult(null);
+    setBulkResult({ summary: [] }); // Initialize with empty summary for real-time updates
+    setProcessingStatus("Initializing...");
 
     if (!API_BASE) {
       setError("NEXT_PUBLIC_API_BASE_URL is not set.");
@@ -1141,40 +1143,139 @@ export default function Home() {
       const endpoint = `${API_BASE.replace(/\/$/, "")}/reconcile/v2/bulk`;
       console.log("[Bulk] Sending request to:", endpoint);
 
-      const res = await authenticatedFetch(endpoint, { method: "POST", body: fd });
+      // 1. Fetch with authentication
+      const token = localStorage.getItem('access_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
-      if (!res.ok) {
-        const text = await res.text();
-        let errorMsg = `HTTP ${res.status}`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: headers,
+        body: fd
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        let errorMsg = `HTTP ${response.status}`;
         try {
           const json = JSON.parse(text);
           errorMsg = json?.detail || json?.error || text;
         } catch {
           errorMsg = text;
         }
-        setError(errorMsg);
-        setBulkLoading(false);
-        return;
+        throw new Error(errorMsg);
       }
 
-      const data = await res.json();
-      console.log("[Bulk] Response:", data);
+      // 2. Process the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      if (data.status !== "success") {
-        const msg = data.error || "Bulk process failed";
-        setError(msg);
-        setBulkLoading(false);
-        return;
+      console.log("[Bulk] Stream connection established. Reading...");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log("[Bulk] Stream complete.");
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        // Keep the last part if it's not a complete line yet
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+            console.log("[Bulk] Event:", event);
+
+            // Handle Event Types
+            if (event.type === 'init') {
+              setProcessingStatus("Initializing...");
+            }
+            else if (event.type === 'progress') {
+              setProcessingStatus(event.msg || "Processing...");
+            }
+            else if (event.type === 'pair_result') {
+              // Append to summary immediately
+              if (event.data) {
+                setBulkResult(prev => {
+                  const currentSummary = Array.isArray(prev?.summary) ? prev.summary : [];
+                  const currentFiles = prev?.files || {};
+
+                  // If the event carries file paths/URLs (anticipated improvement)
+                  const newFiles = event.files || {};
+
+                  return {
+                    ...prev,
+                    summary: [...currentSummary, event.data],
+                    files: { ...currentFiles, ...newFiles }
+                  };
+                });
+              }
+            }
+            else if (event.type === 'error') {
+              const errMsg = event.msg || "Unknown error in stream";
+              setError(errMsg);
+            }
+            else if (event.type === 'final_summary') {
+              // Finalize
+              console.log("[Bulk] Final Summary Received:", event);
+              setProcessingStatus("Consolidating...");
+              setTimeout(() => {
+                setBulkResult(prev => {
+                  // If event.data is a non-empty array, use it (authoritative).
+                  // Otherwise, keep what we have (accumulated).
+                  const finalSummary = (Array.isArray(event.data) && event.data.length > 0)
+                    ? event.data
+                    : (prev?.summary || []);
+
+                  // Merge files (accumulated + final)
+                  // Make sure we don't lose existing files if event.files is empty/undefined
+                  const incomingFiles = event.files || {};
+                  const finalFiles = { ...(prev?.files || {}), ...incomingFiles };
+
+                  console.log("[Bulk] Final Files State:", finalFiles); // Debugging
+
+                  return {
+                    ...prev,
+                    summary: finalSummary,
+                    files: finalFiles, // Ensure this is not overwritten by empty object
+                    zip_url: event.zip_url || prev?.zip_url
+                  };
+                });
+              }, 500);
+            }
+
+          } catch (err) {
+            console.error("[Bulk] JSON Parse Error for line:", line, err);
+          }
+        }
       }
 
-      setBulkResult(data);
+      // Final cleanup of buffer if any
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer);
+          if (event.type === 'final_summary') {
+            setBulkResult(prev => ({
+              ...prev,
+              summary: event.data,
+              files: event.files,
+              zip_url: event.zip_url
+            }));
+          }
+        } catch (e) {
+          console.error("Error parsing final buffer:", e);
+        }
+      }
 
-      // Auto-trigger ZIP download -> REMOVED per user request
-      /* 
-      if (data.zip_url) {
-        ...
-      } 
-      */
+      // Ensure we finish cleanly
+      setProcessingStatus("Complete");
 
     } catch (e) {
       const msg = e?.message || "Bulk upload failed";
@@ -1182,6 +1283,7 @@ export default function Home() {
       setError(msg);
     } finally {
       setBulkLoading(false);
+      setProcessingStatus("");
     }
   };
 
@@ -1864,18 +1966,69 @@ export default function Home() {
                               paddingRight: "max(2rem, calc((100vw - 1600px) / 2))",
                             }}
                           >
-                            <div className="flex items-center justify-between mb-8 px-4">
-                              <h3 className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                Bulk Reconciliation Results
-                              </h3>
+                            <div className="flex flex-col mb-8 px-4 gap-4">
+                              <div className="flex items-center justify-between">
+                                <h3 className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                  Bulk Reconciliation Results
+                                </h3>
+                              </div>
+
+                              {/* Inline Progress Indicator */}
+                              {bulkLoading && (
+                                <div className={`rounded-xl p-6 border ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-blue-50 border-blue-200"}`}>
+                                  <div className="flex items-start gap-4">
+                                    {/* Mini Spinner / Lottie */}
+                                    <div style={{ width: "48px", height: "48px", flexShrink: 0 }}>
+                                      {animationData ? (
+                                        <Lottie
+                                          animationData={animationData}
+                                          loop={true}
+                                          style={{ width: "100%", height: "100%" }}
+                                        />
+                                      ) : (
+                                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500"></div>
+                                      )}
+                                    </div>
+
+                                    <div className="flex-1">
+                                      <h4 className={`text-lg font-bold mb-1 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                        {processingStatus || "Processing..."}
+                                      </h4>
+                                      <p className={`text-sm mb-3 ${darkMode ? "text-slate-400" : "text-gray-600"}`}>
+                                        Updating results in real-time.
+                                      </p>
+
+                                      {/* Progress Bar */}
+                                      <div className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
+                                        <div className="h-full bg-blue-500 animate-[shimmer_2s_infinite]"
+                                          style={{
+                                            width: '100%',
+                                            backgroundSize: '200% auto',
+                                            backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)'
+                                          }}>
+                                        </div>
+                                      </div>
+
+                                      {/* Warning */}
+                                      <div className={`text-xs font-semibold flex items-center gap-2 ${darkMode ? "text-amber-400" : "text-amber-700"}`}>
+                                        <AlertCircle size={14} />
+                                        <span>Please do not reload or close this page until the process is complete.</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             {/* Summary Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 px-4">
                               {/* Overall Summary Report Card */}
                               {(() => {
-                                const summaryKey = Object.keys(bulkResult.files || {}).find(k => k.toLowerCase().includes("summary"));
-                                const fileUrl = summaryKey ? bulkResult.files[summaryKey] : null;
+                                const filesObj = bulkResult.files || {};
+                                // Try to find a file path that resembles the summary report
+                                const summaryKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("summary"));
+                                // The value in filesObj is the URL. The key is the filename.
+                                const fileUrl = summaryKey ? filesObj[summaryKey] : null;
                                 const fileName = summaryKey || "Overall Summary Report.xlsx";
 
                                 return (
@@ -1915,7 +2068,9 @@ export default function Home() {
                                                 </button>
                                               </>
                                             ) : (
-                                              <span className="text-sm text-gray-400 italic">File not found</span>
+                                              <span className="text-sm text-gray-400 italic">
+                                                {bulkLoading ? "Wait for completion..." : "File not found"}
+                                              </span>
                                             )}
                                           </div>
                                         </div>
@@ -1927,8 +2082,9 @@ export default function Home() {
 
                               {/* Consolidated Matches Card */}
                               {(() => {
-                                const consolidatedKey = Object.keys(bulkResult.files || {}).find(k => k.toLowerCase().includes("consolidated") || k.toLowerCase().includes("posting"));
-                                const fileUrl = consolidatedKey ? bulkResult.files[consolidatedKey] : null;
+                                const filesObj = bulkResult.files || {};
+                                const consolidatedKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("consolidated") || k.toLowerCase().includes("posting"));
+                                const fileUrl = consolidatedKey ? filesObj[consolidatedKey] : null;
                                 const fileName = consolidatedKey || "Final posting sheet (Consolidated).xlsx";
 
                                 return (
@@ -1968,7 +2124,9 @@ export default function Home() {
                                                 </button>
                                               </>
                                             ) : (
-                                              <span className="text-sm text-gray-400 italic">File not found</span>
+                                              <span className="text-sm text-gray-400 italic">
+                                                {bulkLoading ? "Wait for completion..." : "File not found"}
+                                              </span>
                                             )}
                                           </div>
                                         </div>
@@ -2050,9 +2208,22 @@ export default function Home() {
                                                 {row["Final Match"] || 0}
                                               </td>
                                               <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${row.Status === "Success" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
-                                                  {row.Status}
-                                                </span>
+                                                {(() => {
+                                                  const status = (row.Status || "").toLowerCase();
+                                                  let badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"; // Default: Error/Fail
+
+                                                  if (status === "success" || status === "completed") {
+                                                    badgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+                                                  } else if (status === "pending" || status === "processing" || status === "generating") {
+                                                    badgeClass = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+                                                  }
+
+                                                  return (
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${badgeClass}`}>
+                                                      {row.Status || "Unknown"}
+                                                    </span>
+                                                  );
+                                                })()}
                                               </td>
                                               <td className="px-6 py-4 text-right">
                                                 {hasFiles ? (
@@ -2066,7 +2237,9 @@ export default function Home() {
                                                     <span className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▼</span>
                                                   </button>
                                                 ) : (
-                                                  <span className="text-xs text-gray-400 italic">No Files</span>
+                                                  <span className="text-xs text-gray-400 italic">
+                                                    {bulkLoading ? "Generating..." : "No Files"}
+                                                  </span>
                                                 )}
                                               </td>
                                             </tr>
@@ -2080,7 +2253,8 @@ export default function Home() {
                                                       {row.produced_files && typeof row.produced_files === 'object' ? (
                                                         Object.entries(row.produced_files).map(([label, fileName]) => {
                                                           const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
-                                                          if (!fUrl) return null;
+                                                          // Removed the 'if (!fUrl) return null' check so we can show the tile even without URL
+
 
                                                           return (
                                                             <div key={fileName} className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-gray-200"}`}>
@@ -2089,20 +2263,28 @@ export default function Home() {
                                                                 <div className={`text-sm truncate font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{fileName}</div>
                                                               </div>
                                                               <div className="flex gap-2 shrink-0">
-                                                                <button
-                                                                  onClick={() => handleAuthenticatedDownload(fUrl, fileName)}
-                                                                  className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
-                                                                  title="Download"
-                                                                >
-                                                                  <Download size={16} />
-                                                                </button>
-                                                                <button
-                                                                  onClick={() => handlePreviewFile(fUrl, fileName)}
-                                                                  className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
-                                                                  title="Preview"
-                                                                >
-                                                                  <Eye size={16} />
-                                                                </button>
+                                                                {fUrl ? (
+                                                                  <>
+                                                                    <button
+                                                                      onClick={() => handleAuthenticatedDownload(fUrl, fileName)}
+                                                                      className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                      title="Download"
+                                                                    >
+                                                                      <Download size={16} />
+                                                                    </button>
+                                                                    <button
+                                                                      onClick={() => handlePreviewFile(fUrl, fileName)}
+                                                                      className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                      title="Preview"
+                                                                    >
+                                                                      <Eye size={16} />
+                                                                    </button>
+                                                                  </>
+                                                                ) : (
+                                                                  <span className="text-xs text-amber-500 font-medium self-center px-2">
+                                                                    {bulkLoading ? "Generating..." : "Pending"}
+                                                                  </span>
+                                                                )}
                                                               </div>
                                                             </div>
                                                           );
@@ -2162,80 +2344,7 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* Bulk Loading Overlay */}
-                        {bulkLoading && (
-                          <div style={{
-                            position: "fixed",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: "rgba(0,0,0,0.85)",
-                            backdropFilter: "blur(8px)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            zIndex: 9999,
-                          }}>
-                            <div className={`p-10 rounded-3xl text-center relative overflow-hidden ${darkMode ? "bg-slate-900 border border-slate-700" : "bg-white"}`}
-                              style={{
-                                boxShadow: darkMode
-                                  ? "0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(79, 70, 229, 0.3)"
-                                  : "0 20px 60px rgba(0,0,0,0.15)",
-                                minWidth: "320px"
-                              }}>
 
-                              {/* Animated gradient background - simplified version for consistency */}
-                              <div style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                background: "linear-gradient(45deg, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.02))",
-                                opacity: 0.5,
-                                pointerEvents: "none"
-                              }}></div>
-
-                              {/* Lottie Animation */}
-                              <div style={{
-                                width: "160px",
-                                height: "160px",
-                                margin: "0 auto 24px",
-                                position: "relative",
-                                zIndex: 1
-                              }}>
-                                {animationData ? (
-                                  <Lottie
-                                    animationData={animationData}
-                                    loop={true}
-                                    style={{ width: "100%", height: "100%" }}
-                                  />
-                                ) : (
-                                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-500 mx-auto"></div>
-                                )}
-                              </div>
-
-                              <h2 className={`text-2xl font-bold mb-2 relative z-10 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                Processing Bulk Reconciliation
-                              </h2>
-                              <p className={`mb-6 relative z-10 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                                Processing cartesian product of files... This may take a while.
-                              </p>
-
-                              {/* Progress indication */}
-                              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden relative z-10">
-                                <div className="h-full bg-emerald-500 animate-[shimmer_2s_infinite]"
-                                  style={{
-                                    width: '100%',
-                                    backgroundSize: '200% auto',
-                                    backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)'
-                                  }}>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </>
                     ) : (
                       // Standard Mode: Bank Statement Card
