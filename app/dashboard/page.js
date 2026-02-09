@@ -542,6 +542,86 @@ const formatFileLabel = (key, counts) => {
   return label;
 };
 
+// TPA Mapping Reference Data
+const TPA_MIS_MAPS = {
+  "IHX (Original MIS)": {
+    "Cheque/ NEFT/ UTR No.": "Cheque/ NEFT/ UTR No.",
+    "Claim No": "Claim Number"
+  },
+  "CARE HEALTH INSURANCE LIMITED": {
+    "Cheque/ NEFT/ UTR No.": "Instrument/NEFT No",
+    "Claim No": "AL Number"
+  },
+  "HEALTH INDIA INSURANCE TPA SERVICES PRIVATE LTD.": {
+    "Cheque/ NEFT/ UTR No.": "utrnumber",
+    "Claim No": "CCN"
+  },
+  "HERITAGE HEALTH INSURANCE TPA PRIVATE LIMITED": {
+    "Cheque/ NEFT/ UTR No.": "UTR_NO",
+    "Claim No": "HHCCN"
+  },
+  "MEDSAVE HEALTHCARE TPA PVT LTD": {
+    "Cheque/ NEFT/ UTR No.": "UTR/Chq No.",
+    "Claim No": "FILENO"
+  },
+  "PARAMOUNT HEALTHCARE": {
+    "Cheque/ NEFT/ UTR No.": "UTR_NO",
+    "Claim No": "Claim Number"
+  },
+  "PARK MEDICLAIM INSURANCE TPA PRIVATE LIMITED": {
+    "Cheque/ NEFT/ UTR No.": "Chq No",
+    "Claim No": "Claim Number"
+  },
+  "SAFEWAY INSURANCE TPA PVT.LTD": {
+    "Cheque/ NEFT/ UTR No.": "Chequeno",
+    "Claim No": "ClaimNo"
+  },
+  "STAR HEALTH & ALLIED HEALTH INSURANCE CO.LTD.": {
+    "Cheque/ NEFT/ UTR No.": "UTR",
+    "Claim No": "Insurer Claim Number"
+  },
+  "ADITYA BIRLA": {
+    "Cheque/ NEFT/ UTR No.": "UTR Number",
+    "Claim No": "CLAIM NO."
+  },
+  "FHPL": {
+    "Cheque/ NEFT/ UTR No.": "Cheque/NEFT No",
+    "Claim No": "Claim Id"
+  },
+  "FUTURE GENERALI": {
+    "Cheque/ NEFT/ UTR No.": "Cheque/Ref No. Insured",
+    "Claim No": "Claim No."
+  },
+  "GOOD HEALTH": {
+    "Cheque/ NEFT/ UTR No.": "TRASACTION_NO",
+    "Claim No": "CCN_NO"
+  },
+  "VOLO HEALTH INSURANCE TPA PVT.LTD (EWA) (Mail Extract)": {
+    "Cheque/ NEFT/ UTR No.": "UTR Number",
+    "Claim No": "Alternate Claim Id"
+  },
+  "VIDAL": {
+    "Cheque/ NEFT/ UTR No.": "Cheque Number",
+    "Claim No": "Claim Number"
+  },
+  "SBI GENERAL": {
+    "Cheque/ NEFT/ UTR No.": "Payment Transaction ID UTR",
+    "Claim No": "Claim No"
+  },
+  "RELIANCE": {
+    "Cheque/ NEFT/ UTR No.": "Map Cheque/Neft Number",
+    "Claim No": "Claim Number"
+  },
+  "ICICI LOMBARD": {
+    "Cheque/ NEFT/ UTR No.": "Claim-Cheque Number",
+    "Claim No": "Claim Number"
+  },
+  "ERICSON": {
+    "Cheque/ NEFT/ UTR No.": "UTRNo",
+    "Claim No": "ClaimId"
+  }
+};
+
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const router = useRouter();
@@ -588,6 +668,22 @@ export default function Home() {
   const [bulkMisResetKey, setBulkMisResetKey] = useState(0);
   const [bulkOutstandingResetKey, setBulkOutstandingResetKey] = useState(0);
   const [expandedBulkRow, setExpandedBulkRow] = useState(null);
+
+  // Sidebar State - only one can be open at a time
+  const [tpaSidebarOpen, setTpaSidebarOpen] = useState(false);
+  const [videoSidebarOpen, setVideoSidebarOpen] = useState(false);
+
+  // Handler to open TPA sidebar (closes video sidebar if open)
+  const openTpaSidebar = () => {
+    setVideoSidebarOpen(false);
+    setTpaSidebarOpen(true);
+  };
+
+  // Handler to open Video sidebar (closes TPA sidebar if open)
+  const openVideoSidebar = () => {
+    setTpaSidebarOpen(false);
+    setVideoSidebarOpen(true);
+  };
 
   const handleAuthenticatedDownload = async (url, filename) => {
     try {
@@ -3470,6 +3566,511 @@ export default function Home() {
           }
         }
       `}</style>
+
+      {/* Floating Action Buttons for Sidebars */}
+      <div style={{
+        position: "fixed",
+        right: 24,
+        bottom: 24,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        zIndex: 999
+      }}>
+        {/* TPA Reference Button */}
+        <button
+          onClick={openTpaSidebar}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: darkMode
+              ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
+              : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: darkMode
+              ? "0 4px 12px rgba(102, 126, 234, 0.3)"
+              : "0 4px 12px rgba(102, 126, 234, 0.4)",
+            transition: "all 0.3s ease"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.1)";
+            e.currentTarget.style.boxShadow = darkMode
+              ? "0 6px 20px rgba(102, 126, 234, 0.5)"
+              : "0 6px 20px rgba(102, 126, 234, 0.6)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.boxShadow = darkMode
+              ? "0 4px 12px rgba(102, 126, 234, 0.3)"
+              : "0 4px 12px rgba(102, 126, 234, 0.4)";
+          }}
+          title="TPA Reference"
+        >
+          📋
+        </button>
+
+        {/* Video Tutorials Button */}
+        <button
+          onClick={openVideoSidebar}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: darkMode
+              ? "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)"
+              : "linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: darkMode
+              ? "0 4px 12px rgba(20, 184, 166, 0.3)"
+              : "0 4px 12px rgba(20, 184, 166, 0.4)",
+            transition: "all 0.3s ease"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.1)";
+            e.currentTarget.style.boxShadow = darkMode
+              ? "0 6px 20px rgba(20, 184, 166, 0.5)"
+              : "0 6px 20px rgba(20, 184, 166, 0.6)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.boxShadow = darkMode
+              ? "0 4px 12px rgba(20, 184, 166, 0.3)"
+              : "0 4px 12px rgba(20, 184, 166, 0.4)";
+          }}
+          title="Video Tutorials"
+        >
+          🎥
+        </button>
+      </div>
+
+      {/* Backdrop Overlay */}
+      {(tpaSidebarOpen || videoSidebarOpen) && (
+        <div
+          onClick={() => {
+            setTpaSidebarOpen(false);
+            setVideoSidebarOpen(false);
+          }}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(4px)",
+            zIndex: 1000,
+            animation: "fadeIn 0.2s ease-out"
+          }}
+        />
+      )}
+
+      {/* TPA Mapping Sidebar */}
+      <div style={{
+        position: "fixed",
+        top: 0,
+        right: tpaSidebarOpen ? 0 : -450,
+        width: 450,
+        height: "100vh",
+        background: darkMode ? "rgba(15, 23, 42, 0.95)" : "rgba(255, 255, 255, 0.95)",
+        backdropFilter: "blur(20px)",
+        boxShadow: darkMode
+          ? "-4px 0 20px rgba(0, 0, 0, 0.5)"
+          : "-4px 0 20px rgba(0, 0, 0, 0.1)",
+        zIndex: 1001,
+        transition: "right 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        overflowY: "auto",
+        borderLeft: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.1)"
+      }}>
+        <div style={{ padding: 24 }}>
+          {/* Header */}
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
+            paddingBottom: 16,
+            borderBottom: darkMode ? "2px solid rgba(255, 255, 255, 0.1)" : "2px solid rgba(0, 0, 0, 0.1)"
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: 24,
+              fontWeight: 700,
+              color: darkMode ? "#f8fafc" : "#0f172a",
+              display: "flex",
+              alignItems: "center",
+              gap: 10
+            }}>
+              📋 TPA Reference
+            </h2>
+            <button
+              onClick={() => setTpaSidebarOpen(false)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 18,
+                color: darkMode ? "#94a3b8" : "#64748b",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = darkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)";
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Description */}
+          <p style={{
+            fontSize: 14,
+            color: darkMode ? "#94a3b8" : "#64748b",
+            marginBottom: 20,
+            lineHeight: 1.6
+          }}>
+            Column names expected in MIS files for each TPA
+          </p>
+
+          {/* TPA Table */}
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12
+          }}>
+            {Object.entries(TPA_MIS_MAPS).map(([tpaName, mapping], idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: darkMode ? "rgba(30, 41, 59, 0.6)" : "rgba(248, 250, 252, 0.8)",
+                  borderRadius: 12,
+                  padding: 16,
+                  border: darkMode ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(0, 0, 0, 0.05)",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = darkMode ? "rgba(30, 41, 59, 0.8)" : "rgba(241, 245, 249, 1)";
+                  e.currentTarget.style.transform = "translateX(-4px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = darkMode ? "rgba(30, 41, 59, 0.6)" : "rgba(248, 250, 252, 0.8)";
+                  e.currentTarget.style.transform = "translateX(0)";
+                }}
+              >
+                <div style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: darkMode ? "#f1f5f9" : "#1e293b",
+                  marginBottom: 12,
+                  paddingBottom: 8,
+                  borderBottom: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.1)"
+                }}>
+                  {tpaName}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 12
+                  }}>
+                    <span style={{
+                      color: darkMode ? "#94a3b8" : "#64748b",
+                      fontWeight: 600
+                    }}>
+                      Claim No:
+                    </span>
+                    <code style={{
+                      background: darkMode ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.05)",
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      color: darkMode ? "#a5f3fc" : "#0e7490",
+                      fontFamily: "monospace"
+                    }}>
+                      {mapping["Claim No"]}
+                    </code>
+                  </div>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 12
+                  }}>
+                    <span style={{
+                      color: darkMode ? "#94a3b8" : "#64748b",
+                      fontWeight: 600
+                    }}>
+                      Cheque/UTR:
+                    </span>
+                    <code style={{
+                      background: darkMode ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.05)",
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      color: darkMode ? "#a5f3fc" : "#0e7490",
+                      fontFamily: "monospace"
+                    }}>
+                      {mapping["Cheque/ NEFT/ UTR No."]}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Video Tutorials Sidebar */}
+      <div style={{
+        position: "fixed",
+        top: 0,
+        right: videoSidebarOpen ? 0 : -450,
+        width: 450,
+        height: "100vh",
+        background: darkMode ? "rgba(15, 23, 42, 0.95)" : "rgba(255, 255, 255, 0.95)",
+        backdropFilter: "blur(20px)",
+        boxShadow: darkMode
+          ? "-4px 0 20px rgba(0, 0, 0, 0.5)"
+          : "-4px 0 20px rgba(0, 0, 0, 0.1)",
+        zIndex: 1001,
+        transition: "right 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        overflowY: "auto",
+        borderLeft: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.1)"
+      }}>
+        <div style={{ padding: 24 }}>
+          {/* Header */}
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
+            paddingBottom: 16,
+            borderBottom: darkMode ? "2px solid rgba(255, 255, 255, 0.1)" : "2px solid rgba(0, 0, 0, 0.1)"
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: 24,
+              fontWeight: 700,
+              color: darkMode ? "#f8fafc" : "#0f172a",
+              display: "flex",
+              alignItems: "center",
+              gap: 10
+            }}>
+              🎥 Video Tutorials
+            </h2>
+            <button
+              onClick={() => setVideoSidebarOpen(false)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 18,
+                color: darkMode ? "#94a3b8" : "#64748b",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = darkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)";
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Description */}
+          <p style={{
+            fontSize: 14,
+            color: darkMode ? "#94a3b8" : "#64748b",
+            marginBottom: 24,
+            lineHeight: 1.6
+          }}>
+            Watch these tutorials to learn how to use the reconciliation system
+          </p>
+
+          {/* Video Links */}
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 16
+          }}>
+            {/* Video 1: How to run recon */}
+            <a
+              href="https://drive.google.com/file/d/1RyB4cR-gRO1plpTQg3OBX1zc7piE4LsZ/view?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                textDecoration: "none",
+                background: darkMode
+                  ? "linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)"
+                  : "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
+                borderRadius: 16,
+                padding: 20,
+                border: darkMode ? "1px solid rgba(102, 126, 234, 0.3)" : "1px solid rgba(102, 126, 234, 0.2)",
+                transition: "all 0.3s ease",
+                display: "block"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = darkMode
+                  ? "0 8px 24px rgba(102, 126, 234, 0.3)"
+                  : "0 8px 24px rgba(102, 126, 234, 0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 16
+              }}>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: darkMode
+                    ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                    : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 24,
+                  flexShrink: 0
+                }}>
+                  ▶️
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{
+                    margin: "0 0 8px 0",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: darkMode ? "#f1f5f9" : "#1e293b"
+                  }}>
+                    How to Run Reconciliation
+                  </h3>
+                  <p style={{
+                    margin: 0,
+                    fontSize: 13,
+                    color: darkMode ? "#94a3b8" : "#64748b",
+                    lineHeight: 1.5
+                  }}>
+                    Step-by-step guide on running the reconciliation process
+                  </p>
+                </div>
+                <div style={{
+                  fontSize: 20,
+                  color: darkMode ? "#94a3b8" : "#64748b"
+                }}>
+                  →
+                </div>
+              </div>
+            </a>
+
+            {/* Video 2: Troubleshoot guide */}
+            <a
+              href="https://drive.google.com/file/d/16tQHCsuLvN0BmWFLy5ZInbPZ1aCKyFNq/view?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                textDecoration: "none",
+                background: darkMode
+                  ? "linear-gradient(135deg, rgba(20, 184, 166, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%)"
+                  : "linear-gradient(135deg, rgba(20, 184, 166, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)",
+                borderRadius: 16,
+                padding: 20,
+                border: darkMode ? "1px solid rgba(20, 184, 166, 0.3)" : "1px solid rgba(20, 184, 166, 0.2)",
+                transition: "all 0.3s ease",
+                display: "block"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = darkMode
+                  ? "0 8px 24px rgba(20, 184, 166, 0.3)"
+                  : "0 8px 24px rgba(20, 184, 166, 0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 16
+              }}>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: darkMode
+                    ? "linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)"
+                    : "linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 24,
+                  flexShrink: 0
+                }}>
+                  🔧
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{
+                    margin: "0 0 8px 0",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: darkMode ? "#f1f5f9" : "#1e293b"
+                  }}>
+                    Troubleshooting Guide
+                  </h3>
+                  <p style={{
+                    margin: 0,
+                    fontSize: 13,
+                    color: darkMode ? "#94a3b8" : "#64748b",
+                    lineHeight: 1.5
+                  }}>
+                    Common issues and how to resolve them
+                  </p>
+                </div>
+                <div style={{
+                  fontSize: 20,
+                  color: darkMode ? "#94a3b8" : "#64748b"
+                }}>
+                  →
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Preview Modal */}
       <DataModal
         open={previewModalOpen}
