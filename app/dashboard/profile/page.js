@@ -155,10 +155,18 @@ export default function ProfilePage() {
       const dailyData = await dailyRes.json();
       setDailyActivity(dailyData);
 
-      const activityRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/profile/activity?limit=10`);
-      if (!activityRes.ok) throw new Error("Failed to fetch activity");
-      const activityData = await activityRes.json();
-      setRecentActivity(activityData);
+      // For admins, fetch all reconciliations; for regular users, fetch their own activity
+      if (userIsAdmin) {
+        const activityRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/admin/reconciliations/history?limit=10`);
+        if (!activityRes.ok) throw new Error("Failed to fetch activity");
+        const activityData = await activityRes.json();
+        setRecentActivity(activityData);
+      } else {
+        const activityRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/profile/activity?limit=10`);
+        if (!activityRes.ok) throw new Error("Failed to fetch activity");
+        const activityData = await activityRes.json();
+        setRecentActivity(activityData);
+      }
 
     } catch (err) {
       console.error("[Profile] Error:", err);
@@ -167,6 +175,7 @@ export default function ProfilePage() {
       setLoading(false);
     }
   };
+
 
   const sendVerificationEmail = async () => {
     setSendingVerification(true);
@@ -657,7 +666,7 @@ export default function ProfilePage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span className="p-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400">📋</span>
-                  Recent Reconciliations
+                  {userIsAdmin ? "Recent Reconciliations (All Users)" : "Recent Reconciliations"}
                 </h3>
                 <button
                   onClick={() => router.push("/dashboard/history")}
@@ -692,6 +701,14 @@ export default function ProfilePage() {
                               <span className="flex items-center gap-1">
                                 📅 {formatDate(activity.timestamp)}
                               </span>
+                              {userIsAdmin && activity.username && (
+                                <>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/90 text-white text-xs font-bold shadow-sm">
+                                    👤 {activity.username}
+                                  </span>
+                                </>
+                              )}
                               {(activity.tpa_name || activity.pipeline_mode === 'v2_bulk') && (
                                 <>
                                   <span className="hidden sm:inline">•</span>

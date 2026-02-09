@@ -9,6 +9,12 @@ import { GlassCard } from "../../../components/ui/glass-card";
 import { useDarkMode } from "../../../lib/dark-mode-context";
 import Lottie from "lottie-react";
 import Typography from "@mui/material/Typography";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import ReconciliationFilesModal from "../../../components/ReconciliationFilesModal";
+import ExcelModalViewer from "../../../components/ExcelModalViewer";
 
 export default function HistoryPage() {
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -22,6 +28,15 @@ export default function HistoryPage() {
     const [error, setError] = useState("");
     const [downloading, setDownloading] = useState({});
     const [animationData, setAnimationData] = useState(null);
+    const [selectedUser, setSelectedUser] = useState("all");
+    const [uniqueUsers, setUniqueUsers] = useState([]);
+    const [filesModalOpen, setFilesModalOpen] = useState(false);
+    const [selectedReconciliation, setSelectedReconciliation] = useState(null);
+    const [filesByRunId, setFilesByRunId] = useState({});
+    const [loadingFiles, setLoadingFiles] = useState(false);
+    const [dataModalOpen, setDataModalOpen] = useState(false);
+    const [currentFileUrl, setCurrentFileUrl] = useState("");
+    const [currentFileName, setCurrentFileName] = useState("");
 
     useEffect(() => {
         fetch('/animations/loading.json')
@@ -71,6 +86,12 @@ export default function HistoryPage() {
             const data = await response.json();
             console.log("[History] Loaded reconciliations:", data.length);
             setReconciliations(data);
+
+            // Extract unique usernames for filter dropdown (admin only)
+            if (isAdminUser) {
+                const users = [...new Set(data.map(r => r.username).filter(Boolean))];
+                setUniqueUsers(users.sort());
+            }
         } catch (err) {
             console.error("[History] Error:", err);
             setError(err.message || "Failed to load history");
@@ -114,6 +135,88 @@ export default function HistoryPage() {
         } finally {
             setDownloading(prev => ({ ...prev, [runId]: false }));
         }
+    };
+
+    const fetchFiles = async (runId) => {
+        if (filesByRunId[runId]) {
+            return; // Already fetched
+        }
+
+        try {
+            const endpoint = userIsAdmin
+                ? `${API_BASE.replace(/\/$/, "")}/admin/reconciliations/${runId}/files`
+                : `${API_BASE.replace(/\/$/, "")}/reconciliations/${runId}/files`;
+
+            const response = await authenticatedFetch(endpoint);
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch files");
+            }
+
+            const data = await response.json();
+            setFilesByRunId(prev => ({ ...prev, [runId]: data.files || {} }));
+        } catch (err) {
+            console.error("[Fetch Files] Error:", err);
+            setFilesByRunId(prev => ({ ...prev, [runId]: {} }));
+        }
+    };
+
+    const toggleCardExpansion = (runId) => {
+        const isExpanding = !expandedCards[runId];
+        setExpandedCards(prev => ({ ...prev, [runId]: isExpanding }));
+
+        if (isExpanding) {
+            fetchFiles(runId);
+        }
+    };
+
+    const openFilesModal = async (reconciliation) => {
+        setSelectedReconciliation(reconciliation);
+        setFilesModalOpen(true);
+
+        // Fetch files if not already cached
+        if (!filesByRunId[reconciliation.run_id]) {
+            setLoadingFiles(true);
+            try {
+                const endpoint = userIsAdmin
+                    ? `${API_BASE.replace(/\/$/, "")}/admin/reconciliations/${reconciliation.run_id}/files`
+                    : `${API_BASE.replace(/\/$/, "")}/reconciliations/${reconciliation.run_id}/files`;
+
+                const response = await authenticatedFetch(endpoint);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch files");
+                }
+
+                const data = await response.json();
+                setFilesByRunId(prev => ({ ...prev, [reconciliation.run_id]: data.files || {} }));
+            } catch (err) {
+                console.error("[Fetch Files] Error:", err);
+                setFilesByRunId(prev => ({ ...prev, [reconciliation.run_id]: {} }));
+            } finally {
+                setLoadingFiles(false);
+            }
+        }
+    };
+
+    const handleViewFile = async (fileUrl, fileName) => {
+        // Close the files modal first
+        setFilesModalOpen(false);
+
+        // Set the file to view
+        setCurrentFileUrl(fileUrl);
+        setCurrentFileName(fileName);
+        setDataModalOpen(true);
+    };
+
+    const handleCloseDataModal = () => {
+        // Close the Excel viewer
+        setDataModalOpen(false);
+        setCurrentFileUrl("");
+        setCurrentFileName("");
+
+        // Reopen the files modal
+        setFilesModalOpen(true);
     };
 
     const deleteReconciliation = async (runId) => {
@@ -193,6 +296,69 @@ export default function HistoryPage() {
                         </button>
                     </div>
                 </div>
+
+                {/* User Filter Dropdown (Admin Only) */}
+                {userIsAdmin && !loading && !error && uniqueUsers.length > 0 && (
+                    <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-2xl p-6 shadow-xl">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">🔍</span>
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Filter by User</h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">View reconciliations from specific users</p>
+                                </div>
+                            </div>
+                            <FormControl
+                                className="flex-1 sm:max-w-xs"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        backgroundColor: darkMode ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+                                        backdropFilter: 'blur(12px)',
+                                        borderRadius: '12px',
+                                        '& fieldset': {
+                                            borderColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                                        },
+                                        '&:hover fieldset': {
+                                            borderColor: darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#6366f1',
+                                        },
+                                    },
+                                    '& .MuiInputLabel-root': {
+                                        color: darkMode ? '#94a3b8' : '#64748b',
+                                    },
+                                    '& .MuiSelect-select': {
+                                        color: darkMode ? '#f1f5f9' : '#0f172a',
+                                        fontWeight: 600,
+                                    },
+                                }}
+                            >
+                                <InputLabel>Select User</InputLabel>
+                                <Select
+                                    value={selectedUser}
+                                    label="Select User"
+                                    onChange={(e) => setSelectedUser(e.target.value)}
+                                >
+                                    <MenuItem value="all">
+                                        <div className="flex items-center gap-2">
+                                            <span>👥</span>
+                                            <span className="font-semibold">All Users</span>
+                                        </div>
+                                    </MenuItem>
+                                    {uniqueUsers.map((user) => (
+                                        <MenuItem key={user} value={user}>
+                                            <div className="flex items-center gap-2">
+                                                <span>👤</span>
+                                                <span>{user}</span>
+                                            </div>
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </div>
+                    </div>
+                )}
 
                 {/* Summary Cards */}
                 {!loading && !error && reconciliations.length > 0 && (
@@ -282,84 +448,141 @@ export default function HistoryPage() {
                 )}
 
                 {/* Reconciliation Grid */}
-                {!loading && !error && reconciliations.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {reconciliations.map((recon) => (
-                            <div
-                                key={recon.run_id}
-                                className="group relative bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl p-6 transition-all hover:shadow-2xl hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-1"
-                            >
-                                {/* Card Header */}
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`
+                {!loading && !error && reconciliations.length > 0 && (() => {
+                    // Filter reconciliations based on selected user
+                    const filteredReconciliations = selectedUser === "all"
+                        ? reconciliations
+                        : reconciliations.filter(r => r.username === selectedUser);
+
+                    if (filteredReconciliations.length === 0) {
+                        return (
+                            <div className="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl">
+                                <div className="text-6xl mb-6 opacity-50">🔍</div>
+                                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                                    No Reconciliations Found
+                                </h3>
+                                <p className="text-lg text-center max-w-md">
+                                    No reconciliations found for user "{selectedUser}"
+                                </p>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {filteredReconciliations.map((recon) => (
+                                <div
+                                    key={recon.run_id}
+                                    className="group relative bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl p-6 transition-all hover:shadow-2xl hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-1"
+                                >
+                                    {/* Card Header */}
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`
                                             px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg
                                             ${(recon.bank_type || "??") === "ICICI"
-                                                ? "bg-slate-600"
-                                                : "bg-slate-500"}
+                                                    ? "bg-slate-600"
+                                                    : "bg-slate-500"}
                                         `}>
-                                            {recon.bank_type || "Unknown"}
-                                        </div>
-                                        {userIsAdmin && recon.username && (
-                                            <div className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/90 text-white shadow-lg flex items-center gap-1">
-                                                👤 {recon.username}
+                                                {recon.bank_type || "Unknown"}
                                             </div>
+                                            {userIsAdmin && recon.username && (
+                                                <div className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/90 text-white shadow-lg flex items-center gap-1">
+                                                    👤 {recon.username}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => deleteReconciliation(recon.run_id)}
+                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            title="Delete Reconciliation"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                                            {formatDate(recon.timestamp)}
+                                        </h3>
+                                        {recon.tpa_name && (
+                                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                                🏢 {recon.tpa_name}
+                                            </p>
                                         )}
                                     </div>
-                                    <button
-                                        onClick={() => deleteReconciliation(recon.run_id)}
-                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                        title="Delete Reconciliation"
-                                    >
-                                        🗑️
-                                    </button>
-                                </div>
 
-                                <div className="mb-6">
-                                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
-                                        {formatDate(recon.timestamp)}
-                                    </h3>
-                                    {recon.tpa_name && (
-                                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                            🏢 {recon.tpa_name}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Stats Grid */}
-                                <div className="grid grid-cols-2 gap-3 mb-6">
-                                    <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100/50 dark:border-emerald-900/20">
-                                        <div className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">Settled Claims</div>
-                                        <div className="font-bold text-emerald-700 dark:text-emerald-300">
-                                            {recon.summary.step2_matches}
+                                    {/* Stats Grid */}
+                                    <div className="grid grid-cols-2 gap-3 mb-6">
+                                        <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100/50 dark:border-emerald-900/20">
+                                            <div className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">Settled Claims</div>
+                                            <div className="font-bold text-emerald-700 dark:text-emerald-300">
+                                                {recon.summary.step2_matches}
+                                            </div>
+                                        </div>
+                                        <div className="p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-100/50 dark:border-amber-900/20">
+                                            <div className="text-xs text-amber-600 dark:text-amber-400 mb-1">Found in Outstanding</div>
+                                            <div className="font-bold text-amber-700 dark:text-amber-300">
+                                                {recon.summary.step4_outstanding}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-100/50 dark:border-amber-900/20">
-                                        <div className="text-xs text-amber-600 dark:text-amber-400 mb-1">Found in Outstanding</div>
-                                        <div className="font-bold text-amber-700 dark:text-amber-300">
-                                            {recon.summary.step4_outstanding}
-                                        </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => downloadZip(recon.run_id)}
+                                            disabled={downloading[recon.run_id]}
+                                            className={`
+                                                flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md
+                                                ${downloading[recon.run_id]
+                                                    ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-wait"
+                                                    : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20 hover:shadow-emerald-500/30"}
+                                            `}
+                                        >
+                                            {downloading[recon.run_id] ? "⏳ Downloading..." : "📦 Download ZIP"}
+                                        </button>
+                                        <button
+                                            onClick={() => openFilesModal(recon)}
+                                            className="px-4 py-3 rounded-xl font-bold text-sm transition-all"
+                                            style={{
+                                                background: darkMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                                                color: darkMode ? '#60a5fa' : '#2563eb',
+                                                border: `1px solid ${darkMode ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'}`,
+                                            }}
+                                        >
+                                            📂 View Files
+                                        </button>
                                     </div>
                                 </div>
+                            ))}
+                        </div>
+                    );
+                })()}
 
-                                {/* Download Button */}
-                                <button
-                                    onClick={() => downloadZip(recon.run_id)}
-                                    disabled={downloading[recon.run_id]}
-                                    className={`
-                                        w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md
-                                        ${downloading[recon.run_id]
-                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-wait"
-                                            : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20 hover:shadow-emerald-500/30"}
-                                    `}
-                                >
-                                    {downloading[recon.run_id] ? "⏳ Downloading..." : "📦 Download Package"}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {/* Reconciliation Files Modal */}
+                <ReconciliationFilesModal
+                    open={filesModalOpen}
+                    onClose={() => setFilesModalOpen(false)}
+                    reconciliation={selectedReconciliation}
+                    files={selectedReconciliation ? filesByRunId[selectedReconciliation.run_id] : null}
+                    loading={loadingFiles}
+                    darkMode={darkMode}
+                    apiBase={API_BASE}
+                    onViewFile={handleViewFile}
+                />
+
+                {/* Excel Modal Viewer */}
+                <ExcelModalViewer
+                    open={dataModalOpen}
+                    onClose={handleCloseDataModal}
+                    fileUrl={currentFileUrl}
+                    filename={currentFileName}
+                    darkMode={darkMode}
+                    apiBase={API_BASE}
+                />
+
             </div>
-        </div>
+        </div >
     );
 }
