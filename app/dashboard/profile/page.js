@@ -65,13 +65,15 @@ export default function ProfilePage() {
       console.log("[Profile] User is admin:", adminStatus);
 
       console.log("[Profile] Authenticated as:", user);
-      fetchProfileData();
-      fetchVerificationStatus();
 
       // Fetch admin stats if user is admin
       if (adminStatus) {
         fetchAdminStats();
       }
+
+      // Fetch profile data with admin status
+      fetchProfileData(adminStatus);
+      fetchVerificationStatus();
     }
   }, [router]);
 
@@ -140,7 +142,7 @@ export default function ProfilePage() {
     }
   };
 
-  const fetchProfileData = async () => {
+  const fetchProfileData = async (adminStatus = false) => {
     setLoading(true);
     setError("");
 
@@ -156,15 +158,24 @@ export default function ProfilePage() {
       setDailyActivity(dailyData);
 
       // For admins, fetch all reconciliations; for regular users, fetch their own activity
-      if (userIsAdmin) {
+      console.log("[Profile] Fetching recent activity, admin status:", adminStatus);
+      if (adminStatus) {
         const activityRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/admin/reconciliations/history?limit=10`);
-        if (!activityRes.ok) throw new Error("Failed to fetch activity");
+        if (!activityRes.ok) {
+          console.error("[Profile] Failed to fetch admin activity:", activityRes.status);
+          throw new Error("Failed to fetch activity");
+        }
         const activityData = await activityRes.json();
+        console.log("[Profile] Admin activity data:", activityData);
         setRecentActivity(activityData);
       } else {
         const activityRes = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/profile/activity?limit=10`);
-        if (!activityRes.ok) throw new Error("Failed to fetch activity");
+        if (!activityRes.ok) {
+          console.error("[Profile] Failed to fetch user activity:", activityRes.status);
+          throw new Error("Failed to fetch activity");
+        }
         const activityData = await activityRes.json();
+        console.log("[Profile] User activity data:", activityData);
         setRecentActivity(activityData);
       }
 
