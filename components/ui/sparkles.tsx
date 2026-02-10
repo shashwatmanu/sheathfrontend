@@ -1,8 +1,8 @@
 "use client";
-import React, { useId, useMemo } from "react";
+import React, { useId, useMemo, useCallback } from "react";
 import { useEffect, useState } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
-import type { Container, SingleOrMultiple } from "@tsparticles/engine";
+import type { Container, SingleOrMultiple, ISourceOptions } from "@tsparticles/engine";
 import { loadSlim } from "@tsparticles/slim";
 import { cn } from "../../utils";
 import { motion, useAnimation } from "motion/react";
@@ -39,7 +39,8 @@ export const SparklesCore = (props: ParticlesProps) => {
   }, []);
   const controls = useAnimation();
 
-  const particlesLoaded = async (container?: Container) => {
+  // Optimized: Wrap particlesLoaded in useCallback to maintain referential identity
+  const particlesLoaded = useCallback(async (container?: Container) => {
     if (container) {
       controls.start({
         opacity: 1,
@@ -48,17 +49,12 @@ export const SparklesCore = (props: ParticlesProps) => {
         },
       });
     }
-  };
+  }, [controls]);
 
   const generatedId = useId();
-  return (
-    <motion.div animate={controls} className={cn("opacity-0", className)}>
-      {init && (
-        <Particles
-          id={id || generatedId}
-          className={cn("h-full w-full")}
-          particlesLoaded={particlesLoaded}
-          options={{
+
+  // Optimized: Memoize options object to prevent unnecessary re-initializations
+  const options = useMemo<ISourceOptions>(() => ({
             background: {
               color: {
                 value: background || "#0d47a1",
@@ -426,7 +422,16 @@ export const SparklesCore = (props: ParticlesProps) => {
               },
             },
             detectRetina: true,
-          }}
+          }), [background, minSize, maxSize, speed, particleColor, particleDensity]);
+
+  return (
+    <motion.div animate={controls} className={cn("opacity-0", className)}>
+      {init && (
+        <Particles
+          id={id || generatedId}
+          className={cn("h-full w-full")}
+          particlesLoaded={particlesLoaded}
+          options={options}
         />
       )}
     </motion.div>
