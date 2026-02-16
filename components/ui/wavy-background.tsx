@@ -35,6 +35,8 @@ export const WavyBackground = ({
     ctx: any,
     canvas: any;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const getSpeed = () => {
     switch (speed) {
       case "slow":
@@ -49,15 +51,21 @@ export const WavyBackground = ({
   const init = () => {
     canvas = canvasRef.current;
     ctx = canvas.getContext("2d");
-    w = ctx.canvas.width = window.innerWidth;
-    h = ctx.canvas.height = window.innerHeight;
-    ctx.filter = `blur(${blur}px)`;
-    nt = 0;
-    window.onresize = function () {
+    // Initialize dimensions based on container or window initially
+    if (containerRef.current) {
+      w = ctx.canvas.width = containerRef.current.clientWidth;
+      h = ctx.canvas.height = containerRef.current.clientHeight;
+    } else {
       w = ctx.canvas.width = window.innerWidth;
       h = ctx.canvas.height = window.innerHeight;
-      ctx.filter = `blur(${blur}px)`;
-    };
+    }
+
+    ctx.filter = `blur(${blur}px)`;
+    nt = 0;
+
+    // Optimization: Removed window.onresize overwrite to prevent global listener conflicts
+    // and used ResizeObserver for more efficient and scoped resize handling.
+
     render();
   };
 
@@ -94,8 +102,28 @@ export const WavyBackground = ({
 
   useEffect(() => {
     init();
+
+    // Use ResizeObserver to handle container resizing efficiently
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        // Update canvas dimensions based on the container's content box
+        const { width, height } = entry.contentRect;
+        if (canvas && ctx) {
+          w = ctx.canvas.width = width;
+          h = ctx.canvas.height = height;
+          // Re-apply filter as resizing clears the context state
+          ctx.filter = `blur(${blur}px)`;
+        }
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
       cancelAnimationFrame(animationId);
+      resizeObserver.disconnect();
     };
   }, []);
 
@@ -111,6 +139,7 @@ export const WavyBackground = ({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "h-screen flex flex-col items-center justify-center",
         containerClassName
