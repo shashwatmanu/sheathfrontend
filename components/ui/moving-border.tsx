@@ -7,7 +7,7 @@ import {
   useMotionValue,
   useTransform,
 } from "motion/react";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { cn } from "../../utils";
 
 export function Button({
@@ -84,10 +84,31 @@ export const MovingBorder = ({
   [key: string]: any;
 }) => {
   const pathRef = useRef<any>(null);
+  const lengthRef = useRef<number>(0);
   const progress = useMotionValue<number>(0);
 
+  useEffect(() => {
+    const updateLength = () => {
+      if (pathRef.current) {
+        lengthRef.current = pathRef.current.getTotalLength();
+      }
+    };
+
+    updateLength();
+
+    const observer = new ResizeObserver(() => {
+      updateLength();
+    });
+
+    if (pathRef.current) {
+      observer.observe(pathRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [rx, ry]);
+
   useAnimationFrame((time) => {
-    const length = pathRef.current?.getTotalLength();
+    const length = lengthRef.current;
     if (length) {
       const pxPerMillisecond = length / duration;
       progress.set((time * pxPerMillisecond) % length);
