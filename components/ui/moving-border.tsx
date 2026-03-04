@@ -3,7 +3,6 @@ import React from "react";
 import {
   motion,
   useAnimationFrame,
-  useMotionTemplate,
   useMotionValue,
   useTransform,
 } from "motion/react";
@@ -94,16 +93,14 @@ export const MovingBorder = ({
     }
   });
 
-  const x = useTransform(
-    progress,
-    (val) => pathRef.current?.getPointAtLength(val).x,
-  );
-  const y = useTransform(
-    progress,
-    (val) => pathRef.current?.getPointAtLength(val).y,
-  );
-
-  const transform = useMotionTemplate`translateX(${x}px) translateY(${y}px) translateX(-50%) translateY(-50%)`;
+  const transform = useTransform(progress, (val) => {
+    if (!pathRef.current) return "translateX(0px) translateY(0px) translateX(-50%) translateY(-50%)";
+    // ⚡ Bolt: Query getPointAtLength ONCE instead of twice per frame.
+    // getPointAtLength is an expensive DOM method that forces layout calculation.
+    // Combining x and y calculation halves the work done per animation frame.
+    const point = pathRef.current.getPointAtLength(val);
+    return `translateX(${point.x}px) translateY(${point.y}px) translateX(-50%) translateY(-50%)`;
+  });
 
   return (
     <>
