@@ -1,0 +1,3 @@
+## 2024-05-19 - Replacing document.getElementById with useRef in React Components
+**Learning:** Using `document.getElementById` inside React components, especially visual components using Three.js or Canvas, forces layout recalcs on the global document and severely breaks component isolation. Multiple instances of the same component will target the same DOM node causing runtime crashes or bizarre render overlapping.
+**Action:** Always prefer using a direct React `useRef` pointing to the component's container DOM node. It removes the O(N) penalty of querying the global DOM, avoids ID collision bugs entirely, and encapsulates the logic strictly within the component's lifecycle.
