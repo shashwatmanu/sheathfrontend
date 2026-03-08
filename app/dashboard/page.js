@@ -10,7 +10,7 @@ import Hyperspeed from "../../components/ui/hyperspeed";
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
-import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X, Eye } from "lucide-react";
+import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X, Eye, Plus, Edit, Trash, ShieldCheck } from "lucide-react";
 import SideNote from "../../components/ui/SideNote.jsx";
 // import AIAssistantModal from '../../components/ui/AIAssistantModal.jsx';  // ✅ NEW: AI Assistant
 
@@ -542,84 +542,446 @@ const formatFileLabel = (key, counts) => {
   return label;
 };
 
-// TPA Mapping Reference Data
-const TPA_MIS_MAPS = {
-  "IHX (Original MIS)": {
-    "Cheque/ NEFT/ UTR No.": "Cheque/ NEFT/ UTR No.",
-    "Claim No": "Claim Number"
-  },
-  "CARE HEALTH INSURANCE LIMITED": {
-    "Cheque/ NEFT/ UTR No.": "Instrument/NEFT No",
-    "Claim No": "AL Number"
-  },
-  "HEALTH INDIA INSURANCE TPA SERVICES PRIVATE LTD.": {
-    "Cheque/ NEFT/ UTR No.": "utrnumber",
-    "Claim No": "CCN"
-  },
-  "HERITAGE HEALTH INSURANCE TPA PRIVATE LIMITED": {
-    "Cheque/ NEFT/ UTR No.": "UTR_NO",
-    "Claim No": "HHCCN"
-  },
-  "MEDSAVE HEALTHCARE TPA PVT LTD": {
-    "Cheque/ NEFT/ UTR No.": "UTR/Chq No.",
-    "Claim No": "FILENO"
-  },
-  "PARAMOUNT HEALTHCARE": {
-    "Cheque/ NEFT/ UTR No.": "UTR_NO",
-    "Claim No": "Claim Number"
-  },
-  "PARK MEDICLAIM INSURANCE TPA PRIVATE LIMITED": {
-    "Cheque/ NEFT/ UTR No.": "Chq No",
-    "Claim No": "Claim Number"
-  },
-  "SAFEWAY INSURANCE TPA PVT.LTD": {
-    "Cheque/ NEFT/ UTR No.": "Chequeno",
-    "Claim No": "ClaimNo"
-  },
-  "STAR HEALTH & ALLIED HEALTH INSURANCE CO.LTD.": {
-    "Cheque/ NEFT/ UTR No.": "UTR",
-    "Claim No": "Insurer Claim Number"
-  },
-  "ADITYA BIRLA": {
-    "Cheque/ NEFT/ UTR No.": "UTR Number",
-    "Claim No": "CLAIM NO."
-  },
-  "FHPL": {
-    "Cheque/ NEFT/ UTR No.": "Cheque/NEFT No",
-    "Claim No": "Claim Id"
-  },
-  "FUTURE GENERALI": {
-    "Cheque/ NEFT/ UTR No.": "Cheque/Ref No. Insured",
-    "Claim No": "Claim No."
-  },
-  "GOOD HEALTH": {
-    "Cheque/ NEFT/ UTR No.": "TRASACTION_NO",
-    "Claim No": "CCN_NO"
-  },
-  "VOLO HEALTH INSURANCE TPA PVT.LTD (EWA) (Mail Extract)": {
-    "Cheque/ NEFT/ UTR No.": "UTR Number",
-    "Claim No": "Alternate Claim Id"
-  },
-  "VIDAL": {
-    "Cheque/ NEFT/ UTR No.": "Cheque Number",
-    "Claim No": "Claim Number"
-  },
-  "SBI GENERAL": {
-    "Cheque/ NEFT/ UTR No.": "Payment Transaction ID UTR",
-    "Claim No": "Claim No"
-  },
-  "RELIANCE": {
-    "Cheque/ NEFT/ UTR No.": "Map Cheque/Neft Number",
-    "Claim No": "Claim Number"
-  },
-  "ICICI LOMBARD": {
-    "Cheque/ NEFT/ UTR No.": "Claim-Cheque Number",
-    "Claim No": "Claim Number"
-  },
-  "ERICSON": {
-    "Cheque/ NEFT/ UTR No.": "UTRNo",
-    "Claim No": "ClaimId"
-  }
+// Note: TPA_MIS_MAPS was removed, mappings are now fetched dynamically via the API.
+
+const TpaConfigurationManager = ({ darkMode, apiBase }) => {
+  const [tpas, setTpas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTpa, setEditingTpa] = useState(null);
+  const [formData, setFormData] = useState({ name: "", claim_col: "", cheque_utr_col: "", is_active: true });
+
+  const theme = {
+    bg: darkMode ? "#0f172a" : "#ffffff",
+    cardBg: darkMode ? "#1e293b" : "#ffffff",
+    text: darkMode ? "#f1f5f9" : "#000000",
+    textSecondary: darkMode ? "#94a3b8" : "#666666",
+    border: darkMode ? "#334155" : "#e0e0e0",
+    inputBg: darkMode ? "#0f172a" : "#f8f8f8",
+  };
+
+  const fetchTpas = async () => {
+    try {
+      setLoading(true);
+      const res = await authenticatedFetch(`${apiBase.replace(/\/$/, "")}/api/tpa-mappings`);
+      if (res.ok) {
+        const data = await res.json();
+        setTpas(Array.isArray(data) ? data.map(t => ({
+          id: t.id,
+          name: t.tpa_name,
+          claim_col: t.claim_no_column,
+          cheque_utr_col: t.cheque_utr_column,
+          is_active: t.is_active !== undefined ? t.is_active : true
+        })) : []);
+      } else {
+        throw new Error("Failed to fetch TPA mappings");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load TPA mappings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTpas();
+  }, [apiBase]);
+
+  const handleOpenModal = (tpa = null) => {
+    if (tpa) {
+      setEditingTpa(tpa);
+      setFormData({
+        name: tpa.name,
+        claim_col: tpa.claim_col,
+        cheque_utr_col: tpa.cheque_utr_col,
+        is_active: tpa.is_active
+      });
+    } else {
+      setEditingTpa(null);
+      setFormData({ name: "", claim_col: "", cheque_utr_col: "", is_active: true });
+    }
+    setError("");
+    setSuccess("");
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const isEdit = !!editingTpa;
+      const url = isEdit
+        ? `${apiBase.replace(/\/$/, "")}/admin/tpa-mappings/${editingTpa.id}`
+        : `${apiBase.replace(/\/$/, "")}/admin/tpa-mappings`;
+
+      const method = isEdit ? "PUT" : "POST";
+
+      const payload = {
+        tpa_name: formData.name,
+        claim_no_column: formData.claim_col,
+        cheque_utr_column: formData.cheque_utr_col
+      };
+
+      const res = await authenticatedFetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `Failed to ${isEdit ? "update" : "create"} TPA`);
+      }
+
+      setSuccess(`TPA mapping successfully ${isEdit ? "updated" : "created"}!`);
+      setModalOpen(false);
+      fetchTpas();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "An error occurred");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete mapping for ${name}?`)) return;
+
+    setActionLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await authenticatedFetch(`${apiBase.replace(/\/$/, "")}/admin/tpa-mappings/${id}`, {
+        method: "DELETE"
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete TPA mapping");
+      }
+
+      setSuccess(`TPA mapping for ${name} deleted successfully!`);
+      fetchTpas();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to delete mapping");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 28, fontWeight: 700, color: theme.text, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <ShieldCheck size={32} color={darkMode ? "#a5b4fc" : "#4f46e5"} />
+            TPA Configuration Manager
+          </h2>
+          <p style={{ color: theme.textSecondary, marginTop: 4 }}>
+            Manage the list of TPAs, their claim columns, and cheque/UTR mappings dynamically.
+          </p>
+        </div>
+        <button
+          onClick={() => handleOpenModal()}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 20px",
+            background: "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: "pointer",
+            boxShadow: darkMode ? "0 4px 12px rgba(79, 70, 229, 0.4)" : "0 4px 12px rgba(79, 70, 229, 0.3)",
+            transition: "transform 0.2s"
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"}
+          onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
+        >
+          <Plus size={18} /> Add New TPA
+        </button>
+      </div>
+
+      {error && !modalOpen && (
+        <div style={{ padding: 16, background: darkMode ? "rgba(239, 68, 68, 0.2)" : "#fee2e2", color: darkMode ? "#fca5a5" : "#b91c1c", borderRadius: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertCircle size={20} /> {error}
+        </div>
+      )}
+
+      {success && !modalOpen && (
+        <div style={{ padding: 16, background: darkMode ? "rgba(34, 197, 94, 0.2)" : "#dcfce7", color: darkMode ? "#86efac" : "#15803d", borderRadius: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Check size={20} /> {success}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ padding: 48, textAlign: 'center', color: theme.textSecondary }}>
+          <div className="animate-spin inline-block w-8 h-8 border-[3px] border-current border-t-transparent text-indigo-600 rounded-full mb-4"></div>
+          <p>Loading configurations...</p>
+        </div>
+      ) : (
+        <div style={{
+          background: theme.cardBg,
+          borderRadius: 16,
+          border: `1px solid ${theme.border}`,
+          overflow: "hidden",
+          boxShadow: darkMode ? "0 4px 24px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.05)"
+        }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead>
+                <tr style={{ background: darkMode ? "rgba(255,255,255,0.05)" : "#f8fafc" }}>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}` }}>TPA Name</th>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}` }}>Claim No Column</th>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}` }}>Cheque/UTR Column</th>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}`, textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}`, textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tpas.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: 32, textAlign: "center", color: theme.textSecondary }}>
+                      No TPA mappings configured. Click "Add New TPA" to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  tpas.map((tpa) => (
+                    <tr key={tpa.id} style={{ borderBottom: `1px solid ${theme.border}`, transition: "background 0.2s" }} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td style={{ padding: "16px 24px", color: theme.text, fontWeight: 500, fontSize: 14 }}>{tpa.name}</td>
+                      <td style={{ padding: "16px 24px" }}>
+                        <code style={{ background: darkMode ? "rgba(0,0,0,0.3)" : "#f1f5f9", padding: "4px 8px", borderRadius: 4, fontSize: 12, color: darkMode ? "#a5f3fc" : "#0ea5e9" }}>
+                          {tpa.claim_col}
+                        </code>
+                      </td>
+                      <td style={{ padding: "16px 24px" }}>
+                        <code style={{ background: darkMode ? "rgba(0,0,0,0.3)" : "#f1f5f9", padding: "4px 8px", borderRadius: 4, fontSize: 12, color: darkMode ? "#a5f3fc" : "#0ea5e9" }}>
+                          {tpa.cheque_utr_col}
+                        </code>
+                      </td>
+                      <td style={{ padding: "16px 24px", textAlign: 'center' }}>
+                        <span style={{
+                          padding: "4px 12px",
+                          borderRadius: 20,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: tpa.is_active ? (darkMode ? "rgba(34, 197, 94, 0.2)" : "#dcfce7") : (darkMode ? "rgba(100, 116, 139, 0.2)" : "#f1f5f9"),
+                          color: tpa.is_active ? (darkMode ? "#86efac" : "#166534") : (darkMode ? "#94a3b8" : "#475569")
+                        }}>
+                          {tpa.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                          <button
+                            onClick={() => handleOpenModal(tpa)}
+                            style={{ background: "transparent", border: "none", cursor: "pointer", color: theme.textSecondary, transition: "color 0.2s" }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = darkMode ? "#a5b4fc" : "#4f46e5"}
+                            onMouseLeave={(e) => e.currentTarget.style.color = theme.textSecondary}
+                            title="Edit"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tpa.id, tpa.name)}
+                            disabled={actionLoading}
+                            style={{ background: "transparent", border: "none", cursor: actionLoading ? "not-allowed" : "pointer", color: theme.textSecondary, transition: "color 0.2s", opacity: actionLoading ? 0.5 : 1 }}
+                            onMouseEnter={(e) => { if (!actionLoading) e.currentTarget.style.color = darkMode ? "#fca5a5" : "#ef4444" }}
+                            onMouseLeave={(e) => e.currentTarget.style.color = theme.textSecondary}
+                            title="Delete"
+                          >
+                            <Trash size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {modalOpen && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: 20
+        }}>
+          <div style={{
+            background: theme.cardBg,
+            borderRadius: 16,
+            width: "100%",
+            maxWidth: 500,
+            boxShadow: darkMode ? "0 10px 40px rgba(0,0,0,0.5)" : "0 10px 40px rgba(0,0,0,0.1)",
+            overflow: "hidden"
+          }}>
+            <div style={{ padding: "20px 24px", borderBottom: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: theme.text }}>
+                {editingTpa ? "Edit TPA Mapping" : "Add New TPA Mapping"}
+              </h3>
+              <button
+                onClick={() => setModalOpen(false)}
+                style={{ background: "transparent", border: "none", color: theme.textSecondary, cursor: "pointer", padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+                {error && (
+                  <div style={{ padding: 12, background: darkMode ? "rgba(239, 68, 68, 0.2)" : "#fee2e2", color: darkMode ? "#fca5a5" : "#b91c1c", borderRadius: 8, fontSize: 14 }}>
+                    {error}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: theme.textSecondary }}>TPA Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${theme.border}`,
+                      background: theme.inputBg,
+                      color: theme.text,
+                      fontSize: 14,
+                      outline: "none"
+                    }}
+                    placeholder="e.g. CARE HEALTH INSURANCE LIMITED"
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: theme.textSecondary }}>Claim No Column Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.claim_col}
+                    onChange={(e) => setFormData({ ...formData, claim_col: e.target.value })}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${theme.border}`,
+                      background: theme.inputBg,
+                      color: theme.text,
+                      fontSize: 14,
+                      outline: "none",
+                      fontFamily: "monospace"
+                    }}
+                    placeholder="e.g. AL Number"
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: theme.textSecondary }}>Cheque/UTR Column Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.cheque_utr_col}
+                    onChange={(e) => setFormData({ ...formData, cheque_utr_col: e.target.value })}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${theme.border}`,
+                      background: theme.inputBg,
+                      color: theme.text,
+                      fontSize: 14,
+                      outline: "none",
+                      fontFamily: "monospace"
+                    }}
+                    placeholder="e.g. Instrument/NEFT No"
+                  />
+                </div>
+
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    style={{ width: 16, height: 16, borderRadius: 4, cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: 14, color: theme.text, fontWeight: 500 }}>Active</span>
+                </label>
+              </div>
+
+              <div style={{ padding: "16px 24px", background: darkMode ? "rgba(255,255,255,0.02)" : "#f8fafc", borderTop: `1px solid ${theme.border}`, display: "flex", justifyContent: "flex-end", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  style={{
+                    padding: "10px 20px",
+                    background: "transparent",
+                    color: theme.textSecondary,
+                    border: "none",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    borderRadius: 8,
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 24px",
+                    background: "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    cursor: actionLoading ? "not-allowed" : "pointer",
+                    opacity: actionLoading ? 0.7 : 1,
+                    transition: "transform 0.2s"
+                  }}
+                  onMouseEnter={(e) => { if (!actionLoading) e.currentTarget.style.transform = "translateY(-1px)" }}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
+                >
+                  {actionLoading ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <Check size={18} />}
+                  {editingTpa ? "Update" : "Create"} Mapping
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default function Home() {
@@ -628,6 +990,10 @@ export default function Home() {
   const [username, setUsername] = useState("");
   const { darkMode, setDarkMode } = useDarkMode();
   const [bankType, setBankType] = useState("Standard Chartered");
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [tpaMappings, setTpaMappings] = useState({});
+  const [isTpaMappingsLoading, setIsTpaMappingsLoading] = useState(true);
+
   const [bankFile, setBankFile] = useState(null);
   const [advanceFile, setAdvanceFile] = useState(null);
   const [tpaName, setTpaName] = useState("");
@@ -788,8 +1154,8 @@ export default function Home() {
         const { isAdmin } = await import("../../lib/auth");
 
         if (isAdmin()) {
-          console.log("[Dashboard] Admin user detected, redirecting to profile");
-          router.push("/dashboard/profile");
+          console.log("[Dashboard] Admin user detected, rendering admin ui");
+          setIsAdminUser(true);
           return;
         }
       };
@@ -797,6 +1163,42 @@ export default function Home() {
       checkAdminAndRedirect();
     }
   }, [router]);
+
+  // Fetch dynamic TPA Mappings on load
+  useEffect(() => {
+    const fetchTpaMappings = async () => {
+      try {
+        setIsTpaMappingsLoading(true);
+        const res = await authenticatedFetch(`${API_BASE.replace(/\/$/, "")}/api/tpa-mappings`);
+        if (res.ok) {
+          const data = await res.json();
+          // Transform array of mappings into an object map
+          const mapData = {};
+          if (data && Array.isArray(data)) {
+            data.forEach(item => {
+              const isActive = item.is_active !== undefined ? item.is_active : true;
+              if (isActive) {
+                mapData[item.tpa_name] = {
+                  "Cheque/ NEFT/ UTR No.": item.cheque_utr_column,
+                  "Claim No": item.claim_no_column
+                };
+              }
+            });
+          }
+          setTpaMappings(mapData);
+        } else {
+          console.error("Failed to fetch TPA mappings status:", res.status);
+        }
+      } catch (e) {
+        console.error("Failed to fetch TPA mappings:", e);
+      } finally {
+        setIsTpaMappingsLoading(false);
+      }
+    };
+    if (API_BASE) {
+      fetchTpaMappings();
+    }
+  }, [API_BASE]);
 
   // Load Lottie animation
   useEffect(() => {
@@ -1559,1220 +1961,1315 @@ export default function Home() {
 
         <main style={{
           margin: "0 auto",
-          maxWidth: "900px",
+          maxWidth: isAdminUser ? "1200px" : "900px",
           width: "100%",
           padding: "24px 16px",
           boxSizing: "border-box"
         }}>
 
-          {/* Hero Section with sparkles */}
-          <div style={{
-            position: "relative",
-            background: "#000000",
-            padding: "48px 32px",
-            borderRadius: "16px",
-            marginBottom: "32px",
-            color: "white",
-            textAlign: "center",
-            overflow: "hidden"
-          }}>
-            {/* Sparkles for hero section - using memoized component */}
-            <HeroSparkles />
-
-            {/* Hero content */}
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white drop-shadow-sm">
-                Reconciliation Wizard
-              </h1>
-              <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-8 leading-relaxed font-light">
-                {pipelineMode === 'v2'
-                  ? "Experience the new fully automated 3-step V2 pipeline."
-                  : "Streamline your financial reconciliation in 4 simple steps."}
-                <br />
-                Process bank statements, match transactions, and generate reports automatically.
-              </p>
-
-              {/* Pipeline Toggle Switch */}
-              <div className="flex justify-center mb-8">
-                <div className={`p-1 rounded-full flex relative ${darkMode ? 'bg-slate-800 border border-slate-700' : 'bg-gray-100 border border-gray-200'}`}>
-                  <button
-                    onClick={() => handleModeSwitch('v2')}
-                    className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v2'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg'
-                      : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')
-                      }`}
-                  >
-                    🚀 V2 (Auto + Bulk)
-                  </button>
-                  <button
-                    onClick={() => handleModeSwitch('v1')}
-                    className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v1'
-                      ? 'bg-white text-gray-900 shadow-md'
-                      : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')
-                      }`}
-                  >
-                    Values (Legacy)
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap justify-center gap-8 mt-8">
-                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
-                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-blue-400 to-blue-600">4</div>
-                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Simple Steps</div>
-                </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
-                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-purple-400 to-purple-600">3</div>
-                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Bank Types</div>
-                </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
-                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-emerald-400 to-emerald-600">15+</div>
-                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">TPAs</div>
-                </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
-                  <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-amber-400 to-amber-600">100%</div>
-                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Automated</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {!API_BASE && (
-            <div style={{
-              background: darkMode ? "#451a03" : "#fff3cd",
-              border: `1px solid ${darkMode ? "#78350f" : "#ffeeba"}`,
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 16,
-              color: darkMode ? "#fef3c7" : "#856404"
-            }}>
-              <strong>Note:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
-            </div>
-          )}
-
-          {/* Enhanced Stepper */}
-          <Box sx={{
-            width: "100%",
-            mb: 3,
-            background: theme.cardBg,
-            padding: 3,
-            borderRadius: 3,
-            boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
-            border: darkMode ? "1px solid #334155" : "none"
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", alignItems: "center" }}>
-              <Typography variant="h6" component="h2" style={{ fontWeight: 600, margin: 0, color: theme.text }}>
-                Reconciliation Progress
-              </Typography>
-              <Typography variant="body2" style={{ color: theme.textSecondary }}>
-                {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} of {steps.length} steps completed
-              </Typography>
-            </div>
-
-            {/* Progress bar */}
-            <div style={{
-              height: "8px",
-              background: darkMode ? "#334155" : "#e0e0e0",
-              borderRadius: "4px",
-              overflow: "hidden",
-              marginBottom: "24px"
-            }}>
+          {isAdminUser ? (
+            <TpaConfigurationManager darkMode={darkMode} apiBase={API_BASE} />
+          ) : (
+            <>          {/* Hero Section with sparkles */}
               <div style={{
-                height: "100%",
-                width: `${(Object.keys(stepResults).filter(k => stepResults[k]?.ok).length / steps.length) * 100}%`,
-                background: "linear-gradient(90deg, #10b981, #059669)",
-                transition: "width 0.5s ease"
-              }}></div>
-            </div>
+                position: "relative",
+                background: "#000000",
+                padding: "48px 32px",
+                borderRadius: "16px",
+                marginBottom: "32px",
+                color: "white",
+                textAlign: "center",
+                overflow: "hidden"
+              }}>
+                {/* Sparkles for hero section - using memoized component */}
+                <HeroSparkles />
 
-            <Stepper activeStep={activeStep} alternativeLabel>
-              {steps.map((s, idx) => {
-                const isComplete = !!stepResults[idx]?.ok;
-                const isCurrent = idx === activeStep;
+                {/* Hero content */}
+                <div style={{ position: "relative", zIndex: 1 }}>
+                  <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-white drop-shadow-sm">
+                    Reconciliation Wizard
+                  </h1>
+                  <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-8 leading-relaxed font-light">
+                    {pipelineMode === 'v2'
+                      ? "Experience the new fully automated 3-step V2 pipeline."
+                      : "Streamline your financial reconciliation in 4 simple steps."}
+                    <br />
+                    Process bank statements, match transactions, and generate reports automatically.
+                  </p>
 
-                return (
-                  <Step key={s.key} completed={isComplete}>
-                    <StepLabel
-                      StepIconProps={{
-                        sx: {
-                          '&.Mui-completed': { color: '#10b981' },
-                          '&.Mui-active': {
-                            color: bankType === "Standard Chartered" ? "#0072ce" : bankType === "ICICI" ? "#bf2a2a" : "#871f42",
-                            transform: 'scale(1.1)'
-                          },
-                          '&.MuiStepIcon-root': {
-                            color: darkMode ? '#64748b' : '#bdbdbd'
-                          }
-                        }
-                      }}
-                    >
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{
-                          fontWeight: isCurrent ? 600 : 400,
-                          fontSize: "14px",
-                          color: darkMode ? (isCurrent ? '#f1f5f9' : '#cbd5e1') : '#000'
-                        }}>
-                          {s.label}
-                        </div>
-                        <div style={{
-                          fontSize: "11px",
-                          color: darkMode ? '#94a3b8' : '#666',
-                          marginTop: "2px"
-                        }}>
-                          {s.description}
-                        </div>
-                        {isComplete && stepResults[idx]?.data?.counts && (
-                          <div style={{
-                            fontSize: "10px",
-                            color: "#10b981",
-                            marginTop: "4px",
-                            fontWeight: 500
-                          }}>
-                            {/* Display specific count logic or just total files */}
-                            ✓ Done
-                          </div>
-                        )}
-                      </div>
-                    </StepLabel>
-                  </Step>
-                );
-              })}
-            </Stepper>
-          </Box>
-
-          {activeStep < steps.length && (
-            <div style={{
-              borderRadius: 16,
-              padding: 24,
-              background: darkMode
-                ? "linear-gradient(135deg, #1e293b, #0f172a)"
-                : "linear-gradient(135deg, #f0f4ff, #ffffff)",
-              boxShadow: darkMode
-                ? `0 0 50px rgba(79, 70, 229, 0.2)`
-                : `0 0 50px ${bankShadowColor}`,
-              transition: "all 0.3s ease",
-              border: darkMode ? "1px solid #334155" : "none"
-            }}>
-
-              {activeStep === 0 && (
-                <>
-                  {/* Bank Type Selection - Visible in both modes, but disabled in V2 */}
-                  <div style={{ marginBottom: 24, opacity: 1, transition: "opacity 0.3s" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
-                          {pipelineMode === 'v2' ? "Auto-detects Bank Type" : "Select Bank Type"}
-                        </label>
-                        <Tooltip title={pipelineMode === 'v2' ? "Bank type is auto-detected from the uploaded file" : "Choose between ICICI, AXIS, or Standard Chartered"} arrow>
-                          <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
-                        </Tooltip>
-                      </div>
-
-                      {/* ✅ NEW: Bulk Mode Toggle */}
-                      {pipelineMode === 'v2' && (
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-medium ${isBulkMode ? "text-blue-500" : "text-gray-500"}`}>Bulk Mode</span>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="sr-only peer"
-                              checked={isBulkMode}
-                              onChange={(e) => setIsBulkMode(e.target.checked)}
-                              aria-label="Bulk Mode Toggle"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                          </label>
-                        </div>
-                      )}
+                  {/* Pipeline Toggle Switch */}
+                  <div className="flex justify-center mb-8">
+                    <div className={`p-1 rounded-full flex relative ${darkMode ? 'bg-slate-800 border border-slate-700' : 'bg-gray-100 border border-gray-200'}`}>
+                      <button
+                        onClick={() => handleModeSwitch('v2')}
+                        className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v2'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg'
+                          : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')
+                          }`}
+                      >
+                        🚀 V2 (Auto + Bulk)
+                      </button>
+                      <button
+                        onClick={() => handleModeSwitch('v1')}
+                        className={`relative z-10 px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${pipelineMode === 'v1'
+                          ? 'bg-white text-gray-900 shadow-md'
+                          : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900')
+                          }`}
+                      >
+                        Values (Legacy)
+                      </button>
                     </div>
-                    <div style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3, 1fr)",
-                      gap: "20px",
-                      width: "100%",
-                      pointerEvents: pipelineMode === 'v2' ? "none" : "auto"
-                    }}>
-                      {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
-                        <div key={bank} onClick={() => setBankType(bank)} style={{ cursor: "pointer", height: "100%" }}>
-                          <WobbleCard
-                            containerClassName="h-full transition-all duration-300 shadow-xl group"
-                            style={{
-                              backgroundImage: (bankType === bank || pipelineMode === 'v2')
-                                ? (bank === "Standard Chartered"
-                                  ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
-                                  : bank === "ICICI"
-                                    ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
-                                    : "linear-gradient(135deg, #871242 0%, #be185d 100%)")
-                                : "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
-                              borderRadius: "1rem",
-                              overflow: "hidden",
-                              position: "relative",
-                              minHeight: "150px",
-                              border: (bankType === bank && pipelineMode !== 'v2') ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
-                            }}
-                            className="p-4 flex flex-col justify-between h-full relative"
-                          >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 10 }}>
-                              <div>
-                                <div style={{ fontSize: "1.25rem", fontWeight: "bold", marginBottom: "2px", color: "white" }}>
-                                  {bank}
-                                </div>
-                                <div style={{ fontSize: "0.7rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.7)" }}>
-                                  {bank === "Standard Chartered" ? "Global Banking" : "Private Sector"}
-                                </div>
-                              </div>
-                              <div style={{ width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                {(bankType === bank && pipelineMode !== 'v2') && (
-                                  <div style={{ background: "rgba(255,255,255,0.3)", backdropFilter: "blur(8px)", padding: "5px", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-                                    <Check size={14} color="white" strokeWidth={3} />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div style={{ marginTop: "auto", position: "relative", zIndex: 10 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "rgba(255,255,255,0.9)" }}>
-                                {pipelineMode === 'v2' ? (
-                                  <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                    <FileSpreadsheet size={12} />
-                                    <span>Bank Statement Protocol</span>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                      {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
-                                      <span>Bank</span>
-                                    </div>
-                                    <span style={{ opacity: 0.5 }}>+</span>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                      {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
-                                      <span>Advance</span>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            <div style={{
-                              position: "absolute",
-                              right: "-15px",
-                              bottom: "-15px",
-                              opacity: 0.25,
-                              pointerEvents: "none",
-                              zIndex: 0,
-                              transform: "rotate(-15deg)"
-                            }}>
-                              <Landmark size={120} color="white" />
-                            </div>
-                          </WobbleCard>
-                        </div>
-                      ))}
-                    </div>
-                    <small style={{ display: "block", marginTop: 10, color: theme.textSecondary, fontSize: "13px" }}>
-                      {(bankType === "Standard Chartered" && pipelineMode !== 'v2') ? "📊 Standard Chartered: Format coming soon" : null}
-                    </small>
                   </div>
 
+                  <div className="flex flex-wrap justify-center gap-8 mt-8">
+                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                      <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-blue-400 to-blue-600">4</div>
+                      <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Simple Steps</div>
+                    </div>
+                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                      <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-purple-400 to-purple-600">3</div>
+                      <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Bank Types</div>
+                    </div>
+                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                      <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-emerald-400 to-emerald-600">15+</div>
+                      <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">TPAs</div>
+                    </div>
+                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 min-w-[120px]">
+                      <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-amber-400 to-amber-600">100%</div>
+                      <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">Automated</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
+              {!API_BASE && (
+                <div style={{
+                  background: darkMode ? "#451a03" : "#fff3cd",
+                  border: `1px solid ${darkMode ? "#78350f" : "#ffeeba"}`,
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  color: darkMode ? "#fef3c7" : "#856404"
+                }}>
+                  <strong>Note:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> is not set.
+                </div>
+              )}
 
-                  {/* File Upload Cards */}
-                  <div className={`grid gap-6 mt-6 ${pipelineMode === 'v2' ? 'grid-cols-1 max-w-xl mx-auto' : 'grid-cols-1 md:grid-cols-2'}`} style={isBulkMode ? { display: isBulkMode ? 'block' : 'grid' } : {}}>
-                    {/* File Upload Cards for Bulk Mode */}
-                    {isBulkMode ? (
-                      <>
-                        {/* Bulk: Bank Statements (Multiple) */}
-                        <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
-                          }`}>
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
-                                📚
-                              </div>
-                              <div>
-                                <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statements</h3>
-                                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                                  Multiple Files Allowed
-                                </p>
-                              </div>
+              {/* Enhanced Stepper */}
+              <Box sx={{
+                width: "100%",
+                mb: 3,
+                background: theme.cardBg,
+                padding: 3,
+                borderRadius: 3,
+                boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
+                border: darkMode ? "1px solid #334155" : "none"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", alignItems: "center" }}>
+                  <Typography variant="h6" component="h2" style={{ fontWeight: 600, margin: 0, color: theme.text }}>
+                    Reconciliation Progress
+                  </Typography>
+                  <Typography variant="body2" style={{ color: theme.textSecondary }}>
+                    {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} of {steps.length} steps completed
+                  </Typography>
+                </div>
+
+                {/* Progress bar */}
+                <div style={{
+                  height: "8px",
+                  background: darkMode ? "#334155" : "#e0e0e0",
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                  marginBottom: "24px"
+                }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${(Object.keys(stepResults).filter(k => stepResults[k]?.ok).length / steps.length) * 100}%`,
+                    background: "linear-gradient(90deg, #10b981, #059669)",
+                    transition: "width 0.5s ease"
+                  }}></div>
+                </div>
+
+                <Stepper activeStep={activeStep} alternativeLabel>
+                  {steps.map((s, idx) => {
+                    const isComplete = !!stepResults[idx]?.ok;
+                    const isCurrent = idx === activeStep;
+
+                    return (
+                      <Step key={s.key} completed={isComplete}>
+                        <StepLabel
+                          StepIconProps={{
+                            sx: {
+                              '&.Mui-completed': { color: '#10b981' },
+                              '&.Mui-active': {
+                                color: bankType === "Standard Chartered" ? "#0072ce" : bankType === "ICICI" ? "#bf2a2a" : "#871f42",
+                                transform: 'scale(1.1)'
+                              },
+                              '&.MuiStepIcon-root': {
+                                color: darkMode ? '#64748b' : '#bdbdbd'
+                              }
+                            }
+                          }}
+                        >
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{
+                              fontWeight: isCurrent ? 600 : 400,
+                              fontSize: "14px",
+                              color: darkMode ? (isCurrent ? '#f1f5f9' : '#cbd5e1') : '#000'
+                            }}>
+                              {s.label}
                             </div>
+                            <div style={{
+                              fontSize: "11px",
+                              color: darkMode ? '#94a3b8' : '#666',
+                              marginTop: "2px"
+                            }}>
+                              {s.description}
+                            </div>
+                            {isComplete && stepResults[idx]?.data?.counts && (
+                              <div style={{
+                                fontSize: "10px",
+                                color: "#10b981",
+                                marginTop: "4px",
+                                fontWeight: 500
+                              }}>
+                                {/* Display specific count logic or just total files */}
+                                ✓ Done
+                              </div>
+                            )}
+                          </div>
+                        </StepLabel>
+                      </Step>
+                    );
+                  })}
+                </Stepper>
+              </Box>
+
+              {activeStep < steps.length && (
+                <div style={{
+                  borderRadius: 16,
+                  padding: 24,
+                  background: darkMode
+                    ? "linear-gradient(135deg, #1e293b, #0f172a)"
+                    : "linear-gradient(135deg, #f0f4ff, #ffffff)",
+                  boxShadow: darkMode
+                    ? `0 0 50px rgba(79, 70, 229, 0.2)`
+                    : `0 0 50px ${bankShadowColor}`,
+                  transition: "all 0.3s ease",
+                  border: darkMode ? "1px solid #334155" : "none"
+                }}>
+
+                  {activeStep === 0 && (
+                    <>
+                      {/* Bank Type Selection - Visible in both modes, but disabled in V2 */}
+                      <div style={{ marginBottom: 24, opacity: 1, transition: "opacity 0.3s" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
+                              {pipelineMode === 'v2' ? "Auto-detects Bank Type" : "Select Bank Type"}
+                            </label>
+                            <Tooltip title={pipelineMode === 'v2' ? "Bank type is auto-detected from the uploaded file" : "Choose between ICICI, AXIS, or Standard Chartered"} arrow>
+                              <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
+                            </Tooltip>
                           </div>
 
-                          {/* File List displayed ABOVE upload area */}
-                          {bulkBankFiles.length > 0 && (
-                            <div className="mb-4 space-y-2">
-                              {bulkBankFiles.map((file, idx) => (
-                                <div key={idx} className={`flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
-                                  <div className="flex items-center gap-2 overflow-hidden">
-                                    <span className="text-lg">📄</span>
-                                    <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
-                                  </div>
-                                  <button
-                                    onClick={() => setBulkBankFiles(prev => prev.filter((_, i) => i !== idx))}
-                                    className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ))}
+                          {/* ✅ NEW: Bulk Mode Toggle */}
+                          {pipelineMode === 'v2' && (
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-medium ${isBulkMode ? "text-blue-500" : "text-gray-500"}`}>Bulk Mode</span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={isBulkMode}
+                                  onChange={(e) => setIsBulkMode(e.target.checked)}
+                                  aria-label="Bulk Mode Toggle"
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                              </label>
                             </div>
                           )}
-
-                          <FileUpload
-                            key={`bulk-bank-${bulkBankResetKey}`}
-                            accept={accepts.bank}
-                            multiple={true}
-                            onChange={(files) => {
-                              if (files.length > 0) {
-                                setBulkBankFiles(prev => [...prev, ...files]);
-                                setBulkBankResetKey(k => k + 1);
-                              }
-                            }}
-                            uploaderId="bulk-bank-upload"
-                            darkMode={darkMode}
-                          />
                         </div>
-
-                        <div className="h-12"></div>
-
-                        {/* Bulk: MIS Files (Multiple) */}
-                        <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
-                          }`}>
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${darkMode ? "bg-purple-900/30 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
-                                📑
-                              </div>
-                              <div>
-                                <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>MIS Files</h3>
-                                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                                  Multiple Files Allowed
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* File List displayed ABOVE upload area */}
-                          {bulkMisFiles.length > 0 && (
-                            <div className="mb-4 space-y-2">
-                              {bulkMisFiles.map((file, idx) => (
-                                <div key={idx} className={`flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
-                                  <div className="flex items-center gap-2 overflow-hidden">
-                                    <span className="text-lg">📊</span>
-                                    <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
-                                  </div>
-                                  <button
-                                    onClick={() => setBulkMisFiles(prev => prev.filter((_, i) => i !== idx))}
-                                    className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <FileUpload
-                            key={`bulk-mis-${bulkMisResetKey}`}
-                            accept={accepts.mis}
-                            multiple={true}
-                            onChange={(files) => {
-                              if (files.length > 0) {
-                                setBulkMisFiles(prev => [...prev, ...files]);
-                                setBulkMisResetKey(k => k + 1);
-                              }
-                            }}
-                            uploaderId="bulk-mis-upload"
-                            darkMode={darkMode}
-                          />
-                        </div>
-
-                        <div className="h-12"></div>
-
-                        {/* Bulk: Outstanding File (Single) */}
-                        <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
-                          }`}>
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${darkMode ? "bg-amber-900/30 text-amber-400" : "bg-amber-50 text-amber-600"}`}>
-                                📋
-                              </div>
-                              <div>
-                                <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Outstanding Report</h3>
-                                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                                  Single File (Master)
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {bulkOutstandingFile && (
-                            <div className={`mb-4 flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                <span className="text-lg">✅</span>
-                                <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{bulkOutstandingFile.name}</span>
-                              </div>
-                              <button
-                                onClick={() => setBulkOutstandingFile(null)}
-                                className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: "20px",
+                          width: "100%",
+                          pointerEvents: pipelineMode === 'v2' ? "none" : "auto"
+                        }}>
+                          {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
+                            <div key={bank} onClick={() => setBankType(bank)} style={{ cursor: "pointer", height: "100%" }}>
+                              <WobbleCard
+                                containerClassName="h-full transition-all duration-300 shadow-xl group"
+                                style={{
+                                  backgroundImage: (bankType === bank || pipelineMode === 'v2')
+                                    ? (bank === "Standard Chartered"
+                                      ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
+                                      : bank === "ICICI"
+                                        ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
+                                        : "linear-gradient(135deg, #871242 0%, #be185d 100%)")
+                                    : "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+                                  borderRadius: "1rem",
+                                  overflow: "hidden",
+                                  position: "relative",
+                                  minHeight: "150px",
+                                  border: (bankType === bank && pipelineMode !== 'v2') ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
+                                }}
+                                className="p-4 flex flex-col justify-between h-full relative"
                               >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-
-                          <FileUpload
-                            key={`bulk-outstanding-${bulkOutstandingResetKey}`}
-                            accept={accepts.outstanding}
-                            multiple={false}
-                            onChange={(files) => {
-                              if (files.length > 0) {
-                                setBulkOutstandingFile(files[0] || null);
-                                setBulkOutstandingResetKey(k => k + 1);
-                              }
-                            }}
-                            uploaderId="bulk-outstanding-upload"
-                            darkMode={darkMode}
-                          />
-                        </div>
-
-                        {/* Run Bulk Button */}
-                        <div className="mt-12 flex justify-center">
-                          <FancyButton
-                            onClick={handleBulkReconcile}
-                            disabled={bulkLoading}
-                            borderRadius="1.75rem"
-                            className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800 w-auto px-8 py-3"
-                          >
-                            {bulkLoading ? "Processing..." : "Run Bulk Reconciliation"}
-                          </FancyButton>
-                        </div>
-
-                        {/* Bulk Results - Full Width Container */}
-                        {bulkResult && (
-                          <div
-                            className={`mt-12 py-8 border-y shadow-sm ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-gray-50 border-gray-200"}`}
-                            style={{
-                              width: "100vw",
-                              position: "relative",
-                              left: "50%",
-                              right: "50%",
-                              marginLeft: "-50vw",
-                              marginRight: "-50vw",
-                              paddingLeft: "max(2rem, calc((100vw - 1600px) / 2))",
-                              paddingRight: "max(2rem, calc((100vw - 1600px) / 2))",
-                            }}
-                          >
-                            <div className="flex flex-col mb-8 px-4 gap-4">
-                              <div className="flex items-center justify-between">
-                                <h3 className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                  Bulk Reconciliation Results
-                                </h3>
-                              </div>
-
-                              {/* Inline Progress Indicator */}
-                              {bulkLoading && (
-                                <div className={`rounded-xl p-6 border ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-blue-50 border-blue-200"}`}>
-                                  <div className="flex items-start gap-4">
-                                    {/* Mini Spinner / Lottie */}
-                                    <div style={{ width: "48px", height: "48px", flexShrink: 0 }}>
-                                      {animationData ? (
-                                        <Lottie
-                                          animationData={animationData}
-                                          loop={true}
-                                          style={{ width: "100%", height: "100%" }}
-                                        />
-                                      ) : (
-                                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500"></div>
-                                      )}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 10 }}>
+                                  <div>
+                                    <div style={{ fontSize: "1.25rem", fontWeight: "bold", marginBottom: "2px", color: "white" }}>
+                                      {bank}
                                     </div>
-
-                                    <div className="flex-1">
-                                      <h4 className={`text-lg font-bold mb-1 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                        {processingStatus || "Processing..."}
-                                      </h4>
-                                      <p className={`text-sm mb-3 ${darkMode ? "text-slate-400" : "text-gray-600"}`}>
-                                        Updating results in real-time.
-                                      </p>
-
-                                      {/* Progress Bar */}
-                                      <div className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
-                                        <div className="h-full bg-blue-500 animate-[shimmer_2s_infinite]"
-                                          style={{
-                                            width: '100%',
-                                            backgroundSize: '200% auto',
-                                            backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)'
-                                          }}>
-                                        </div>
-                                      </div>
-
-                                      {/* Warning */}
-                                      <div className={`text-xs font-semibold flex items-center gap-2 ${darkMode ? "text-amber-400" : "text-amber-700"}`}>
-                                        <AlertCircle size={14} />
-                                        <span>Please do not reload or close this page until the process is complete.</span>
-                                      </div>
+                                    <div style={{ fontSize: "0.7rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.7)" }}>
+                                      {bank === "Standard Chartered" ? "Global Banking" : "Private Sector"}
                                     </div>
                                   </div>
+                                  <div style={{ width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    {(bankType === bank && pipelineMode !== 'v2') && (
+                                      <div style={{ background: "rgba(255,255,255,0.3)", backdropFilter: "blur(8px)", padding: "5px", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                                        <Check size={14} color="white" strokeWidth={3} />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div style={{ marginTop: "auto", position: "relative", zIndex: 10 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "rgba(255,255,255,0.9)" }}>
+                                    {pipelineMode === 'v2' ? (
+                                      <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                        <FileSpreadsheet size={12} />
+                                        <span>Bank Statement Protocol</span>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                          {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
+                                          <span>Bank</span>
+                                        </div>
+                                        <span style={{ opacity: 0.5 }}>+</span>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                          {bank === "AXIS" ? <FileSpreadsheet size={12} /> : <FileSpreadsheet size={12} />}
+                                          <span>Advance</span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div style={{
+                                  position: "absolute",
+                                  right: "-15px",
+                                  bottom: "-15px",
+                                  opacity: 0.25,
+                                  pointerEvents: "none",
+                                  zIndex: 0,
+                                  transform: "rotate(-15deg)"
+                                }}>
+                                  <Landmark size={120} color="white" />
+                                </div>
+                              </WobbleCard>
+                            </div>
+                          ))}
+                        </div>
+                        <small style={{ display: "block", marginTop: 10, color: theme.textSecondary, fontSize: "13px" }}>
+                          {(bankType === "Standard Chartered" && pipelineMode !== 'v2') ? "📊 Standard Chartered: Format coming soon" : null}
+                        </small>
+                      </div>
+
+
+
+                      {/* File Upload Cards */}
+                      <div className={`grid gap-6 mt-6 ${pipelineMode === 'v2' ? 'grid-cols-1 max-w-xl mx-auto' : 'grid-cols-1 md:grid-cols-2'}`} style={isBulkMode ? { display: isBulkMode ? 'block' : 'grid' } : {}}>
+                        {/* File Upload Cards for Bulk Mode */}
+                        {isBulkMode ? (
+                          <>
+                            {/* Bulk: Bank Statements (Multiple) */}
+                            <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                              }`}>
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
+                                    📚
+                                  </div>
+                                  <div>
+                                    <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statements</h3>
+                                    <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                      Multiple Files Allowed
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* File List displayed ABOVE upload area */}
+                              {bulkBankFiles.length > 0 && (
+                                <div className="mb-4 space-y-2">
+                                  {bulkBankFiles.map((file, idx) => (
+                                    <div key={idx} className={`flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                                      <div className="flex items-center gap-2 overflow-hidden">
+                                        <span className="text-lg">📄</span>
+                                        <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
+                                      </div>
+                                      <button
+                                        onClick={() => setBulkBankFiles(prev => prev.filter((_, i) => i !== idx))}
+                                        className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
+
+                              <FileUpload
+                                key={`bulk-bank-${bulkBankResetKey}`}
+                                accept={accepts.bank}
+                                multiple={true}
+                                onChange={(files) => {
+                                  if (files.length > 0) {
+                                    setBulkBankFiles(prev => [...prev, ...files]);
+                                    setBulkBankResetKey(k => k + 1);
+                                  }
+                                }}
+                                uploaderId="bulk-bank-upload"
+                                darkMode={darkMode}
+                              />
                             </div>
 
-                            {/* Summary Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 px-4">
-                              {/* Overall Summary Report Card */}
-                              {(() => {
-                                const filesObj = bulkResult.files || {};
-                                // Try to find a file path that resembles the summary report
-                                const summaryKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("summary"));
-                                // The value in filesObj is the URL. The key is the filename.
-                                const fileUrl = summaryKey ? filesObj[summaryKey] : null;
-                                const fileName = summaryKey || "Overall Summary Report.xlsx";
+                            <div className="h-12"></div>
 
-                                return (
-                                  <div className={`p-6 rounded-2xl border transition-all duration-300 shadow-sm relative overflow-hidden group hover:shadow-lg ${darkMode ? "border-slate-700 hover:shadow-slate-700/50" : "border-blue-100 hover:shadow-blue-100"}`}>
-                                    {/* Gradient Background */}
-                                    <div className={`absolute inset-0 opacity-10 ${darkMode ? "bg-gradient-to-br from-blue-600 to-cyan-400" : "bg-gradient-to-br from-blue-500 to-cyan-300"}`} />
+                            {/* Bulk: MIS Files (Multiple) */}
+                            <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                              }`}>
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-lg ${darkMode ? "bg-purple-900/30 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
+                                    📑
+                                  </div>
+                                  <div>
+                                    <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>MIS Files</h3>
+                                    <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                      Multiple Files Allowed
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
 
-                                    <div className="relative z-10 flex items-start justify-between">
-                                      <div className="flex gap-4">
-                                        <div className={`p-3 rounded-xl h-fit shadow-sm ${darkMode ? "bg-slate-800 text-blue-400" : "bg-white text-blue-600"}`}>
-                                          <FileText size={32} strokeWidth={1.5} />
+                              {/* File List displayed ABOVE upload area */}
+                              {bulkMisFiles.length > 0 && (
+                                <div className="mb-4 space-y-2">
+                                  {bulkMisFiles.map((file, idx) => (
+                                    <div key={idx} className={`flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                                      <div className="flex items-center gap-2 overflow-hidden">
+                                        <span className="text-lg">📊</span>
+                                        <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
+                                      </div>
+                                      <button
+                                        onClick={() => setBulkMisFiles(prev => prev.filter((_, i) => i !== idx))}
+                                        className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <FileUpload
+                                key={`bulk-mis-${bulkMisResetKey}`}
+                                accept={accepts.mis}
+                                multiple={true}
+                                onChange={(files) => {
+                                  if (files.length > 0) {
+                                    setBulkMisFiles(prev => [...prev, ...files]);
+                                    setBulkMisResetKey(k => k + 1);
+                                  }
+                                }}
+                                uploaderId="bulk-mis-upload"
+                                darkMode={darkMode}
+                              />
+                            </div>
+
+                            <div className="h-12"></div>
+
+                            {/* Bulk: Outstanding File (Single) */}
+                            <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                              }`}>
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-lg ${darkMode ? "bg-amber-900/30 text-amber-400" : "bg-amber-50 text-amber-600"}`}>
+                                    📋
+                                  </div>
+                                  <div>
+                                    <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Outstanding Report</h3>
+                                    <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                      Single File (Master)
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {bulkOutstandingFile && (
+                                <div className={`mb-4 flex items-center justify-between p-2 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                                  <div className="flex items-center gap-2 overflow-hidden">
+                                    <span className="text-lg">✅</span>
+                                    <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{bulkOutstandingFile.name}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => setBulkOutstandingFile(null)}
+                                    className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              )}
+
+                              <FileUpload
+                                key={`bulk-outstanding-${bulkOutstandingResetKey}`}
+                                accept={accepts.outstanding}
+                                multiple={false}
+                                onChange={(files) => {
+                                  if (files.length > 0) {
+                                    setBulkOutstandingFile(files[0] || null);
+                                    setBulkOutstandingResetKey(k => k + 1);
+                                  }
+                                }}
+                                uploaderId="bulk-outstanding-upload"
+                                darkMode={darkMode}
+                              />
+                            </div>
+
+                            {/* Run Bulk Button */}
+                            <div className="mt-12 flex justify-center">
+                              <FancyButton
+                                onClick={handleBulkReconcile}
+                                disabled={bulkLoading}
+                                borderRadius="1.75rem"
+                                className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800 w-auto px-8 py-3"
+                              >
+                                {bulkLoading ? "Processing..." : "Run Bulk Reconciliation"}
+                              </FancyButton>
+                            </div>
+
+                            {/* Bulk Results - Full Width Container */}
+                            {bulkResult && (
+                              <div
+                                className={`mt-12 py-8 border-y shadow-sm ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-gray-50 border-gray-200"}`}
+                                style={{
+                                  width: "100vw",
+                                  position: "relative",
+                                  left: "50%",
+                                  right: "50%",
+                                  marginLeft: "-50vw",
+                                  marginRight: "-50vw",
+                                  paddingLeft: "max(2rem, calc((100vw - 1600px) / 2))",
+                                  paddingRight: "max(2rem, calc((100vw - 1600px) / 2))",
+                                }}
+                              >
+                                <div className="flex flex-col mb-8 px-4 gap-4">
+                                  <div className="flex items-center justify-between">
+                                    <h3 className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                      Bulk Reconciliation Results
+                                    </h3>
+                                  </div>
+
+                                  {/* Inline Progress Indicator */}
+                                  {bulkLoading && (
+                                    <div className={`rounded-xl p-6 border ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-blue-50 border-blue-200"}`}>
+                                      <div className="flex items-start gap-4">
+                                        {/* Mini Spinner / Lottie */}
+                                        <div style={{ width: "48px", height: "48px", flexShrink: 0 }}>
+                                          {animationData ? (
+                                            <Lottie
+                                              animationData={animationData}
+                                              loop={true}
+                                              style={{ width: "100%", height: "100%" }}
+                                            />
+                                          ) : (
+                                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500"></div>
+                                          )}
                                         </div>
-                                        <div>
-                                          <h4 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Overall Summary Report</h4>
-                                          <p className={`text-sm mb-4 font-medium opacity-80 ${darkMode ? "text-slate-300" : "text-gray-600"}`}>{fileName}</p>
 
-                                          <div className="flex gap-3">
-                                            {fileUrl ? (
-                                              <>
-                                                <button
-                                                  onClick={() => handleAuthenticatedDownload(fileUrl, fileName)}
-                                                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
-                                                >
-                                                  <Download size={16} />
-                                                  Download
-                                                </button>
-                                                <button
-                                                  onClick={() => handlePreviewFile(fileUrl, fileName)}
-                                                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-all active:scale-95 ${darkMode ? "bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700" : "bg-white/60 border-blue-200 text-blue-700 hover:bg-white"}`}
-                                                >
-                                                  {previewLoading && previewFilename === fileName ? (
-                                                    <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                                                  ) : (
-                                                    <Eye size={16} />
-                                                  )}
-                                                  Preview
-                                                </button>
-                                              </>
-                                            ) : (
-                                              <span className="text-sm text-gray-400 italic">
-                                                {bulkLoading ? "Wait for completion..." : "File not found"}
-                                              </span>
-                                            )}
+                                        <div className="flex-1">
+                                          <h4 className={`text-lg font-bold mb-1 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                            {processingStatus || "Processing..."}
+                                          </h4>
+                                          <p className={`text-sm mb-3 ${darkMode ? "text-slate-400" : "text-gray-600"}`}>
+                                            Updating results in real-time.
+                                          </p>
+
+                                          {/* Progress Bar */}
+                                          <div className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
+                                            <div className="h-full bg-blue-500 animate-[shimmer_2s_infinite]"
+                                              style={{
+                                                width: '100%',
+                                                backgroundSize: '200% auto',
+                                                backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)'
+                                              }}>
+                                            </div>
+                                          </div>
+
+                                          {/* Warning */}
+                                          <div className={`text-xs font-semibold flex items-center gap-2 ${darkMode ? "text-amber-400" : "text-amber-700"}`}>
+                                            <AlertCircle size={14} />
+                                            <span>Please do not reload or close this page until the process is complete.</span>
                                           </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })()}
+                                  )}
+                                </div>
 
-                              {/* Consolidated Matches Card */}
-                              {(() => {
-                                const filesObj = bulkResult.files || {};
-                                const consolidatedKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("consolidated") || k.toLowerCase().includes("posting"));
-                                const fileUrl = consolidatedKey ? filesObj[consolidatedKey] : null;
-                                const fileName = consolidatedKey || "Final posting sheet (Consolidated).xlsx";
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 px-4">
+                                  {/* Overall Summary Report Card */}
+                                  {(() => {
+                                    const filesObj = bulkResult.files || {};
+                                    // Try to find a file path that resembles the summary report
+                                    const summaryKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("summary"));
+                                    // The value in filesObj is the URL. The key is the filename.
+                                    const fileUrl = summaryKey ? filesObj[summaryKey] : null;
+                                    const fileName = summaryKey || "Overall Summary Report.xlsx";
 
-                                return (
-                                  <div className={`p-6 rounded-2xl border transition-all duration-300 shadow-sm relative overflow-hidden group hover:shadow-lg ${darkMode ? "border-slate-700 hover:shadow-slate-700/50" : "border-blue-100 hover:shadow-blue-100"}`}>
-                                    {/* Gradient Background */}
-                                    <div className={`absolute inset-0 opacity-10 ${darkMode ? "bg-gradient-to-br from-emerald-600 to-teal-400" : "bg-gradient-to-br from-emerald-500 to-teal-300"}`} />
+                                    return (
+                                      <div className={`p-6 rounded-2xl border transition-all duration-300 shadow-sm relative overflow-hidden group hover:shadow-lg ${darkMode ? "border-slate-700 hover:shadow-slate-700/50" : "border-blue-100 hover:shadow-blue-100"}`}>
+                                        {/* Gradient Background */}
+                                        <div className={`absolute inset-0 opacity-10 ${darkMode ? "bg-gradient-to-br from-blue-600 to-cyan-400" : "bg-gradient-to-br from-blue-500 to-cyan-300"}`} />
 
-                                    <div className="relative z-10 flex items-start justify-between">
-                                      <div className="flex gap-4">
-                                        <div className={`p-3 rounded-xl h-fit shadow-sm ${darkMode ? "bg-slate-800 text-emerald-400" : "bg-white text-emerald-600"}`}>
-                                          <FileSpreadsheet size={32} strokeWidth={1.5} />
-                                        </div>
-                                        <div>
-                                          <h4 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Final posting sheet (Consolidated)</h4>
-                                          <p className={`text-sm mb-4 font-medium opacity-80 ${darkMode ? "text-slate-300" : "text-gray-600"}`}>{fileName}</p>
+                                        <div className="relative z-10 flex items-start justify-between">
+                                          <div className="flex gap-4">
+                                            <div className={`p-3 rounded-xl h-fit shadow-sm ${darkMode ? "bg-slate-800 text-blue-400" : "bg-white text-blue-600"}`}>
+                                              <FileText size={32} strokeWidth={1.5} />
+                                            </div>
+                                            <div>
+                                              <h4 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Overall Summary Report</h4>
+                                              <p className={`text-sm mb-4 font-medium opacity-80 ${darkMode ? "text-slate-300" : "text-gray-600"}`}>{fileName}</p>
 
-                                          <div className="flex gap-3">
-                                            {fileUrl ? (
-                                              <>
-                                                <button
-                                                  onClick={() => handleAuthenticatedDownload(fileUrl, fileName)}
-                                                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95"
-                                                >
-                                                  <Download size={16} />
-                                                  Download
-                                                </button>
-                                                <button
-                                                  onClick={() => handlePreviewFile(fileUrl, fileName)}
-                                                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-all active:scale-95 ${darkMode ? "bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700" : "bg-white/60 border-emerald-200 text-emerald-700 hover:bg-white"}`}
-                                                >
-                                                  {previewLoading && previewFilename === fileName ? (
-                                                    <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                                                  ) : (
-                                                    <Eye size={16} />
-                                                  )}
-                                                  Preview
-                                                </button>
-                                              </>
-                                            ) : (
-                                              <span className="text-sm text-gray-400 italic">
-                                                {bulkLoading ? "Wait for completion..." : "File not found"}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-
-                            {/* Results Table */}
-                            {bulkResult.summary && (
-                              <div className={`mx-4 overflow-hidden border rounded-xl shadow-sm ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-white"}`}>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-sm text-left">
-                                    <thead className={`text-xs uppercase font-semibold ${darkMode ? "bg-slate-700/50 text-slate-300" : "bg-gray-50 text-gray-500"}`}>
-                                      <tr>
-                                        <th className="px-6 py-4 whitespace-nowrap">Bank File</th>
-                                        <th className="px-6 py-4 whitespace-nowrap">MIS File</th>
-                                        <th className="px-6 py-4 whitespace-nowrap">Bank Type</th>
-                                        <th className="px-6 py-4 whitespace-nowrap">TPA</th>
-                                        <th className="px-4 py-4 text-center whitespace-nowrap">Bank Rows</th>
-                                        <th className="px-4 py-4 text-center whitespace-nowrap">MIS Rows</th>
-                                        <th className="px-4 py-4 text-center whitespace-nowrap">Step 2 Match</th>
-                                        <th className="px-4 py-4 text-center whitespace-nowrap">Final Match</th>
-                                        <th className="px-6 py-4 whitespace-nowrap">Status</th>
-                                        <th className="px-6 py-4 whitespace-nowrap text-right">Action</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className={`divide-y ${darkMode ? "divide-slate-700" : "divide-gray-100"}`}>
-                                      {bulkResult.summary.map((row, idx) => {
-                                        const isExpanded = expandedBulkRow === idx;
-                                        const outputFileName = row["Output File"] || row["Result File"] || `Result_${idx}.xlsx`;
-
-                                        // Determine if we have any files to show
-                                        const hasFiles = (row.produced_files && Object.keys(row.produced_files).length > 0) ||
-                                          (bulkResult.files && (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]));
-
-                                        // Bank Card Style Helper
-                                        const getBankCardStyle = (type) => {
-                                          const t = (type || "").toLowerCase();
-                                          if (t.includes("standard")) return { background: "linear-gradient(135deg, #003087 0%, #0056b3 100%)", icon: "💎" }; // Standard Chartered Blue
-                                          if (t.includes("icici")) return { background: "linear-gradient(135deg, #871f42 0%, #f37021 100%)", icon: "🟠" }; // ICICI Orange/Red
-                                          if (t.includes("axis")) return { background: "linear-gradient(135deg, #871242 0%, #be185d 100%)", icon: "🔴" }; // Axis Maroon/Pink
-                                          return { background: "linear-gradient(135deg, #64748b 0%, #94a3b8 100%)", icon: "🏦" }; // Default Gray
-                                        };
-                                        const bankStyle = getBankCardStyle(row["Bank Type"]);
-
-                                        return (
-                                          <React.Fragment key={idx}>
-                                            <tr className={`transition-colors ${darkMode ? "hover:bg-slate-700/30" : "hover:bg-gray-50"} ${isExpanded ? (darkMode ? "bg-slate-700/30" : "bg-gray-50") : ""}`}>
-                                              <td className={`px-6 py-4 font-medium max-w-[200px] truncate ${darkMode ? "text-slate-200" : "text-gray-900"}`} title={row["Bank File"]}>
-                                                {row["Bank File"]}
-                                              </td>
-                                              <td className={`px-6 py-4 max-w-[200px] truncate ${darkMode ? "text-slate-400" : "text-gray-600"}`} title={row["MIS File"]}>
-                                                {row["MIS File"]}
-                                              </td>
-                                              <td className="px-6 py-4">
-                                                <span
-                                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold text-white shadow-sm uppercase tracking-wide"
-                                                  style={{ background: bankStyle.background }}
-                                                >
-                                                  {row["Bank Type"] || "UNKNOWN"}
-                                                </span>
-                                              </td>
-                                              <td className="px-6 py-4 text-blue-500 font-medium max-w-[150px] truncate">
-                                                {row["TPA"] || "IHX (Original MIS)"}
-                                              </td>
-                                              <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
-                                                {row["Bank Rows"] || 0}
-                                              </td>
-                                              <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
-                                                {row["MIS Rows"] || 0}
-                                              </td>
-                                              <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
-                                                {row["Step 2 Match"] || 0}
-                                              </td>
-                                              <td className={`px-4 py-4 text-center font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                                {row["Final Match"] || 0}
-                                              </td>
-                                              <td className="px-6 py-4">
-                                                {(() => {
-                                                  const status = (row.Status || "").toLowerCase();
-                                                  let badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"; // Default: Error/Fail
-
-                                                  if (status === "success" || status === "completed") {
-                                                    badgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-                                                  } else if (status === "pending" || status === "processing" || status === "generating") {
-                                                    badgeClass = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-                                                  }
-
-                                                  return (
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${badgeClass}`}>
-                                                      {row.Status || "Unknown"}
-                                                    </span>
-                                                  );
-                                                })()}
-                                              </td>
-                                              <td className="px-6 py-4 text-right">
-                                                {hasFiles ? (
-                                                  <button
-                                                    onClick={() => setExpandedBulkRow(isExpanded ? null : idx)}
-                                                    className={`inline-flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-medium border transition-all ${isExpanded
-                                                      ? "bg-slate-100 border-slate-300 text-slate-700 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
-                                                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"}`}
-                                                  >
-                                                    View Files
-                                                    <span className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▼</span>
-                                                  </button>
+                                              <div className="flex gap-3">
+                                                {fileUrl ? (
+                                                  <>
+                                                    <button
+                                                      onClick={() => handleAuthenticatedDownload(fileUrl, fileName)}
+                                                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-md shadow-blue-500/20 active:scale-95"
+                                                    >
+                                                      <Download size={16} />
+                                                      Download
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handlePreviewFile(fileUrl, fileName)}
+                                                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-all active:scale-95 ${darkMode ? "bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700" : "bg-white/60 border-blue-200 text-blue-700 hover:bg-white"}`}
+                                                    >
+                                                      {previewLoading && previewFilename === fileName ? (
+                                                        <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                                      ) : (
+                                                        <Eye size={16} />
+                                                      )}
+                                                      Preview
+                                                    </button>
+                                                  </>
                                                 ) : (
-                                                  <span className="text-xs text-gray-400 italic">
-                                                    {bulkLoading ? "Generating..." : "No Files"}
+                                                  <span className="text-sm text-gray-400 italic">
+                                                    {bulkLoading ? "Wait for completion..." : "File not found"}
                                                   </span>
                                                 )}
-                                              </td>
-                                            </tr>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
 
-                                            {/* Expanded File Details */}
-                                            {isExpanded && (
-                                              <tr className="animate-in fade-in slide-in-from-top-2 duration-200">
-                                                <td colSpan={10} className={`p-0 ${darkMode ? "bg-slate-800/30" : "bg-gray-50/50"}`}>
-                                                  <div className={`p-6 border-b border-t ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                      {row.produced_files && typeof row.produced_files === 'object' ? (
-                                                        Object.entries(row.produced_files).map(([label, fileName]) => {
-                                                          const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
-                                                          // Removed the 'if (!fUrl) return null' check so we can show the tile even without URL
+                                  {/* Consolidated Matches Card */}
+                                  {(() => {
+                                    const filesObj = bulkResult.files || {};
+                                    const consolidatedKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("consolidated") || k.toLowerCase().includes("posting"));
+                                    const fileUrl = consolidatedKey ? filesObj[consolidatedKey] : null;
+                                    const fileName = consolidatedKey || "Final posting sheet (Consolidated).xlsx";
 
+                                    return (
+                                      <div className={`p-6 rounded-2xl border transition-all duration-300 shadow-sm relative overflow-hidden group hover:shadow-lg ${darkMode ? "border-slate-700 hover:shadow-slate-700/50" : "border-blue-100 hover:shadow-blue-100"}`}>
+                                        {/* Gradient Background */}
+                                        <div className={`absolute inset-0 opacity-10 ${darkMode ? "bg-gradient-to-br from-emerald-600 to-teal-400" : "bg-gradient-to-br from-emerald-500 to-teal-300"}`} />
 
-                                                          return (
-                                                            <div key={fileName} className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-gray-200"}`}>
-                                                              <div className="min-w-0 mr-4">
-                                                                <div className={`text-xs font-semibold uppercase mb-0.5 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{label}</div>
-                                                                <div className={`text-sm truncate font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{fileName}</div>
-                                                              </div>
-                                                              <div className="flex gap-2 shrink-0">
-                                                                {fUrl ? (
-                                                                  <>
-                                                                    <button
-                                                                      onClick={() => handleAuthenticatedDownload(fUrl, fileName)}
-                                                                      className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
-                                                                      title="Download"
-                                                                    >
-                                                                      <Download size={16} />
-                                                                    </button>
-                                                                    <button
-                                                                      onClick={() => handlePreviewFile(fUrl, fileName)}
-                                                                      className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
-                                                                      title="Preview"
-                                                                    >
-                                                                      <Eye size={16} />
-                                                                    </button>
-                                                                  </>
-                                                                ) : (
-                                                                  <span className="text-xs text-amber-500 font-medium self-center px-2">
-                                                                    {bulkLoading ? "Generating..." : "Pending"}
-                                                                  </span>
-                                                                )}
-                                                              </div>
-                                                            </div>
-                                                          );
-                                                        })
+                                        <div className="relative z-10 flex items-start justify-between">
+                                          <div className="flex gap-4">
+                                            <div className={`p-3 rounded-xl h-fit shadow-sm ${darkMode ? "bg-slate-800 text-emerald-400" : "bg-white text-emerald-600"}`}>
+                                              <FileSpreadsheet size={32} strokeWidth={1.5} />
+                                            </div>
+                                            <div>
+                                              <h4 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>Final posting sheet (Consolidated)</h4>
+                                              <p className={`text-sm mb-4 font-medium opacity-80 ${darkMode ? "text-slate-300" : "text-gray-600"}`}>{fileName}</p>
+
+                                              <div className="flex gap-3">
+                                                {fileUrl ? (
+                                                  <>
+                                                    <button
+                                                      onClick={() => handleAuthenticatedDownload(fileUrl, fileName)}
+                                                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95"
+                                                    >
+                                                      <Download size={16} />
+                                                      Download
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handlePreviewFile(fileUrl, fileName)}
+                                                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold border transition-all active:scale-95 ${darkMode ? "bg-slate-800/50 border-slate-600 text-slate-200 hover:bg-slate-700" : "bg-white/60 border-emerald-200 text-emerald-700 hover:bg-white"}`}
+                                                    >
+                                                      {previewLoading && previewFilename === fileName ? (
+                                                        <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
                                                       ) : (
-                                                        // Fallback logic
-                                                        null
+                                                        <Eye size={16} />
                                                       )}
-                                                    </div>
-                                                  </div>
-                                                </td>
-                                              </tr>
-                                            )}
-                                          </React.Fragment>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
+                                                      Preview
+                                                    </button>
+                                                  </>
+                                                ) : (
+                                                  <span className="text-sm text-gray-400 italic">
+                                                    {bulkLoading ? "Wait for completion..." : "File not found"}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+
+                                {/* Results Table */}
+                                {bulkResult.summary && (
+                                  <div className={`mx-4 overflow-hidden border rounded-xl shadow-sm ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-white"}`}>
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-sm text-left">
+                                        <thead className={`text-xs uppercase font-semibold ${darkMode ? "bg-slate-700/50 text-slate-300" : "bg-gray-50 text-gray-500"}`}>
+                                          <tr>
+                                            <th className="px-6 py-4 whitespace-nowrap">Bank File</th>
+                                            <th className="px-6 py-4 whitespace-nowrap">MIS File</th>
+                                            <th className="px-6 py-4 whitespace-nowrap">Bank Type</th>
+                                            <th className="px-6 py-4 whitespace-nowrap">TPA</th>
+                                            <th className="px-4 py-4 text-center whitespace-nowrap">Bank Rows</th>
+                                            <th className="px-4 py-4 text-center whitespace-nowrap">MIS Rows</th>
+                                            <th className="px-4 py-4 text-center whitespace-nowrap">Step 2 Match</th>
+                                            <th className="px-4 py-4 text-center whitespace-nowrap">Final Auto</th>
+                                            <th className="px-4 py-4 text-center whitespace-nowrap">Review Match</th>
+                                            <th className="px-6 py-4 whitespace-nowrap">Status</th>
+                                            <th className="px-6 py-4 whitespace-nowrap text-right">Action</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className={`divide-y ${darkMode ? "divide-slate-700" : "divide-gray-100"}`}>
+                                          {bulkResult.summary.map((row, idx) => {
+                                            const isExpanded = expandedBulkRow === idx;
+                                            const outputFileName = row["Output File"] || row["Result File"] || `Result_${idx}.xlsx`;
+
+                                            // Determine if we have any files to show
+                                            const hasFiles = (row.produced_files && Object.keys(row.produced_files).length > 0) ||
+                                              (bulkResult.files && (bulkResult.files[row["Output File"]] || bulkResult.files[row["Result File"]]));
+
+                                            // Bank Card Style Helper
+                                            const getBankCardStyle = (type) => {
+                                              const t = (type || "").toLowerCase();
+                                              if (t.includes("standard")) return { background: "linear-gradient(135deg, #003087 0%, #0056b3 100%)", icon: "💎" }; // Standard Chartered Blue
+                                              if (t.includes("icici")) return { background: "linear-gradient(135deg, #871f42 0%, #f37021 100%)", icon: "🟠" }; // ICICI Orange/Red
+                                              if (t.includes("axis")) return { background: "linear-gradient(135deg, #871242 0%, #be185d 100%)", icon: "🔴" }; // Axis Maroon/Pink
+                                              return { background: "linear-gradient(135deg, #64748b 0%, #94a3b8 100%)", icon: "🏦" }; // Default Gray
+                                            };
+                                            const bankStyle = getBankCardStyle(row["Bank Type"]);
+
+                                            return (
+                                              <React.Fragment key={idx}>
+                                                <tr className={`transition-colors ${darkMode ? "hover:bg-slate-700/30" : "hover:bg-gray-50"} ${isExpanded ? (darkMode ? "bg-slate-700/30" : "bg-gray-50") : ""}`}>
+                                                  <td className={`px-6 py-4 font-medium max-w-[200px] truncate ${darkMode ? "text-slate-200" : "text-gray-900"}`} title={row["Bank File"]}>
+                                                    {row["Bank File"]}
+                                                  </td>
+                                                  <td className={`px-6 py-4 max-w-[200px] truncate ${darkMode ? "text-slate-400" : "text-gray-600"}`} title={row["MIS File"]}>
+                                                    {row["MIS File"]}
+                                                  </td>
+                                                  <td className="px-6 py-4">
+                                                    <span
+                                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold text-white shadow-sm uppercase tracking-wide"
+                                                      style={{ background: bankStyle.background }}
+                                                    >
+                                                      {row["Bank Type"] || "UNKNOWN"}
+                                                    </span>
+                                                  </td>
+                                                  <td className="px-6 py-4 text-blue-500 font-medium max-w-[150px] truncate">
+                                                    {row["TPA"] || "IHX (Original MIS)"}
+                                                  </td>
+                                                  <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
+                                                    {row["Bank Rows"] || 0}
+                                                  </td>
+                                                  <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
+                                                    {row["MIS Rows"] || 0}
+                                                  </td>
+                                                  <td className={`px-4 py-4 text-center ${darkMode ? "text-slate-300" : "text-gray-700"}`}>
+                                                    {row["Step 2 Match"] || 0}
+                                                  </td>
+                                                  <td className={`px-4 py-4 text-center font-bold ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                                                    {row["Final Match"] || 0}
+                                                  </td>
+                                                  <td className={`px-4 py-4 text-center font-bold ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
+                                                    {row["Review Match"] || 0}
+                                                  </td>
+                                                  <td className="px-6 py-4">
+                                                    {(() => {
+                                                      const status = (row.Status || "").toLowerCase();
+                                                      let badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"; // Default: Error/Fail
+
+                                                      if (status === "success" || status === "completed") {
+                                                        badgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+                                                      } else if (status === "pending" || status === "processing" || status === "generating") {
+                                                        badgeClass = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+                                                      }
+
+                                                      return (
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${badgeClass}`}>
+                                                          {row.Status || "Unknown"}
+                                                        </span>
+                                                      );
+                                                    })()}
+                                                  </td>
+                                                  <td className="px-6 py-4 text-right">
+                                                    {hasFiles ? (
+                                                      <button
+                                                        onClick={() => setExpandedBulkRow(isExpanded ? null : idx)}
+                                                        className={`inline-flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-medium border transition-all ${isExpanded
+                                                          ? "bg-slate-100 border-slate-300 text-slate-700 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+                                                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"}`}
+                                                      >
+                                                        View Files
+                                                        <span className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+                                                      </button>
+                                                    ) : (
+                                                      <span className="text-xs text-gray-400 italic">
+                                                        {bulkLoading ? "Generating..." : "No Files"}
+                                                      </span>
+                                                    )}
+                                                  </td>
+                                                </tr>
+
+                                                {/* Expanded File Details */}
+                                                {isExpanded && (
+                                                  <tr className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <td colSpan={10} className={`p-0 ${darkMode ? "bg-slate-800/30" : "bg-gray-50/50"}`}>
+                                                      <div className={`p-6 border-b border-t ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                          {row.produced_files && typeof row.produced_files === 'object' ? (
+                                                            Object.entries(row.produced_files).map(([label, fileName]) => {
+                                                              const fUrl = bulkResult.files ? bulkResult.files[fileName] : null;
+                                                              // Removed the 'if (!fUrl) return null' check so we can show the tile even without URL
+
+
+                                                              return (
+                                                                <div key={fileName} className={`flex items-center justify-between p-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-gray-200"}`}>
+                                                                  <div className="min-w-0 mr-4">
+                                                                    <div className={`text-xs font-semibold uppercase mb-0.5 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{label}</div>
+                                                                    <div className={`text-sm truncate font-medium ${darkMode ? "text-slate-200" : "text-gray-900"}`}>{fileName}</div>
+                                                                  </div>
+                                                                  <div className="flex gap-2 shrink-0">
+                                                                    {fUrl ? (
+                                                                      <>
+                                                                        <button
+                                                                          onClick={() => handleAuthenticatedDownload(fUrl, fileName)}
+                                                                          className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                          title="Download"
+                                                                        >
+                                                                          <Download size={16} />
+                                                                        </button>
+                                                                        <button
+                                                                          onClick={() => handlePreviewFile(fUrl, fileName)}
+                                                                          className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"}`}
+                                                                          title="Preview"
+                                                                        >
+                                                                          <Eye size={16} />
+                                                                        </button>
+                                                                      </>
+                                                                    ) : (
+                                                                      <span className="text-xs text-amber-500 font-medium self-center px-2">
+                                                                        {bulkLoading ? "Generating..." : "Pending"}
+                                                                      </span>
+                                                                    )}
+                                                                  </div>
+                                                                </div>
+                                                              );
+                                                            })
+                                                          ) : (
+                                                            // Fallback logic
+                                                            null
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                )}
+                                              </React.Fragment>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Download ZIP Button */}
+                                <div className="mt-12 flex justify-center pb-8">
+                                  {bulkResult.zip_url && (
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          const token = localStorage.getItem('access_token');
+                                          const headers = {};
+                                          if (token) {
+                                            headers['Authorization'] = `Bearer ${token}`;
+                                          }
+                                          const fullUrl = `${API_BASE.replace(/\/$/, "")}${bulkResult.zip_url}`;
+                                          const dlRes = await authenticatedFetch(fullUrl, { headers });
+                                          const blob = await dlRes.blob();
+                                          const downloadUrl = window.URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = downloadUrl;
+                                          a.download = bulkResult.zip_url.split('/').pop() || 'bulk_reconciliation.zip';
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          window.URL.revokeObjectURL(downloadUrl);
+                                          document.body.removeChild(a);
+                                        } catch (e) {
+                                          console.error("Download failed:", e);
+                                          alert("Failed to download ZIP file.");
+                                        }
+                                      }}
+                                      className="flex items-center gap-3 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-bold shadow-lg shadow-emerald-500/30 transition-all transform hover:-translate-y-1 active:translate-y-0"
+                                    >
+                                      <Download />
+                                      <span>Download Results ZIP</span>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             )}
 
-                            {/* Download ZIP Button */}
-                            <div className="mt-12 flex justify-center pb-8">
-                              {bulkResult.zip_url && (
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const token = localStorage.getItem('access_token');
-                                      const headers = {};
-                                      if (token) {
-                                        headers['Authorization'] = `Bearer ${token}`;
-                                      }
-                                      const fullUrl = `${API_BASE.replace(/\/$/, "")}${bulkResult.zip_url}`;
-                                      const dlRes = await authenticatedFetch(fullUrl, { headers });
-                                      const blob = await dlRes.blob();
-                                      const downloadUrl = window.URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = downloadUrl;
-                                      a.download = bulkResult.zip_url.split('/').pop() || 'bulk_reconciliation.zip';
-                                      document.body.appendChild(a);
-                                      a.click();
-                                      window.URL.revokeObjectURL(downloadUrl);
-                                      document.body.removeChild(a);
-                                    } catch (e) {
-                                      console.error("Download failed:", e);
-                                      alert("Failed to download ZIP file.");
-                                    }
-                                  }}
-                                  className="flex items-center gap-3 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-bold shadow-lg shadow-emerald-500/30 transition-all transform hover:-translate-y-1 active:translate-y-0"
-                                >
-                                  <Download />
-                                  <span>Download Results ZIP</span>
-                                </button>
+
+                          </>
+                        ) : (
+                          // Standard Mode: Bank Statement Card
+                          <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                            }`}>
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
+                                  📄
+                                </div>
+                                <div>
+                                  <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statement</h3>
+                                  <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                    Excel (.xlsx)
+                                  </p>
+                                </div>
+                              </div>
+                              {bankFile && (
+                                <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
+                                  Uploaded
+                                </div>
                               )}
                             </div>
+
+                            {bankFile ? (
+                              <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-2xl">📊</div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                      {bankFile.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {(bankFile.size / 1024).toFixed(1)} KB
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => setBankFile(null)}
+                                    className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <FileUpload
+                                key={`bank-${fileResetKey}`}
+                                accept={accepts.bank}
+                                onChange={(files) => setBankFile(files[0] || null)}
+                                uploaderId="bank-upload"
+                                darkMode={darkMode}
+                              />
+                            )}
                           </div>
                         )}
 
+                        {/* Advance Statement Card - Hide in V2 */}
+                        {pipelineMode !== 'v2' && (
+                          <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
+                            }`}>
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${darkMode ? "bg-purple-900/30 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
+                                  📑
+                                </div>
+                                <div>
+                                  <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Advance Statement</h3>
+                                  <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                                    Excel (.xlsx)
+                                  </p>
+                                </div>
+                              </div>
+                              {advanceFile && (
+                                <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
+                                  Uploaded
+                                </div>
+                              )}
+                            </div>
 
+                            {advanceFile ? (
+                              <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-2xl">📋</div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                      {advanceFile.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {(advanceFile.size / 1024).toFixed(1)} KB
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => setAdvanceFile(null)}
+                                    className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <FileUpload
+                                key={`advance-${fileResetKey}`}
+                                accept={accepts.advance}
+                                onChange={(files) => setAdvanceFile(files[0] || null)}
+                                uploaderId="advance-upload"
+                                darkMode={darkMode}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {activeStep === 1 && (
+                    pipelineMode === 'v2' ? (
+                      <>
+                        <div style={{ marginBottom: 40, opacity: 0.9 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                            <div style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
+                              Detected Bank Account
+                            </div>
+                            <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium border border-emerald-500/20">
+                              Auto-Detected
+                            </div>
+                          </div>
+                          <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(3, 1fr)",
+                            gap: "20px",
+                            width: "100%"
+                          }}>
+                            {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
+                              <div key={bank}
+                                style={{ cursor: "default", height: "100%", opacity: 1 }}>
+                                <WobbleCard
+                                  containerClassName="h-full shadow-lg"
+                                  style={{
+                                    backgroundImage: bankType === bank
+                                      ? (bank === "Standard Chartered"
+                                        ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
+                                        : bank === "ICICI"
+                                          ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
+                                          : "linear-gradient(135deg, #871242 0%, #be185d 100%)")
+                                      : "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+                                    borderRadius: "1rem",
+                                    overflow: "hidden",
+                                    position: "relative",
+                                    minHeight: "150px",
+                                    border: bankType === bank ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
+                                  }}
+                                  className="p-4 flex flex-col justify-between h-full relative"
+                                >
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 10 }}>
+                                    <div>
+                                      <div style={{ fontSize: "1.1rem", fontWeight: "bold", marginBottom: "2px", color: "white" }}>
+                                        {bank}
+                                      </div>
+                                    </div>
+                                    <div style={{ width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                      {bankType === bank && (
+                                        <div style={{ background: "rgba(255,255,255,0.3)", backdropFilter: "blur(8px)", padding: "5px", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                                          <Check size={14} color="white" strokeWidth={3} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div style={{ marginTop: "auto", position: "relative", zIndex: 10 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "rgba(255,255,255,0.9)" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
+                                        <FileSpreadsheet size={12} />
+                                        <span>Bank Statement Protocol</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div style={{
+                                    position: "absolute",
+                                    right: "-15px",
+                                    bottom: "-15px",
+                                    opacity: 0.25,
+                                    pointerEvents: "none",
+                                    zIndex: 0,
+                                    transform: "rotate(-15deg)"
+                                  }}>
+                                    <Landmark size={100} color="white" />
+                                  </div>
+                                </WobbleCard>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{
+                          border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                          borderRadius: "12px",
+                          padding: "24px",
+                          textAlign: "center",
+                          background: misFile
+                            ? (darkMode ? "#064e3b" : "#f0fdf4")
+                            : (darkMode ? "#0f172a" : "white"),
+                          marginBottom: 40,
+                          boxShadow: theme.shadows?.[3] || "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+                        }}>
+                          <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                            {misFile ? "📄" : "📊"}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                            <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                              MIS Extract File
+                            </Typography>
+                            <Tooltip title="Upload your Management Information System extract" arrow>
+                              <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                            </Tooltip>
+                          </div>
+                          <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                            Excel (.xlsx)
+                          </Typography>
+
+                          {misFile ? (
+                            <div style={{
+                              background: darkMode ? "#0f172a" : "white",
+                              padding: "12px",
+                              borderRadius: "8px",
+                              display: "inline-block",
+                              border: darkMode ? "1px solid #334155" : "none"
+                            }}>
+                              <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                              <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                                {(misFile.size / 1024).toFixed(1)} KB
+                              </div>
+                            </div>
+                          ) : (
+                            <FileUpload
+                              key={`mis-v2-${fileResetKey}`}
+                              accept={accepts.mis}
+                              label="Click or drag to upload"
+                              onChange={(files) => setMisFile(files[0] || null)}
+                              name="mis_file"
+                              uploaderId="mis-upload-v2"
+                              darkMode={darkMode}
+                            />
+                          )}
+                        </div>
                       </>
                     ) : (
-                      // Standard Mode: Bank Statement Card
-                      <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
-                        }`}>
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
-                              📄
-                            </div>
-                            <div>
-                              <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Bank Statement</h3>
-                              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                                Excel (.xlsx)
-                              </p>
-                            </div>
-                          </div>
-                          {bankFile && (
-                            <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
-                              Uploaded
-                            </div>
-                          )}
-                        </div>
+                      <div style={{ textAlign: "center", padding: "32px 0" }}>
+                        <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔄</div>
+                        <Typography variant="h6" component="h2" style={{ marginBottom: 16, fontWeight: 600, color: theme.text }}>
+                          Bank × Advance Matching
+                        </Typography>
+                        <Typography variant="body2" style={{ maxWidth: "500px", margin: "0 auto", color: theme.textSecondary }}>
+                          This step automatically matches Bank transactions with Advance records using reference numbers.
+                          Click <strong>Next</strong> to process.
+                        </Typography>
+                      </div>
+                    )
+                  )}
 
-                        {bankFile ? (
-                          <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
-                            <div className="flex items-center gap-3">
-                              <div className="text-2xl">📊</div>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                  {bankFile.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {(bankFile.size / 1024).toFixed(1)} KB
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => setBankFile(null)}
-                                className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                  {activeStep === 2 && (
+                    <>
+                      {pipelineMode !== 'v2' ? (
+                        <>
+                          <div style={{ position: "relative", marginBottom: 20 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                              <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>Select TPA</label>
+                              <Tooltip title="Choose your Third Party Administrator for MIS mapping" arrow>
+                                <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
+                              </Tooltip>
+                            </div>
+                            <div style={{ position: "relative" }}>
+                              <select
+                                value={tpaName}
+                                onChange={(e) => setTpaName(e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  padding: "16px 20px",
+                                  paddingRight: "48px",
+                                  appearance: "none",
+                                  background: darkMode ? "rgba(30, 41, 59, 0.7)" : "rgba(255, 255, 255, 0.8)",
+                                  backdropFilter: "blur(12px)",
+                                  border: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.05)",
+                                  borderRadius: "16px",
+                                  color: theme.text,
+                                  fontSize: "16px",
+                                  fontWeight: 500,
+                                  cursor: "pointer",
+                                  outline: "none",
+                                  boxShadow: darkMode ? "0 4px 6px rgba(0, 0, 0, 0.2)" : "0 4px 6px rgba(0, 0, 0, 0.05)",
+                                  transition: "all 0.2s ease"
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+                                onBlur={(e) => e.target.style.borderColor = darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"}
                               >
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <FileUpload
-                            key={`bank-${fileResetKey}`}
-                            accept={accepts.bank}
-                            onChange={(files) => setBankFile(files[0] || null)}
-                            uploaderId="bank-upload"
-                            darkMode={darkMode}
-                          />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Advance Statement Card - Hide in V2 */}
-                    {pipelineMode !== 'v2' && (
-                      <div className={`p-6 rounded-2xl border transition-all duration-300 ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200 shadow-sm hover:shadow-md"
-                        }`}>
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${darkMode ? "bg-purple-900/30 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
-                              📑
-                            </div>
-                            <div>
-                              <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>Advance Statement</h3>
-                              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                                Excel (.xlsx)
-                              </p>
-                            </div>
-                          </div>
-                          {advanceFile && (
-                            <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium">
-                              Uploaded
-                            </div>
-                          )}
-                        </div>
-
-                        {advanceFile ? (
-                          <div className={`p-4 rounded-xl border ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
-                            <div className="flex items-center gap-3">
-                              <div className="text-2xl">📋</div>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
-                                  {advanceFile.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {(advanceFile.size / 1024).toFixed(1)} KB
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => setAdvanceFile(null)}
-                                className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <FileUpload
-                            key={`advance-${fileResetKey}`}
-                            accept={accepts.advance}
-                            onChange={(files) => setAdvanceFile(files[0] || null)}
-                            uploaderId="advance-upload"
-                            darkMode={darkMode}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {activeStep === 1 && (
-                pipelineMode === 'v2' ? (
-                  <>
-                    <div style={{ marginBottom: 40, opacity: 0.9 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                        <div style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>
-                          Detected Bank Account
-                        </div>
-                        <div className="text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded text-xs font-medium border border-emerald-500/20">
-                          Auto-Detected
-                        </div>
-                      </div>
-                      <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, 1fr)",
-                        gap: "20px",
-                        width: "100%"
-                      }}>
-                        {["Standard Chartered", "ICICI", "AXIS"].map((bank) => (
-                          <div key={bank}
-                            style={{ cursor: "default", height: "100%", opacity: 1 }}>
-                            <WobbleCard
-                              containerClassName="h-full shadow-lg"
-                              style={{
-                                backgroundImage: bankType === bank
-                                  ? (bank === "Standard Chartered"
-                                    ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
-                                    : bank === "ICICI"
-                                      ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
-                                      : "linear-gradient(135deg, #871242 0%, #be185d 100%)")
-                                  : "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
-                                borderRadius: "1rem",
-                                overflow: "hidden",
-                                position: "relative",
-                                minHeight: "150px",
-                                border: bankType === bank ? "2px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)"
-                              }}
-                              className="p-4 flex flex-col justify-between h-full relative"
-                            >
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 10 }}>
-                                <div>
-                                  <div style={{ fontSize: "1.1rem", fontWeight: "bold", marginBottom: "2px", color: "white" }}>
-                                    {bank}
-                                  </div>
-                                </div>
-                                <div style={{ width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                  {bankType === bank && (
-                                    <div style={{ background: "rgba(255,255,255,0.3)", backdropFilter: "blur(8px)", padding: "5px", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-                                      <Check size={14} color="white" strokeWidth={3} />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div style={{ marginTop: "auto", position: "relative", zIndex: 10 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.75rem", color: "rgba(255,255,255,0.9)" }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(0,0,0,0.25)", padding: "2px 8px", borderRadius: "4px", backdropFilter: "blur(4px)" }}>
-                                    <FileSpreadsheet size={12} />
-                                    <span>Bank Statement Protocol</span>
-                                  </div>
-                                </div>
-                              </div>
-
+                                {tpaChoices.map((tpa) => (
+                                  <option key={tpa} value={tpa} style={{ background: darkMode ? "#1e293b" : "white", color: theme.text }}>
+                                    {tpa}
+                                  </option>
+                                ))}
+                              </select>
                               <div style={{
                                 position: "absolute",
-                                right: "-15px",
-                                bottom: "-15px",
-                                opacity: 0.25,
+                                right: "20px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
                                 pointerEvents: "none",
-                                zIndex: 0,
-                                transform: "rotate(-15deg)"
+                                color: theme.textSecondary
                               }}>
-                                <Landmark size={100} color="white" />
+                                ▼
                               </div>
-                            </WobbleCard>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    <div style={{
-                      border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
-                      borderRadius: "12px",
-                      padding: "24px",
-                      textAlign: "center",
-                      background: misFile
-                        ? (darkMode ? "#064e3b" : "#f0fdf4")
-                        : (darkMode ? "#0f172a" : "white"),
-                      marginBottom: 40,
-                      boxShadow: theme.shadows?.[3] || "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
-                    }}>
-                      <div style={{ fontSize: "48px", marginBottom: "12px" }}>
-                        {misFile ? "📄" : "📊"}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-                        <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
-                          MIS Extract File
-                        </Typography>
-                        <Tooltip title="Upload your Management Information System extract" arrow>
-                          <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
-                        </Tooltip>
-                      </div>
-                      <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
-                        Excel (.xlsx)
-                      </Typography>
-
-                      {misFile ? (
-                        <div style={{
-                          background: darkMode ? "#0f172a" : "white",
-                          padding: "12px",
-                          borderRadius: "8px",
-                          display: "inline-block",
-                          border: darkMode ? "1px solid #334155" : "none"
-                        }}>
-                          <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
-                          <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
-                            {(misFile.size / 1024).toFixed(1)} KB
-                          </div>
-                        </div>
-                      ) : (
-                        <FileUpload
-                          key={`mis-v2-${fileResetKey}`}
-                          accept={accepts.mis}
-                          label="Click or drag to upload"
-                          onChange={(files) => setMisFile(files[0] || null)}
-                          name="mis_file"
-                          uploaderId="mis-upload-v2"
-                          darkMode={darkMode}
-                        />
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "32px 0" }}>
-                    <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔄</div>
-                    <Typography variant="h6" component="h2" style={{ marginBottom: 16, fontWeight: 600, color: theme.text }}>
-                      Bank × Advance Matching
-                    </Typography>
-                    <Typography variant="body2" style={{ maxWidth: "500px", margin: "0 auto", color: theme.textSecondary }}>
-                      This step automatically matches Bank transactions with Advance records using reference numbers.
-                      Click <strong>Next</strong> to process.
-                    </Typography>
-                  </div>
-                )
-              )}
-
-              {activeStep === 2 && (
-                <>
-                  {pipelineMode !== 'v2' ? (
-                    <>
-                      <div style={{ position: "relative", marginBottom: 20 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                          <label style={{ fontWeight: 600, fontSize: "16px", color: theme.text }}>Select TPA</label>
-                          <Tooltip title="Choose your Third Party Administrator for MIS mapping" arrow>
-                            <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 16 }}>ℹ️</span>
-                          </Tooltip>
-                        </div>
-                        <div style={{ position: "relative" }}>
-                          <select
-                            value={tpaName}
-                            onChange={(e) => setTpaName(e.target.value)}
-                            style={{
-                              width: "100%",
-                              padding: "16px 20px",
-                              paddingRight: "48px",
-                              appearance: "none",
-                              background: darkMode ? "rgba(30, 41, 59, 0.7)" : "rgba(255, 255, 255, 0.8)",
-                              backdropFilter: "blur(12px)",
-                              border: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.05)",
-                              borderRadius: "16px",
-                              color: theme.text,
-                              fontSize: "16px",
-                              fontWeight: 500,
-                              cursor: "pointer",
-                              outline: "none",
-                              boxShadow: darkMode ? "0 4px 6px rgba(0, 0, 0, 0.2)" : "0 4px 6px rgba(0, 0, 0, 0.05)",
-                              transition: "all 0.2s ease"
-                            }}
-                            onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-                            onBlur={(e) => e.target.style.borderColor = darkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"}
-                          >
-                            {tpaChoices.map((tpa) => (
-                              <option key={tpa} value={tpa} style={{ background: darkMode ? "#1e293b" : "white", color: theme.text }}>
-                                {tpa}
-                              </option>
-                            ))}
-                          </select>
                           <div style={{
-                            position: "absolute",
-                            right: "20px",
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            pointerEvents: "none",
-                            color: theme.textSecondary
+                            border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                            borderRadius: "12px",
+                            padding: "24px",
+                            textAlign: "center",
+                            background: misFile
+                              ? (darkMode ? "#064e3b" : "#f0fdf4")
+                              : (darkMode ? "#0f172a" : "white"),
+                            transition: "all 0.3s ease"
                           }}>
-                            ▼
+                            <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+                              {misFile ? "📄" : "📊"}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+                              <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
+                                MIS Extract File
+                              </Typography>
+                              <Tooltip title="Upload your Management Information System extract" arrow>
+                                <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
+                              </Tooltip>
+                            </div>
+                            <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
+                              Excel (.xlsx)
+                            </Typography>
+
+                            {misFile ? (
+                              <div style={{
+                                background: darkMode ? "#0f172a" : "white",
+                                padding: "12px",
+                                borderRadius: "8px",
+                                display: "inline-block",
+                                border: darkMode ? "1px solid #334155" : "none"
+                              }}>
+                                <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                                <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
+                                  {(misFile.size / 1024).toFixed(1)} KB
+                                </div>
+                              </div>
+                            ) : (
+                              <FileUpload
+                                key={`mis-${fileResetKey}`}
+                                accept={accepts.mis}
+                                label="Click or drag to upload"
+                                onChange={(files) => setMisFile(files[0] || null)}
+                                name="mis_file"
+                                uploaderId="mis-upload"
+                                darkMode={darkMode}
+                              />
+                            )}
+                          </div>
+                        </>
+                      ) : null}
+                    </>
+                  )}
+
+                  {(activeStep === 3 || (pipelineMode === 'v2' && activeStep === 2)) && (
+                    <>
+                      {pipelineMode === 'v2' && tpaName && (
+                        <div className="mb-8 overflow-hidden rounded-2xl relative">
+                          <div className={`absolute inset-0 opacity-20 ${darkMode ? 'bg-gradient-to-r from-emerald-900 to-teal-900' : 'bg-gradient-to-r from-emerald-100 to-teal-100'}`}></div>
+                          <div className="relative p-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-emerald-500/20 rounded-2xl backdrop-blur-sm">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl shadow-lg shadow-emerald-500/30">
+                                🏥
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-emerald-500/80 uppercase tracking-wider mb-1">
+                                  Detected TPA Protocol
+                                </div>
+                                <div className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${darkMode ? 'from-white to-emerald-200' : 'from-slate-800 to-emerald-700'}`}>
+                                  {tpaName}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+                              <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                              </span>
+                              <span className="text-sm font-semibold text-emerald-600">Active Pipeline</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       <div style={{
-                        border: `2px dashed ${misFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
+                        border: `2px dashed ${outstandingFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
                         borderRadius: "12px",
                         padding: "24px",
                         textAlign: "center",
-                        background: misFile
+                        background: outstandingFile
                           ? (darkMode ? "#064e3b" : "#f0fdf4")
                           : (darkMode ? "#0f172a" : "white"),
-                        transition: "all 0.3s ease"
+                        marginBottom: 40,
+                        transition: "all 0.3s ease",
+                        boxShadow: theme.shadows?.[3] || "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
                       }}>
                         <div style={{ fontSize: "48px", marginBottom: "12px" }}>
-                          {misFile ? "📄" : "📊"}
+                          {outstandingFile ? "📄" : "📋"}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
                           <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
-                            MIS Extract File
+                            Outstanding Report
                           </Typography>
-                          <Tooltip title="Upload your Management Information System extract" arrow>
+                          <Tooltip title="Upload your outstanding balances report" arrow>
                             <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
                           </Tooltip>
                         </div>
@@ -2780,7 +3277,7 @@ export default function Home() {
                           Excel (.xlsx)
                         </Typography>
 
-                        {misFile ? (
+                        {outstandingFile ? (
                           <div style={{
                             background: darkMode ? "#0f172a" : "white",
                             padding: "12px",
@@ -2788,731 +3285,645 @@ export default function Home() {
                             display: "inline-block",
                             border: darkMode ? "1px solid #334155" : "none"
                           }}>
-                            <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                            <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {outstandingFile.name}</div>
                             <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
-                              {(misFile.size / 1024).toFixed(1)} KB
+                              {(outstandingFile.size / 1024).toFixed(1)} KB
                             </div>
                           </div>
                         ) : (
                           <FileUpload
-                            key={`mis-${fileResetKey}`}
-                            accept={accepts.mis}
+                            key={`outstanding-${fileResetKey}`}
+                            accept={accepts.outstanding}
                             label="Click or drag to upload"
-                            onChange={(files) => setMisFile(files[0] || null)}
-                            name="mis_file"
-                            uploaderId="mis-upload"
+                            onChange={(files) => setOutstandingFile(files[0] || null)}
+                            name="outstanding_file"
+                            uploaderId="outstanding-upload"
                             darkMode={darkMode}
                           />
                         )}
                       </div>
                     </>
-                  ) : null}
-                </>
-              )}
-
-              {(activeStep === 3 || (pipelineMode === 'v2' && activeStep === 2)) && (
-                <>
-                  {pipelineMode === 'v2' && tpaName && (
-                    <div className="mb-8 overflow-hidden rounded-2xl relative">
-                      <div className={`absolute inset-0 opacity-20 ${darkMode ? 'bg-gradient-to-r from-emerald-900 to-teal-900' : 'bg-gradient-to-r from-emerald-100 to-teal-100'}`}></div>
-                      <div className="relative p-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-emerald-500/20 rounded-2xl backdrop-blur-sm">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl shadow-lg shadow-emerald-500/30">
-                            🏥
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-emerald-500/80 uppercase tracking-wider mb-1">
-                              Detected TPA Protocol
-                            </div>
-                            <div className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${darkMode ? 'from-white to-emerald-200' : 'from-slate-800 to-emerald-700'}`}>
-                              {tpaName}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                          <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                          </span>
-                          <span className="text-sm font-semibold text-emerald-600">Active Pipeline</span>
-                        </div>
-                      </div>
-                    </div>
                   )}
-
-                  <div style={{
-                    border: `2px dashed ${outstandingFile ? '#10b981' : (darkMode ? '#475569' : '#ddd')}`,
-                    borderRadius: "12px",
-                    padding: "24px",
-                    textAlign: "center",
-                    background: outstandingFile
-                      ? (darkMode ? "#064e3b" : "#f0fdf4")
-                      : (darkMode ? "#0f172a" : "white"),
-                    marginBottom: 40,
-                    transition: "all 0.3s ease",
-                    boxShadow: theme.shadows?.[3] || "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
-                  }}>
-                    <div style={{ fontSize: "48px", marginBottom: "12px" }}>
-                      {outstandingFile ? "📄" : "📋"}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-                      <Typography variant="h6" component="h3" style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: theme.text }}>
-                        Outstanding Report
-                      </Typography>
-                      <Tooltip title="Upload your outstanding balances report" arrow>
-                        <span style={{ cursor: "help", color: theme.textSecondary, fontSize: 14 }}>ℹ️</span>
-                      </Tooltip>
-                    </div>
-                    <Typography variant="body2" style={{ marginBottom: "16px", fontSize: "13px", color: theme.textSecondary }}>
-                      Excel (.xlsx)
-                    </Typography>
-
-                    {outstandingFile ? (
-                      <div style={{
-                        background: darkMode ? "#0f172a" : "white",
-                        padding: "12px",
-                        borderRadius: "8px",
-                        display: "inline-block",
-                        border: darkMode ? "1px solid #334155" : "none"
-                      }}>
-                        <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {outstandingFile.name}</div>
-                        <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
-                          {(outstandingFile.size / 1024).toFixed(1)} KB
-                        </div>
-                      </div>
-                    ) : (
-                      <FileUpload
-                        key={`outstanding-${fileResetKey}`}
-                        accept={accepts.outstanding}
-                        label="Click or drag to upload"
-                        onChange={(files) => setOutstandingFile(files[0] || null)}
-                        name="outstanding_file"
-                        uploaderId="outstanding-upload"
-                        darkMode={darkMode}
-                      />
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-
-
-          {
-            activeStep < steps.length && !isBulkMode && (
-              <div style={{
-                display: "flex",
-                flexDirection: typeof window !== 'undefined' && window.innerWidth < 600 ? "column" : "row",
-                gap: 12,
-                alignItems: "center",
-                marginTop: 20,
-                justifyContent: "center",
-                marginBottom: "16px"
-              }}>
-                <MuiButton
-                  variant="text"
-                  disabled={activeStep === 0 || loading}
-                  onClick={handleBack}
-                  style={{ minWidth: "80px" }}
-                >
-                  Back
-                </MuiButton>
-                <div style={{ flex: "0 0 auto" }}>
-                  <FancyButton
-                    onClick={handleNext}
-                    disabled={!canProceed || loading}
-                    borderRadius="1.75rem"
-                    className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
-                  >
-                    {loading
-                      ? "Processing..."
-                      : activeStep === steps.length - 1
-                        ? "Finish"
-                        : "Next"}
-                  </FancyButton>
                 </div>
-                <MuiButton
-                  variant="text"
-                  onClick={handleReset}
-                  disabled={loading}
-                  style={{ minWidth: "80px" }}
-                >
-                  Reset
-                </MuiButton>
-              </div>
-            )
-          }
+              )}
 
-          {/* Enhanced Processing Overlay with Lottie */}
-          {
-            loading && (
-              <div style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "rgba(0,0,0,0.85)",
-                backdropFilter: "blur(8px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
-                animation: "fadeIn 0.3s ease"
-              }}>
-                <div style={{
-                  background: darkMode
-                    ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
-                    : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-                  padding: "48px 40px",
-                  borderRadius: "24px",
-                  textAlign: "center",
-                  minWidth: "320px",
-                  maxWidth: "90%",
-                  border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
-                  boxShadow: darkMode
-                    ? "0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(79, 70, 229, 0.3)"
-                    : "0 20px 60px rgba(0,0,0,0.15)",
-                  position: "relative",
-                  overflow: "hidden"
-                }}>
-                  {/* Animated gradient background */}
+
+
+              {
+                activeStep < steps.length && !isBulkMode && (
                   <div style={{
-                    position: "absolute",
+                    display: "flex",
+                    flexDirection: typeof window !== 'undefined' && window.innerWidth < 600 ? "column" : "row",
+                    gap: 12,
+                    alignItems: "center",
+                    marginTop: 20,
+                    justifyContent: "center",
+                    marginBottom: "16px"
+                  }}>
+                    <MuiButton
+                      variant="text"
+                      disabled={activeStep === 0 || loading}
+                      onClick={handleBack}
+                      style={{ minWidth: "80px" }}
+                    >
+                      Back
+                    </MuiButton>
+                    <div style={{ flex: "0 0 auto" }}>
+                      <FancyButton
+                        onClick={handleNext}
+                        disabled={!canProceed || loading}
+                        borderRadius="1.75rem"
+                        className="bg-black dark:bg-slate-900 text-white dark:text-white border-neutral-200 dark:border-slate-800"
+                      >
+                        {loading
+                          ? "Processing..."
+                          : activeStep === steps.length - 1
+                            ? "Finish"
+                            : "Next"}
+                      </FancyButton>
+                    </div>
+                    <MuiButton
+                      variant="text"
+                      onClick={handleReset}
+                      disabled={loading}
+                      style={{ minWidth: "80px" }}
+                    >
+                      Reset
+                    </MuiButton>
+                  </div>
+                )
+              }
+
+              {/* Enhanced Processing Overlay with Lottie */}
+              {
+                loading && (
+                  <div style={{
+                    position: "fixed",
                     top: 0,
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    background: "linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05))",
-                    opacity: 0.5,
-                    animation: "shimmer 2s infinite"
-                  }}></div>
-
-                  {/* Step icon */}
-                  <div style={{
-                    fontSize: "40px",
-                    marginBottom: "16px",
-                    position: "relative",
-                    zIndex: 1
-                  }}>
-                    {activeStep === 0 && "📁"}
-                    {activeStep === 1 && "🔄"}
-                    {activeStep === 2 && "📊"}
-                    {activeStep === 3 && "📋"}
-                  </div>
-
-                  {/* Lottie Animation */}
-                  <div style={{
-                    width: "160px",
-                    height: "160px",
-                    margin: "0 auto 24px",
-                    position: "relative",
-                    zIndex: 1
-                  }}>
-                    {animationData ? (
-                      <Lottie
-                        animationData={animationData}
-                        loop={true}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    ) : (
-                      // Fallback spinner if Lottie fails to load
-                      <div style={{
-                        width: "100%",
-                        height: "100%",
-                        border: `6px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
-                        borderTop: "6px solid #3b82f6",
-                        borderRadius: "50%",
-                        animation: "spin 1s linear infinite"
-                      }}></div>
-                    )}
-                  </div>
-
-                  {/* Step indicator with progress */}
-                  <div style={{
-                    background: darkMode ? "#334155" : "#f1f5f9",
-                    borderRadius: "20px",
-                    padding: "8px 20px",
-                    display: "inline-block",
-                    marginBottom: "16px",
-                    position: "relative",
-                    zIndex: 1
-                  }}>
-                    <span style={{
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      color: "#3b82f6",
-                      textTransform: "uppercase",
-                      letterSpacing: "1px"
-                    }}>
-                      Step {activeStep + 1} of {steps.length}
-                    </span>
-                  </div>
-
-                  {/* Main heading */}
-                  <Typography variant="h5" style={{
-                    marginBottom: "12px",
-                    color: theme.text,
-                    fontWeight: 700,
-                    fontSize: "24px",
-                    position: "relative",
-                    zIndex: 1
-                  }}>
-                    Processing {steps[activeStep]?.label}
-                  </Typography>
-
-                  {/* Description */}
-                  <Typography variant="body1" style={{
-                    color: theme.textSecondary,
-                    marginBottom: "24px",
-                    fontSize: "15px",
-                    position: "relative",
-                    zIndex: 1
-                  }}>
-                    {steps[activeStep]?.description || "Please wait..."}
-                  </Typography>
-
-                  {/* Progress bar */}
-                  <div style={{
-                    width: "100%",
-                    height: "6px",
-                    background: darkMode ? "#334155" : "#e2e8f0",
-                    borderRadius: "3px",
-                    overflow: "hidden",
-                    marginBottom: "16px",
-                    position: "relative",
-                    zIndex: 1
+                    background: "rgba(0,0,0,0.85)",
+                    backdropFilter: "blur(8px)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 9999,
+                    animation: "fadeIn 0.3s ease"
                   }}>
                     <div style={{
-                      height: "100%",
-                      width: `${((activeStep + 1) / steps.length) * 100}%`,
-                      background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-                      borderRadius: "3px",
-                      transition: "width 0.5s ease",
-                      animation: "shimmer 2s infinite"
-                    }}></div>
-                  </div>
+                      background: darkMode
+                        ? "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
+                        : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+                      padding: "48px 40px",
+                      borderRadius: "24px",
+                      textAlign: "center",
+                      minWidth: "320px",
+                      maxWidth: "90%",
+                      border: darkMode ? "1px solid #334155" : "1px solid #e2e8f0",
+                      boxShadow: darkMode
+                        ? "0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(79, 70, 229, 0.3)"
+                        : "0 20px 60px rgba(0,0,0,0.15)",
+                      position: "relative",
+                      overflow: "hidden"
+                    }}>
+                      {/* Animated gradient background */}
+                      <div style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: "linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05))",
+                        opacity: 0.5,
+                        animation: "shimmer 2s infinite"
+                      }}></div>
 
-                  {/* Loading dots */}
-                  <div style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "8px",
-                    marginTop: "20px",
-                    position: "relative",
-                    zIndex: 1
-                  }}>
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        style={{
-                          width: "8px",
-                          height: "8px",
-                          borderRadius: "50%",
-                          background: "#3b82f6",
-                          animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
-                        }}
-                      ></div>
-                    ))}
-                  </div>
+                      {/* Step icon */}
+                      <div style={{
+                        fontSize: "40px",
+                        marginBottom: "16px",
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        {activeStep === 0 && "📁"}
+                        {activeStep === 1 && "🔄"}
+                        {activeStep === 2 && "📊"}
+                        {activeStep === 3 && "📋"}
+                      </div>
 
-                  {/* Additional info */}
-                  <div style={{
-                    marginTop: "24px",
-                    padding: "12px",
-                    background: darkMode ? "rgba(51, 65, 85, 0.5)" : "rgba(241, 245, 249, 0.8)",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                    color: theme.textSecondary,
-                    position: "relative",
-                    zIndex: 1
-                  }}>
-                    <div style={{ marginBottom: "4px" }}>⏱️ This may take a few moments</div>
-                    <div style={{ fontSize: "11px", opacity: 0.7 }}>
-                      Please do not close or refresh this page
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-
-          {/* Enhanced Error Display */}
-          {
-            error && (
-              <div style={{
-                marginTop: 16,
-                background: darkMode ? "#7f1d1d" : "#fef2f2",
-                border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
-                borderRadius: 12,
-                padding: 20,
-                display: "flex",
-                alignItems: "start",
-                gap: 16
-              }}>
-                <div style={{
-                  fontSize: 32,
-                  flexShrink: 0
-                }}>⚠️</div>
-                <div style={{ flex: 1 }}>
-                  <Typography variant="h6" component="h3" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
-                    Processing Error
-                  </Typography>
-                  <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 16, fontSize: "14px" }}>
-                    {error}
-                  </Typography>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      onClick={() => setError("")}
-                      style={{
-                        padding: "8px 16px",
-                        background: "#dc2626",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        fontSize: 14
-                      }}
-                    >
-                      Dismiss
-                    </button>
-                    <button
-                      onClick={handleNext}
-                      disabled={!canProceed}
-                      style={{
-                        padding: "8px 16px",
-                        background: darkMode ? "#1e293b" : "white",
-                        color: "#dc2626",
-                        border: "2px solid #dc2626",
-                        borderRadius: 6,
-                        cursor: canProceed ? "pointer" : "not-allowed",
-                        fontWeight: 600,
-                        fontSize: 14,
-                        opacity: canProceed ? 1 : 0.5
-                      }}
-                    >
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-
-          {/* Enhanced Results Display with Excel Viewer */}
-          {
-            Object.keys(stepResults).length > 0 && (
-              <div style={{
-                marginTop: 32,
-                background: theme.cardBg,
-                borderRadius: 16,
-                padding: 24,
-                boxShadow: darkMode ? "0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.08)",
-                border: darkMode ? "1px solid #334155" : "none",
-                width: "100%",
-                boxSizing: "border-box"
-              }}>
-                <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 24,
-                  flexWrap: "wrap",
-                  gap: 12
-                }}>
-                  <Typography variant="h5" style={{ fontWeight: 700, margin: 0, color: theme.text }}>
-                    📊 Results
-                  </Typography>
-                  <div style={{
-                    background: "#10b981",
-                    color: "white",
-                    padding: "6px 16px",
-                    borderRadius: "20px",
-                    fontSize: "14px",
-                    fontWeight: 600
-                  }}>
-                    {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} / {steps.length} Complete
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gap: "16px" }}>
-                  {steps.map((s, idx) => {
-                    const res = stepResults[idx];
-                    if (!res) return null;
-
-                    return (
-                      <div
-                        key={s.key}
-                        style={{
-                          background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
-                          backdropFilter: "blur(12px)",
-                          border: `1px solid ${res.ok ? (darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.3)") : (darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.3)")}`,
-                          borderRadius: 24,
-                          padding: 24,
-                          marginBottom: 20,
-                          width: "100%",
-                          boxSizing: "border-box",
-                          boxShadow: darkMode ? "0 8px 32px rgba(0, 0, 0, 0.2)" : "0 8px 32px rgba(0, 0, 0, 0.05)",
-                          animation: "slideUpFade 0.5s ease-out forwards",
-                          animationDelay: `${idx * 0.1}s`,
-                          opacity: 0,
-                          transform: "translateY(20px)"
-                        }}
-                      >
-                        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-                          {/* Status Icon */}
+                      {/* Lottie Animation */}
+                      <div style={{
+                        width: "160px",
+                        height: "160px",
+                        margin: "0 auto 24px",
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        {animationData ? (
+                          <Lottie
+                            animationData={animationData}
+                            loop={true}
+                            style={{ width: "100%", height: "100%" }}
+                          />
+                        ) : (
+                          // Fallback spinner if Lottie fails to load
                           <div style={{
-                            width: 48,
-                            height: 48,
+                            width: "100%",
+                            height: "100%",
+                            border: `6px solid ${darkMode ? "#334155" : "#e0e0e0"}`,
+                            borderTop: "6px solid #3b82f6",
                             borderRadius: "50%",
-                            background: res.ok
-                              ? "linear-gradient(135deg, #10b981, #059669)"
-                              : "linear-gradient(135deg, #ef4444, #b91c1c)",
-                            color: "white",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "24px",
-                            flexShrink: 0,
-                            boxShadow: res.ok
-                              ? "0 0 20px rgba(16, 185, 129, 0.4)"
-                              : "0 0 20px rgba(239, 68, 68, 0.4)"
-                          }}>
-                            {res.ok ? "✓" : "✕"}
-                          </div>
+                            animation: "spin 1s linear infinite"
+                          }}></div>
+                        )}
+                      </div>
 
-                          <div style={{ flex: 1 }}>
-                            {/* Header */}
-                            <div style={{ marginBottom: 12 }}>
-                              <Typography variant="h6" component="h3" style={{
-                                fontWeight: 700,
-                                fontSize: "18px",
-                                color: theme.text,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8
-                              }}>
-                                Step {idx + 1}: {s.label}
-                                {res.ok && (
-                                  <span style={{
-                                    fontSize: "12px",
-                                    padding: "2px 8px",
-                                    borderRadius: "12px",
-                                    background: darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.1)",
-                                    color: "#10b981",
-                                    border: "1px solid rgba(16, 185, 129, 0.2)"
-                                  }}>
-                                    Completed
-                                  </span>
-                                )}
-                              </Typography>
-                              <Typography variant="body2" style={{
-                                fontSize: "14px",
-                                color: theme.textSecondary,
-                                marginTop: 4
-                              }}>
-                                {s.description}
-                              </Typography>
-                            </div>
+                      {/* Step indicator with progress */}
+                      <div style={{
+                        background: darkMode ? "#334155" : "#f1f5f9",
+                        borderRadius: "20px",
+                        padding: "8px 20px",
+                        display: "inline-block",
+                        marginBottom: "16px",
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        <span style={{
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          color: "#3b82f6",
+                          textTransform: "uppercase",
+                          letterSpacing: "1px"
+                        }}>
+                          Step {activeStep + 1} of {steps.length}
+                        </span>
+                      </div>
 
-                            {/* Error Message */}
-                            {res.ok === false && (
-                              <div style={{
-                                background: darkMode ? "rgba(239, 68, 68, 0.1)" : "rgba(254, 242, 242, 1)",
-                                border: `1px solid ${darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
-                                borderRadius: 12,
-                                padding: "12px 16px",
-                                marginTop: 12,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12
-                              }}>
-                                <span style={{ fontSize: "20px" }}>⚠️</span>
-                                <Typography style={{ color: darkMode ? "#fca5a5" : "#b91c1c", fontSize: "14px", fontWeight: 500 }}>
-                                  {res.error}
-                                </Typography>
-                              </div>
-                            )}
+                      {/* Main heading */}
+                      <Typography variant="h5" style={{
+                        marginBottom: "12px",
+                        color: theme.text,
+                        fontWeight: 700,
+                        fontSize: "24px",
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        Processing {steps[activeStep]?.label}
+                      </Typography>
 
-                            {/* Auto-Detected Info (V2) */}
-                            {res.ok && res.data && (res.data.detected_bank_type || res.data.detected_tpa) && (
-                              <div style={{
-                                marginTop: 12,
-                                padding: "8px 12px",
-                                background: darkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(59, 130, 246, 0.05)",
-                                borderLeft: "4px solid #3b82f6",
-                                borderRadius: 4,
-                                fontSize: "13px",
-                                color: theme.textSecondary
-                              }}>
-                                {res.data.detected_bank_type && (
-                                  <div><strong>Detected Bank:</strong> {res.data.detected_bank_type}</div>
-                                )}
-                                {res.data.detected_tpa && (
-                                  <div><strong>Detected TPA:</strong> {res.data.detected_tpa}</div>
-                                )}
-                              </div>
-                            )}
+                      {/* Description */}
+                      <Typography variant="body1" style={{
+                        color: theme.textSecondary,
+                        marginBottom: "24px",
+                        fontSize: "15px",
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        {steps[activeStep]?.description || "Please wait..."}
+                      </Typography>
 
-                            {/* Excel Viewer */}
-                            {res.ok && res.downloadLinks && (
-                              <div style={{ marginTop: 20 }}>
-                                {res.downloadLinks.map((link, i) => (
-                                  <div key={i} style={{ marginBottom: 16 }}>
-                                    <div style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 8,
-                                      marginBottom: 8,
-                                      color: theme.textSecondary,
-                                      fontSize: "13px",
-                                      fontFamily: "monospace"
-                                    }}>
-                                      <span>📄</span>
-                                      {link.label}
-                                    </div>
-                                    <ExcelDataViewer
-                                      url={link.url}
-                                      label={link.label}
-                                      darkMode={darkMode}
-                                      apiBase={API_BASE}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                      {/* Progress bar */}
+                      <div style={{
+                        width: "100%",
+                        height: "6px",
+                        background: darkMode ? "#334155" : "#e2e8f0",
+                        borderRadius: "3px",
+                        overflow: "hidden",
+                        marginBottom: "16px",
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        <div style={{
+                          height: "100%",
+                          width: `${((activeStep + 1) / steps.length) * 100}%`,
+                          background: "linear-gradient(90deg, #3b82f6, #2563eb)",
+                          borderRadius: "3px",
+                          transition: "width 0.5s ease",
+                          animation: "shimmer 2s infinite"
+                        }}></div>
+                      </div>
 
-                            {/* ZIP Download Button */}
-                            {res.zipUrl && (
-                              <div style={{
-                                marginTop: 24,
-                                paddingTop: 24,
-                                borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
-                                display: "flex",
-                                justifyContent: "flex-end"
-                              }}>
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const token = localStorage.getItem('access_token');
-                                      const headers = {};
-                                      if (token) {
-                                        headers['Authorization'] = `Bearer ${token}`;
-                                      }
+                      {/* Loading dots */}
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "8px",
+                        marginTop: "20px",
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        {[0, 1, 2].map((i) => (
+                          <div
+                            key={i}
+                            style={{
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              background: "#3b82f6",
+                              animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`
+                            }}
+                          ></div>
+                        ))}
+                      </div>
 
-                                      const fullUrl = `${API_BASE.replace(/\/$/, "")}${res.zipUrl}`;
-                                      console.log('[ZIP Download] Fetching:', fullUrl);
-
-                                      const response = await fetch(fullUrl, { headers });
-
-                                      if (!response.ok) {
-                                        throw new Error(`Download failed: ${response.status}`);
-                                      }
-
-                                      const blob = await response.blob();
-                                      const downloadUrl = window.URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = downloadUrl;
-                                      a.download = res.zipUrl.split('/').pop() || 'reconciliation.zip';
-                                      document.body.appendChild(a);
-                                      a.click();
-                                      window.URL.revokeObjectURL(downloadUrl);
-                                      document.body.removeChild(a);
-
-                                      console.log('[ZIP Download] ✓ Success!');
-                                    } catch (err) {
-                                      console.error('[ZIP Download] Error:', err);
-                                      alert('ZIP download failed. Please try again.');
-                                    }
-                                  }}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 12,
-                                    padding: "16px 32px",
-                                    background: bankType === "Standard Chartered"
-                                      ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
-                                      : bankType === "ICICI"
-                                        ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
-                                        : "linear-gradient(135deg, #871242 0%, #be185d 100%)",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: 16,
-                                    cursor: "pointer",
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-                                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                    animation: "pulse 2s infinite"
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = "translateY(-2px) scale(1.02)";
-                                    e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.3)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = "translateY(0) scale(1)";
-                                    e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
-                                  }}
-                                >
-                                  <span style={{ fontSize: 24 }}>📦</span>
-                                  <div>
-                                    <div style={{ fontSize: "12px", opacity: 0.9, fontWeight: 500 }}>Reconciliation Complete</div>
-                                    <div>Download Package</div>
-                                  </div>
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                      {/* Additional info */}
+                      <div style={{
+                        marginTop: "24px",
+                        padding: "12px",
+                        background: darkMode ? "rgba(51, 65, 85, 0.5)" : "rgba(241, 245, 249, 0.8)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: theme.textSecondary,
+                        position: "relative",
+                        zIndex: 1
+                      }}>
+                        <div style={{ marginBottom: "4px" }}>⏱️ This may take a few moments</div>
+                        <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                          Please do not close or refresh this page
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )
-          }
+                    </div>
+                  </div>
+                )
+              }
 
-          {
-            activeStep >= steps.length && (
-              <div style={{
-                marginTop: 24,
-                textAlign: "center",
-                padding: "32px",
-                background: theme.cardBg,
-                borderRadius: 16,
-                boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
-                border: darkMode ? "1px solid #334155" : "none"
-              }}>
-                <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
-                <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: theme.text }}>
-                  Reconciliation Completed!
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 3, color: theme.textSecondary }}>
-                  All steps have been processed successfully. You can view and download the results above or reset to start over.
-                </Typography>
-                <MuiButton
-                  variant="contained"
-                  onClick={handleReset}
-                  style={{
-                    background: darkMode
-                      ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
-                      : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    color: "white",
-                    padding: "12px 32px",
-                    fontSize: "16px",
-                    fontWeight: 600,
-                    textTransform: "none",
-                    borderRadius: "8px"
-                  }}
-                >
-                  Start New Reconciliation
-                </MuiButton>
-              </div>
-            )
-          }
+              {/* Enhanced Error Display */}
+              {
+                error && (
+                  <div style={{
+                    marginTop: 16,
+                    background: darkMode ? "#7f1d1d" : "#fef2f2",
+                    border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
+                    borderRadius: 12,
+                    padding: 20,
+                    display: "flex",
+                    alignItems: "start",
+                    gap: 16
+                  }}>
+                    <div style={{
+                      fontSize: 32,
+                      flexShrink: 0
+                    }}>⚠️</div>
+                    <div style={{ flex: 1 }}>
+                      <Typography variant="h6" component="h3" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
+                        Processing Error
+                      </Typography>
+                      <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 16, fontSize: "14px" }}>
+                        {error}
+                      </Typography>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => setError("")}
+                          style={{
+                            padding: "8px 16px",
+                            background: "#dc2626",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            fontSize: 14
+                          }}
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          onClick={handleNext}
+                          disabled={!canProceed}
+                          style={{
+                            padding: "8px 16px",
+                            background: darkMode ? "#1e293b" : "white",
+                            color: "#dc2626",
+                            border: "2px solid #dc2626",
+                            borderRadius: 6,
+                            cursor: canProceed ? "pointer" : "not-allowed",
+                            fontWeight: 600,
+                            fontSize: 14,
+                            opacity: canProceed ? 1 : 0.5
+                          }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              {/* Enhanced Results Display with Excel Viewer */}
+              {
+                Object.keys(stepResults).length > 0 && (
+                  <div style={{
+                    marginTop: 32,
+                    background: theme.cardBg,
+                    borderRadius: 16,
+                    padding: 24,
+                    boxShadow: darkMode ? "0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.08)",
+                    border: darkMode ? "1px solid #334155" : "none",
+                    width: "100%",
+                    boxSizing: "border-box"
+                  }}>
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 24,
+                      flexWrap: "wrap",
+                      gap: 12
+                    }}>
+                      <Typography variant="h5" style={{ fontWeight: 700, margin: 0, color: theme.text }}>
+                        📊 Results
+                      </Typography>
+                      <div style={{
+                        background: "#10b981",
+                        color: "white",
+                        padding: "6px 16px",
+                        borderRadius: "20px",
+                        fontSize: "14px",
+                        fontWeight: 600
+                      }}>
+                        {Object.keys(stepResults).filter(k => stepResults[k]?.ok).length} / {steps.length} Complete
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: "16px" }}>
+                      {steps.map((s, idx) => {
+                        const res = stepResults[idx];
+                        if (!res) return null;
+
+                        return (
+                          <div
+                            key={s.key}
+                            style={{
+                              background: darkMode ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.7)",
+                              backdropFilter: "blur(12px)",
+                              border: `1px solid ${res.ok ? (darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.3)") : (darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.3)")}`,
+                              borderRadius: 24,
+                              padding: 24,
+                              marginBottom: 20,
+                              width: "100%",
+                              boxSizing: "border-box",
+                              boxShadow: darkMode ? "0 8px 32px rgba(0, 0, 0, 0.2)" : "0 8px 32px rgba(0, 0, 0, 0.05)",
+                              animation: "slideUpFade 0.5s ease-out forwards",
+                              animationDelay: `${idx * 0.1}s`,
+                              opacity: 0,
+                              transform: "translateY(20px)"
+                            }}
+                          >
+                            <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+                              {/* Status Icon */}
+                              <div style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: "50%",
+                                background: res.ok
+                                  ? "linear-gradient(135deg, #10b981, #059669)"
+                                  : "linear-gradient(135deg, #ef4444, #b91c1c)",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "24px",
+                                flexShrink: 0,
+                                boxShadow: res.ok
+                                  ? "0 0 20px rgba(16, 185, 129, 0.4)"
+                                  : "0 0 20px rgba(239, 68, 68, 0.4)"
+                              }}>
+                                {res.ok ? "✓" : "✕"}
+                              </div>
+
+                              <div style={{ flex: 1 }}>
+                                {/* Header */}
+                                <div style={{ marginBottom: 12 }}>
+                                  <Typography variant="h6" component="h3" style={{
+                                    fontWeight: 700,
+                                    fontSize: "18px",
+                                    color: theme.text,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8
+                                  }}>
+                                    Step {idx + 1}: {s.label}
+                                    {res.ok && (
+                                      <span style={{
+                                        fontSize: "12px",
+                                        padding: "2px 8px",
+                                        borderRadius: "12px",
+                                        background: darkMode ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.1)",
+                                        color: "#10b981",
+                                        border: "1px solid rgba(16, 185, 129, 0.2)"
+                                      }}>
+                                        Completed
+                                      </span>
+                                    )}
+                                  </Typography>
+                                  <Typography variant="body2" style={{
+                                    fontSize: "14px",
+                                    color: theme.textSecondary,
+                                    marginTop: 4
+                                  }}>
+                                    {s.description}
+                                  </Typography>
+                                </div>
+
+                                {/* Error Message */}
+                                {res.ok === false && (
+                                  <div style={{
+                                    background: darkMode ? "rgba(239, 68, 68, 0.1)" : "rgba(254, 242, 242, 1)",
+                                    border: `1px solid ${darkMode ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
+                                    borderRadius: 12,
+                                    padding: "12px 16px",
+                                    marginTop: 12,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 12
+                                  }}>
+                                    <span style={{ fontSize: "20px" }}>⚠️</span>
+                                    <Typography style={{ color: darkMode ? "#fca5a5" : "#b91c1c", fontSize: "14px", fontWeight: 500 }}>
+                                      {res.error}
+                                    </Typography>
+                                  </div>
+                                )}
+
+                                {/* Auto-Detected Info (V2) */}
+                                {res.ok && res.data && (res.data.detected_bank_type || res.data.detected_tpa) && (
+                                  <div style={{
+                                    marginTop: 12,
+                                    padding: "8px 12px",
+                                    background: darkMode ? "rgba(59, 130, 246, 0.1)" : "rgba(59, 130, 246, 0.05)",
+                                    borderLeft: "4px solid #3b82f6",
+                                    borderRadius: 4,
+                                    fontSize: "13px",
+                                    color: theme.textSecondary
+                                  }}>
+                                    {res.data.detected_bank_type && (
+                                      <div><strong>Detected Bank:</strong> {res.data.detected_bank_type}</div>
+                                    )}
+                                    {res.data.detected_tpa && (
+                                      <div><strong>Detected TPA:</strong> {res.data.detected_tpa}</div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Excel Viewer */}
+                                {res.ok && res.downloadLinks && (
+                                  <div style={{ marginTop: 20 }}>
+                                    {res.downloadLinks.map((link, i) => (
+                                      <div key={i} style={{ marginBottom: 16 }}>
+                                        <div style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                          marginBottom: 8,
+                                          color: theme.textSecondary,
+                                          fontSize: "13px",
+                                          fontFamily: "monospace"
+                                        }}>
+                                          <span>📄</span>
+                                          {link.label}
+                                        </div>
+                                        <ExcelDataViewer
+                                          url={link.url}
+                                          label={link.label}
+                                          darkMode={darkMode}
+                                          apiBase={API_BASE}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* ZIP Download Button */}
+                                {res.zipUrl && (
+                                  <div style={{
+                                    marginTop: 24,
+                                    paddingTop: 24,
+                                    borderTop: `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
+                                    display: "flex",
+                                    justifyContent: "flex-end"
+                                  }}>
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          const token = localStorage.getItem('access_token');
+                                          const headers = {};
+                                          if (token) {
+                                            headers['Authorization'] = `Bearer ${token}`;
+                                          }
+
+                                          const fullUrl = `${API_BASE.replace(/\/$/, "")}${res.zipUrl}`;
+                                          console.log('[ZIP Download] Fetching:', fullUrl);
+
+                                          const response = await fetch(fullUrl, { headers });
+
+                                          if (!response.ok) {
+                                            throw new Error(`Download failed: ${response.status}`);
+                                          }
+
+                                          const blob = await response.blob();
+                                          const downloadUrl = window.URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = downloadUrl;
+                                          a.download = res.zipUrl.split('/').pop() || 'reconciliation.zip';
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          window.URL.revokeObjectURL(downloadUrl);
+                                          document.body.removeChild(a);
+
+                                          console.log('[ZIP Download] ✓ Success!');
+                                        } catch (err) {
+                                          console.error('[ZIP Download] Error:', err);
+                                          alert('ZIP download failed. Please try again.');
+                                        }
+                                      }}
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 12,
+                                        padding: "16px 32px",
+                                        background: bankType === "Standard Chartered"
+                                          ? "linear-gradient(135deg, #003087 0%, #0056b3 100%)"
+                                          : bankType === "ICICI"
+                                            ? "linear-gradient(135deg, #871f42 0%, #f37021 100%)"
+                                            : "linear-gradient(135deg, #871242 0%, #be185d 100%)",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: 16,
+                                        cursor: "pointer",
+                                        fontSize: 16,
+                                        fontWeight: 700,
+                                        boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+                                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                        animation: "pulse 2s infinite"
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = "translateY(-2px) scale(1.02)";
+                                        e.currentTarget.style.boxShadow = "0 10px 25px rgba(0, 0, 0, 0.3)";
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = "translateY(0) scale(1)";
+                                        e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
+                                      }}
+                                    >
+                                      <span style={{ fontSize: 24 }}>📦</span>
+                                      <div>
+                                        <div style={{ fontSize: "12px", opacity: 0.9, fontWeight: 500 }}>Reconciliation Complete</div>
+                                        <div>Download Package</div>
+                                      </div>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
+              }
+
+              {
+                activeStep >= steps.length && (
+                  <div style={{
+                    marginTop: 24,
+                    textAlign: "center",
+                    padding: "32px",
+                    background: theme.cardBg,
+                    borderRadius: 16,
+                    boxShadow: darkMode ? "0 2px 8px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
+                    border: darkMode ? "1px solid #334155" : "none"
+                  }}>
+                    <div style={{ fontSize: "64px", marginBottom: "16px" }}>🎉</div>
+                    <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: theme.text }}>
+                      Reconciliation Completed!
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 3, color: theme.textSecondary }}>
+                      All steps have been processed successfully. You can view and download the results above or reset to start over.
+                    </Typography>
+                    <MuiButton
+                      variant="contained"
+                      onClick={handleReset}
+                      style={{
+                        background: darkMode
+                          ? "linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%)"
+                          : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "white",
+                        padding: "12px 32px",
+                        fontSize: "16px",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        borderRadius: "8px"
+                      }}
+                    >
+                      Start New Reconciliation
+                    </MuiButton>
+                  </div>
+                )
+              }
+            </>
+          )}
         </main >
 
         {/* ✅ NEW: AI Assistant Modal - Add this component here */}
@@ -3758,83 +4169,93 @@ export default function Home() {
             flexDirection: "column",
             gap: 12
           }}>
-            {Object.entries(TPA_MIS_MAPS).map(([tpaName, mapping], idx) => (
-              <div
-                key={idx}
-                style={{
-                  background: darkMode ? "rgba(30, 41, 59, 0.6)" : "rgba(248, 250, 252, 0.8)",
-                  borderRadius: 12,
-                  padding: 16,
-                  border: darkMode ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(0, 0, 0, 0.05)",
-                  transition: "all 0.2s"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = darkMode ? "rgba(30, 41, 59, 0.8)" : "rgba(241, 245, 249, 1)";
-                  e.currentTarget.style.transform = "translateX(-4px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = darkMode ? "rgba(30, 41, 59, 0.6)" : "rgba(248, 250, 252, 0.8)";
-                  e.currentTarget.style.transform = "translateX(0)";
-                }}
-              >
-                <div style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: darkMode ? "#f1f5f9" : "#1e293b",
-                  marginBottom: 12,
-                  paddingBottom: 8,
-                  borderBottom: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.1)"
-                }}>
-                  {tpaName}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 12
-                  }}>
-                    <span style={{
-                      color: darkMode ? "#94a3b8" : "#64748b",
-                      fontWeight: 600
-                    }}>
-                      Claim No:
-                    </span>
-                    <code style={{
-                      background: darkMode ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.05)",
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      fontSize: 11,
-                      color: darkMode ? "#a5f3fc" : "#0e7490",
-                      fontFamily: "monospace"
-                    }}>
-                      {mapping["Claim No"]}
-                    </code>
-                  </div>
-                  <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 12
-                  }}>
-                    <span style={{
-                      color: darkMode ? "#94a3b8" : "#64748b",
-                      fontWeight: 600
-                    }}>
-                      Cheque/UTR:
-                    </span>
-                    <code style={{
-                      background: darkMode ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.05)",
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      fontSize: 11,
-                      color: darkMode ? "#a5f3fc" : "#0e7490",
-                      fontFamily: "monospace"
-                    }}>
-                      {mapping["Cheque/ NEFT/ UTR No."]}
-                    </code>
-                  </div>
-                </div>
+            {isTpaMappingsLoading ? (
+              <div style={{ padding: 20, textAlign: 'center', color: darkMode ? '#94a3b8' : '#64748b', fontSize: 14 }}>
+                <span className="animate-pulse">Loading TPA mappings...</span>
               </div>
-            ))}
+            ) : Object.keys(tpaMappings).length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center', color: darkMode ? '#94a3b8' : '#64748b', fontSize: 14 }}>
+                No TPA mappings found.
+              </div>
+            ) : (
+              Object.entries(tpaMappings).map(([tpaName, mapping], idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    background: darkMode ? "rgba(30, 41, 59, 0.6)" : "rgba(248, 250, 252, 0.8)",
+                    borderRadius: 12,
+                    padding: 16,
+                    border: darkMode ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(0, 0, 0, 0.05)",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = darkMode ? "rgba(30, 41, 59, 0.8)" : "rgba(241, 245, 249, 1)";
+                    e.currentTarget.style.transform = "translateX(-4px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = darkMode ? "rgba(30, 41, 59, 0.6)" : "rgba(248, 250, 252, 0.8)";
+                    e.currentTarget.style.transform = "translateX(0)";
+                  }}
+                >
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: darkMode ? "#f1f5f9" : "#1e293b",
+                    marginBottom: 12,
+                    paddingBottom: 8,
+                    borderBottom: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(0, 0, 0, 0.1)"
+                  }}>
+                    {tpaName}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 12
+                    }}>
+                      <span style={{
+                        color: darkMode ? "#94a3b8" : "#64748b",
+                        fontWeight: 600
+                      }}>
+                        Claim No:
+                      </span>
+                      <code style={{
+                        background: darkMode ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.05)",
+                        padding: "2px 8px",
+                        borderRadius: 4,
+                        fontSize: 11,
+                        color: darkMode ? "#a5f3fc" : "#0e7490",
+                        fontFamily: "monospace"
+                      }}>
+                        {mapping["Claim No"]}
+                      </code>
+                    </div>
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 12
+                    }}>
+                      <span style={{
+                        color: darkMode ? "#94a3b8" : "#64748b",
+                        fontWeight: 600
+                      }}>
+                        Cheque/UTR:
+                      </span>
+                      <code style={{
+                        background: darkMode ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.05)",
+                        padding: "2px 8px",
+                        borderRadius: 4,
+                        fontSize: 11,
+                        color: darkMode ? "#a5f3fc" : "#0e7490",
+                        fontFamily: "monospace"
+                      }}>
+                        {mapping["Cheque/ NEFT/ UTR No."]}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
