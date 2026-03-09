@@ -94,16 +94,19 @@ export const MovingBorder = ({
     }
   });
 
-  const x = useTransform(
+  // Optimization: merge multiple useTransform hooks that query getPointAtLength
+  // into a single hook returning the combined transform string.
+  // This halves expensive DOM layout calculations per frame.
+  const transform = useTransform(
     progress,
-    (val) => pathRef.current?.getPointAtLength(val).x,
+    (val) => {
+      const point = pathRef.current?.getPointAtLength(val);
+      if (point) {
+        return `translateX(${point.x}px) translateY(${point.y}px) translateX(-50%) translateY(-50%)`;
+      }
+      return `translateX(0px) translateY(0px) translateX(-50%) translateY(-50%)`;
+    }
   );
-  const y = useTransform(
-    progress,
-    (val) => pathRef.current?.getPointAtLength(val).y,
-  );
-
-  const transform = useMotionTemplate`translateX(${x}px) translateY(${y}px) translateX(-50%) translateY(-50%)`;
 
   return (
     <>
