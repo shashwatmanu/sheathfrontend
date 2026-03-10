@@ -49,7 +49,7 @@ const Hyperspeed = ({
     useEffect(() => {
         if (appRef.current) {
             appRef.current.dispose();
-            const container = document.getElementById('lights');
+            const container = hyperspeed.current;
             if (container) {
                 while (container.firstChild) {
                     container.removeChild(container.firstChild);
@@ -354,14 +354,14 @@ const Hyperspeed = ({
                     antialias: false,
                     alpha: true
                 });
-                this.renderer.setSize(container.offsetWidth, container.offsetHeight, false);
+                this.renderer.setSize(container.clientWidth, container.clientHeight, false);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
                 this.composer = new EffectComposer(this.renderer);
                 container.append(this.renderer.domElement);
 
                 this.camera = new THREE.PerspectiveCamera(
                     options.fov,
-                    container.offsetWidth / container.offsetHeight,
+                    container.clientWidth / container.clientHeight,
                     0.1,
                     10000
                 );
@@ -414,17 +414,16 @@ const Hyperspeed = ({
                 this.onTouchEnd = this.onTouchEnd.bind(this);
                 this.onContextMenu = this.onContextMenu.bind(this);
 
-                window.addEventListener('resize', this.onWindowResize.bind(this));
-            }
-
-            onWindowResize() {
-                const width = this.container.offsetWidth;
-                const height = this.container.offsetHeight;
-
-                this.renderer.setSize(width, height);
-                this.camera.aspect = width / height;
-                this.camera.updateProjectionMatrix();
-                this.composer.setSize(width, height);
+                this.resizeObserver = new ResizeObserver((entries) => {
+                    for (let entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        this.renderer.setSize(width, height, false);
+                        this.composer.setSize(width, height, false);
+                        this.camera.aspect = width / height;
+                        this.camera.updateProjectionMatrix();
+                    }
+                });
+                this.resizeObserver.observe(this.container);
             }
 
             initPasses() {
@@ -579,6 +578,9 @@ const Hyperspeed = ({
             dispose() {
                 this.disposed = true;
 
+                if (this.resizeObserver) {
+                    this.resizeObserver.disconnect();
+                }
                 if (this.renderer) {
                     this.renderer.dispose();
                 }
@@ -589,7 +591,6 @@ const Hyperspeed = ({
                     this.scene.clear();
                 }
 
-                window.removeEventListener('resize', this.onWindowResize.bind(this));
                 if (this.container) {
                     this.container.removeEventListener('mousedown', this.onMouseDown);
                     this.container.removeEventListener('mouseup', this.onMouseUp);
@@ -608,11 +609,7 @@ const Hyperspeed = ({
 
             tick() {
                 if (this.disposed || !this) return;
-                if (resizeRendererToDisplaySize(this.renderer, this.setSize)) {
-                    const canvas = this.renderer.domElement;
-                    this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
-                    this.camera.updateProjectionMatrix();
-                }
+
                 const delta = this.clock.getDelta();
                 this.render(delta);
                 this.update(delta);
@@ -1089,19 +1086,8 @@ const Hyperspeed = ({
       }
     `;
 
-        function resizeRendererToDisplaySize(renderer, setSize) {
-            const canvas = renderer.domElement;
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-            const needResize = canvas.width !== width || canvas.height !== height;
-            if (needResize) {
-                setSize(width, height, false);
-            }
-            return needResize;
-        }
-
         (function () {
-            const container = document.getElementById('lights');
+            const container = hyperspeed.current;
             const options = { ...effectOptions };
             options.distortion = distortions[options.distortion];
 
