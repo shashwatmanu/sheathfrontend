@@ -3,7 +3,6 @@ import React from "react";
 import {
   motion,
   useAnimationFrame,
-  useMotionTemplate,
   useMotionValue,
   useTransform,
 } from "motion/react";
@@ -94,16 +93,13 @@ export const MovingBorder = ({
     }
   });
 
-  const x = useTransform(
-    progress,
-    (val) => pathRef.current?.getPointAtLength(val).x,
-  );
-  const y = useTransform(
-    progress,
-    (val) => pathRef.current?.getPointAtLength(val).y,
-  );
-
-  const transform = useMotionTemplate`translateX(${x}px) translateY(${y}px) translateX(-50%) translateY(-50%)`;
+  // Optimization: Merging x/y transforms into a single useTransform halves the number
+  // of expensive DOM getPointAtLength() calls per frame, significantly improving animation performance.
+  const transform = useTransform(progress, (val) => {
+    const point = pathRef.current?.getPointAtLength(val);
+    if (!point) return "translateX(-50%) translateY(-50%)";
+    return `translateX(${point.x}px) translateY(${point.y}px) translateX(-50%) translateY(-50%)`;
+  });
 
   return (
     <>

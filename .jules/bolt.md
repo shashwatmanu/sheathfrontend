@@ -1,0 +1,3 @@
+## 2024-05-15 - [MovingBorder Animation Optimization]
+**Learning:** Aceternity UI's `MovingBorder` component frequently updates `x` and `y` properties via individual `useTransform` hooks during high-frequency animation loops (using `useAnimationFrame`). Calling `pathRef.current?.getPointAtLength(val)` twice per frame significantly thrashes DOM layout calculations and tanks performance.
+**Action:** Always merge multiple layout-triggering calculations (like `getPointAtLength`) into a single `useTransform` hook that returns the fully constructed CSS transform string, halving the expensive DOM queries per frame.
