@@ -1,0 +1,3 @@
+## 2024-03-19 - [Memoizing `@tsparticles` Options]
+**Learning:** The `SparklesCore` component was passing a new inline object to the `options` prop of `<Particles>` on every render. In this architecture, failing to memoize the options object and callbacks like `particlesLoaded` triggers costly React re-renders and causes the `@tsparticles` engine to continually re-initialize, acting as a significant performance bottleneck. Also, TypeScript requires explicitly typing the options object as `ISourceOptions` to prevent inference errors within `useMemo`.
+**Action:** Always wrap `options` configuration objects for heavy third-party canvas/visual libraries (like `@tsparticles`) in `useMemo` and event callbacks in `useCallback`. Ensure explicit typing for TS compatibility.
