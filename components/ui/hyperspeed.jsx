@@ -413,15 +413,27 @@ const Hyperspeed = ({
                 this.onTouchStart = this.onTouchStart.bind(this);
                 this.onTouchEnd = this.onTouchEnd.bind(this);
                 this.onContextMenu = this.onContextMenu.bind(this);
-
-                window.addEventListener('resize', this.onWindowResize.bind(this));
+                this.onResize = this.onResize.bind(this);
             }
 
-            onWindowResize() {
-                const width = this.container.offsetWidth;
-                const height = this.container.offsetHeight;
+            initResizeObserver() {
+                this.resizeObserver = new ResizeObserver(this.onResize);
+                this.resizeObserver.observe(this.container);
+            }
 
-                this.renderer.setSize(width, height);
+            onResize(entries) {
+                const entry = entries[0];
+                let width, height;
+
+                if (entry) {
+                    width = entry.contentRect.width;
+                    height = entry.contentRect.height;
+                } else {
+                    width = this.container.clientWidth;
+                    height = this.container.clientHeight;
+                }
+
+                this.renderer.setSize(width, height, false);
                 this.camera.aspect = width / height;
                 this.camera.updateProjectionMatrix();
                 this.composer.setSize(width, height);
@@ -490,6 +502,8 @@ const Hyperspeed = ({
                 this.rightCarLights.mesh.position.setX(options.roadWidth / 2 + options.islandWidth / 2);
                 this.leftSticks.init();
                 this.leftSticks.mesh.position.setX(-(options.roadWidth + options.islandWidth / 2));
+
+                this.initResizeObserver();
 
                 this.container.addEventListener('mousedown', this.onMouseDown);
                 this.container.addEventListener('mouseup', this.onMouseUp);
@@ -589,7 +603,9 @@ const Hyperspeed = ({
                     this.scene.clear();
                 }
 
-                window.removeEventListener('resize', this.onWindowResize.bind(this));
+                if (this.resizeObserver) {
+                    this.resizeObserver.disconnect();
+                }
                 if (this.container) {
                     this.container.removeEventListener('mousedown', this.onMouseDown);
                     this.container.removeEventListener('mouseup', this.onMouseUp);
@@ -608,11 +624,6 @@ const Hyperspeed = ({
 
             tick() {
                 if (this.disposed || !this) return;
-                if (resizeRendererToDisplaySize(this.renderer, this.setSize)) {
-                    const canvas = this.renderer.domElement;
-                    this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
-                    this.camera.updateProjectionMatrix();
-                }
                 const delta = this.clock.getDelta();
                 this.render(delta);
                 this.update(delta);
@@ -1088,17 +1099,6 @@ const Hyperspeed = ({
         ${THREE.ShaderChunk['fog_vertex']}
       }
     `;
-
-        function resizeRendererToDisplaySize(renderer, setSize) {
-            const canvas = renderer.domElement;
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-            const needResize = canvas.width !== width || canvas.height !== height;
-            if (needResize) {
-                setSize(width, height, false);
-            }
-            return needResize;
-        }
 
         (function () {
             const container = document.getElementById('lights');
