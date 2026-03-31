@@ -1,0 +1,3 @@
+## 2024-05-24 - [O(1) Array Pagination Rendering]
+**Learning:** In pagination UI components, using `Array.from({ length: totalPages })` for simple range display creates an array of size `totalPages` and iterates over it on every render, resulting in O(N) time and space complexity. For a large number of pages, this can cause significant performance degradation.
+**Action:** Replace `Array.from` with a fixed-size array literal of adjacent page indices (e.g., `[currentPage - 1, currentPage, currentPage + 1]`) filtered for validity (e.g., `page >= 1 && page <= totalPages`) to achieve O(1) time and space complexity regardless of the total page count.
