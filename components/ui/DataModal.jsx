@@ -570,12 +570,9 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
                 )}
 
                 {/* Pages around current */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => 
-                    page === currentPage || 
-                    page === currentPage - 1 || 
-                    page === currentPage + 1
-                  )
+                {/* ⚡ Bolt: Use O(1) array literal instead of O(N) Array.from for pagination to avoid allocating large arrays on render */}
+                {[currentPage - 1, currentPage, currentPage + 1]
+                  .filter(page => page >= 1 && page <= totalPages)
                   .map(page => (
                     <button
                       key={page}
