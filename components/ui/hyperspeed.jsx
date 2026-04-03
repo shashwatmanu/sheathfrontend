@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { BloomEffect, EffectComposer, EffectPass, RenderPass, SMAAEffect, SMAAPreset } from 'postprocessing';
 
@@ -46,10 +46,20 @@ const Hyperspeed = ({
     const hyperspeed = useRef(null);
     const appRef = useRef(null);
 
+    // ⚡ Bolt: Memoize effectOptions to prevent unnecessary Three.js instance recreation
+    const optionsString = JSON.stringify({
+        ...effectOptions,
+        onSpeedUp: undefined,
+        onSlowDown: undefined
+    });
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const memoizedOptions = useMemo(() => effectOptions, [optionsString]);
+
     useEffect(() => {
         if (appRef.current) {
             appRef.current.dispose();
-            const container = document.getElementById('lights');
+            const container = hyperspeed.current;
             if (container) {
                 while (container.firstChild) {
                     container.removeChild(container.firstChild);
@@ -1101,8 +1111,8 @@ const Hyperspeed = ({
         }
 
         (function () {
-            const container = document.getElementById('lights');
-            const options = { ...effectOptions };
+            const container = hyperspeed.current;
+            const options = { ...memoizedOptions };
             options.distortion = distortions[options.distortion];
 
             const myApp = new App(container, options);
@@ -1115,7 +1125,7 @@ const Hyperspeed = ({
                 appRef.current.dispose();
             }
         };
-    }, [effectOptions]);
+       }, [memoizedOptions]);
 
     return <div id="lights" ref={hyperspeed}></div>;
 };

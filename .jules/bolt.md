@@ -1,0 +1,3 @@
+## 2025-02-14 - [Memoizing Hyperspeed Options]
+**Learning:** The `Hyperspeed` component (`components/ui/hyperspeed.jsx`) suffers from severe performance degradation because it recreates an entire Three.js application instance on every render due to `effectOptions` not being memoized. Using `JSON.stringify` on the non-functional properties of `effectOptions` allows for deep comparison and stable dependency references.
+**Action:** When a React component takes a complex configuration object that controls heavy initializations (like Three.js or canvas engines), always stringify/memoize the serializable parts of the configuration to avoid unnecessary re-initializations inside `useEffect`.
