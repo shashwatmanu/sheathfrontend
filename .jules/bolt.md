@@ -1,0 +1,3 @@
+## 2024-05-24 - Canvas inner-loop `ctx.save`/`ctx.restore` extraction
+**Learning:** In high-frequency canvas render loops (e.g., `components/ui/vortex.tsx`), repeatedly calling `ctx.save()` and `ctx.restore()` inside inner per-item loops is highly expensive. Wrapping the entire loop, manually setting static properties per frame outside the loop, yields substantial performance gains without compromising state.
+**Action:** Always check canvas rendering paths for `ctx.save()`/`ctx.restore()` inside tight loops. If properties are only set but not modified sequentially, pull the save/restore out to wrap the array loop.
