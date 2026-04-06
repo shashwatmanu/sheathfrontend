@@ -101,9 +101,27 @@ export default function HistoryPage() {
     };
 
     // Calculate Summary Stats
+    const stats = React.useMemo(() => {
+        let totalAmount = 0;
+        let uniquePatients = 0;
+        for (let i = 0; i < reconciliations.length; i++) {
+            const summary = reconciliations[i].summary;
+            if (summary) {
+                totalAmount += (summary.total_amount || 0);
+                uniquePatients += (summary.unique_patients || 0);
+            }
+        }
+        return { totalAmountProcessed: totalAmount, uniquePatientsProcessed: uniquePatients };
+    }, [reconciliations]);
+
     const totalRecons = reconciliations.length;
-    const totalAmountProcessed = reconciliations.reduce((acc, curr) => acc + (curr.summary?.total_amount || 0), 0);
-    const uniquePatientsProcessed = reconciliations.reduce((acc, curr) => acc + (curr.summary?.unique_patients || 0), 0);
+    const { totalAmountProcessed, uniquePatientsProcessed } = stats;
+
+    const filteredReconciliations = React.useMemo(() => {
+        return selectedUser === "all"
+            ? reconciliations
+            : reconciliations.filter(r => r.username === selectedUser);
+    }, [reconciliations, selectedUser]);
 
     const downloadZip = async (runId) => {
         setDownloading(prev => ({ ...prev, [runId]: true }));
@@ -449,11 +467,6 @@ export default function HistoryPage() {
 
                 {/* Reconciliation Grid */}
                 {!loading && !error && reconciliations.length > 0 && (() => {
-                    // Filter reconciliations based on selected user
-                    const filteredReconciliations = selectedUser === "all"
-                        ? reconciliations
-                        : reconciliations.filter(r => r.username === selectedUser);
-
                     if (filteredReconciliations.length === 0) {
                         return (
                             <div className="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl">
