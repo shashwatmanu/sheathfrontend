@@ -1,0 +1,3 @@
+## 2024-04-07 - [Optimize SVG path animations]
+**Learning:** For SVG path animations using `motion/react` (e.g., `MovingBorder`), separating `x` and `y` `useTransform` hooks that query `getPointAtLength` results in redundant and expensive DOM layout calculations per frame.
+**Action:** Merge multiple `useTransform` hooks into a single hook returning the combined transform string to halve the DOM layout calculations.
