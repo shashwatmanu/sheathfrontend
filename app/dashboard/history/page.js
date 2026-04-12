@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { isAuthenticated, logout, getUsername, authenticatedFetch, getStoredProfile, isAdmin, getUserProfile } from "../../../lib/auth";
 import { SparklesCore } from "../../../components/ui/sparkles";
@@ -102,8 +102,20 @@ export default function HistoryPage() {
 
     // Calculate Summary Stats
     const totalRecons = reconciliations.length;
-    const totalAmountProcessed = reconciliations.reduce((acc, curr) => acc + (curr.summary?.total_amount || 0), 0);
-    const uniquePatientsProcessed = reconciliations.reduce((acc, curr) => acc + (curr.summary?.unique_patients || 0), 0);
+    // ⚡ Bolt: Consolidated reduce operations into a single O(n) loop
+    // Wrapped in useMemo to prevent recalculation on every render
+    const { totalAmountProcessed, uniquePatientsProcessed } = useMemo(() => {
+        let totalAmount = 0;
+        let uniquePatients = 0;
+        for (let i = 0; i < reconciliations.length; i++) {
+            const summary = reconciliations[i].summary;
+            if (summary) {
+                totalAmount += summary.total_amount || 0;
+                uniquePatients += summary.unique_patients || 0;
+            }
+        }
+        return { totalAmountProcessed: totalAmount, uniquePatientsProcessed: uniquePatients };
+    }, [reconciliations]);
 
     const downloadZip = async (runId) => {
         setDownloading(prev => ({ ...prev, [runId]: true }));
