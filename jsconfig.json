@@ -1,32 +1,15 @@
 {
   "compilerOptions": {
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
-    "jsx": "react",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
-    }
-  }
+    },
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "target": "es5"
+  },
+  "exclude": ["node_modules"]
 }

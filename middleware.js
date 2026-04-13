@@ -9,15 +9,26 @@ export function middleware(request) {
                      request.nextUrl.pathname.startsWith("/auth/register");
   
   const isProtectedPage = request.nextUrl.pathname.startsWith("/dashboard");
+  const isAdminPage = request.nextUrl.pathname.startsWith("/admin");
 
   // If trying to access protected page without token, redirect to login
-  if (isProtectedPage && !token) {
+  if ((isProtectedPage || isAdminPage) && !token) {
     return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
-  // If trying to access auth pages with token, redirect to dashboard
+  // If trying to access admin page, check is_admin cookie
+  if (isAdminPage) {
+    const isAdmin = request.cookies.get("is_admin")?.value === "true";
+    if (!isAdmin) {
+      // Redirect to dashboard if not admin
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
+  // If trying to access auth pages with token, redirect to dashboard/admin
   if (isAuthPage && token) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const isAdmin = request.cookies.get("is_admin")?.value === "true";
+    return NextResponse.redirect(new URL(isAdmin ? "/admin/summary" : "/dashboard", request.url));
   }
 
   return NextResponse.next();

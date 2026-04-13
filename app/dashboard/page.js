@@ -10,7 +10,7 @@ import Hyperspeed from "../../components/ui/hyperspeed";
 import Lottie from 'lottie-react';
 import DataModal from '../../components/ui/DataModal';
 import { WobbleCard } from "../../components/ui/wobble-card";
-import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X, Eye, Plus, Edit, Trash, ShieldCheck } from "lucide-react";
+import { Check, Landmark, FileSpreadsheet, FileText, AlertCircle, Download, X, Eye, Plus, Edit, Trash, ShieldCheck, Tag, Info, ListFilter, Target, Calendar } from "lucide-react";
 import SideNote from "../../components/ui/SideNote.jsx";
 // import AIAssistantModal from '../../components/ui/AIAssistantModal.jsx';  // ✅ NEW: AI Assistant
 
@@ -124,6 +124,86 @@ const HeroSparkles = React.memo(() => (
     />
   </div>
 ));
+
+const categorizeError = (errorMsg) => {
+  if (!errorMsg) return null;
+  const lowercaseError = errorMsg.toLowerCase();
+  
+  // TPA Column Mismatches / Auto-detect failures
+  if (lowercaseError.includes("column") || lowercaseError.includes("missing") || lowercaseError.includes("auto-detect failed")) {
+    const isAutoDetect = lowercaseError.includes("auto-detect");
+    return {
+      type: "User Input Error",
+      title: isAutoDetect ? "TPA Auto-detect Failed" : "Column Mismatch",
+      message: errorMsg,
+      solution: isAutoDetect 
+        ? "The system couldn't identify the TPA automatically. Please ensure the MIS file layout is correct or ask Admin to update TPA mappings."
+        : "The uploaded file is missing expected columns. Please verify the column names match the TPA configuration in the sidebar.",
+      action: "open_tpa_sidebar",
+      icon: "📋",
+      color: "#ef4444"
+    };
+  }
+  
+  // Filter issues
+  if (lowercaseError.includes("filter") || lowercaseError.includes("hidden")) {
+    return {
+      type: "User Input Error",
+      title: "Active Filters Detected",
+      message: errorMsg,
+      solution: "Some files have active filters or hidden rows. Please clear all filters, unhide all rows/columns, and try again.",
+      icon: "🔍",
+      color: "#f59e0b"
+    };
+  }
+  
+  // Authentication/Session
+  if (lowercaseError.includes("unauthorized") || lowercaseError.includes("token") || lowercaseError.includes("401") || lowercaseError.includes("login")) {
+    return {
+      type: "Authentication Error",
+      title: "Session Expired",
+      message: errorMsg,
+      solution: "Your session has expired. Please log in again.",
+      action: "logout",
+      icon: "🔐",
+      color: "#6366f1"
+    };
+  }
+
+  // File type issues
+  if (lowercaseError.includes("extension") || lowercaseError.includes("format") || lowercaseError.includes("xlsx") || lowercaseError.includes("csv")) {
+    return {
+      type: "User Input Error",
+      title: "Invalid File Format",
+      message: errorMsg,
+      solution: "Please ensure you are uploading Excel (.xlsx) or CSV files as required by the TPA.",
+      icon: "📄",
+      color: "#ef4444"
+    };
+  }
+
+  // Generic System Errors
+  if (lowercaseError.includes("unhashable") || lowercaseError.includes("internal") || lowercaseError.includes("500")) {
+    return {
+      type: "System Error",
+      title: "Internal Processing Error",
+      message: errorMsg,
+      solution: "A system-level error occurred. This might be due to unexpected data formats. Please contact technical support.",
+      icon: "⚙️",
+      color: "#991b1b"
+    };
+  }
+
+  // Default Generic Error
+  return {
+    type: "Processing Error",
+    title: "Encountered an Issue",
+    message: errorMsg,
+    solution: "Something went wrong. Try refreshing or check if the file matches our tool's expected format.",
+    icon: "⚠️",
+    color: "#ef4444"
+  };
+};
 
 // New component for displaying Excel data
 const ExcelDataViewer = ({ url, label, darkMode, apiBase }) => {
@@ -984,6 +1064,683 @@ const TpaConfigurationManager = ({ darkMode, apiBase }) => {
   );
 };
 
+const DetectionPatternsEditor = ({ patterns, onChange, darkMode, theme }) => {
+  const addSet = () => onChange([...patterns, ["", ""]]);
+  const removeSet = (idx) => onChange(patterns.filter((_, i) => i !== idx));
+  const updateToken = (setIdx, tokenIdx, val) => {
+    const newPatterns = [...patterns];
+    newPatterns[setIdx][tokenIdx] = val;
+    onChange(newPatterns);
+  };
+  const addToken = (setIdx) => {
+    const newPatterns = [...patterns];
+    newPatterns[setIdx].push("");
+    onChange(newPatterns);
+  };
+  const removeToken = (setIdx, tokenIdx) => {
+    const newPatterns = [...patterns];
+    newPatterns[setIdx] = newPatterns[setIdx].filter((_, i) => i !== tokenIdx);
+    onChange(newPatterns);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: theme.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Target size={14} /> Detection Patterns (Tokens that must appear in a row)
+      </label>
+      {patterns.map((set, sIdx) => (
+        <div key={sIdx} style={{
+          padding: 12,
+          background: darkMode ? "rgba(255,255,255,0.03)" : "#f8fafc",
+          borderRadius: 8,
+          border: `1px solid ${theme.border}`,
+          position: 'relative'
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {set.map((token, tIdx) => (
+              <div key={tIdx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input
+                  type="text"
+                  value={token}
+                  onChange={(e) => updateToken(sIdx, tIdx, e.target.value)}
+                  placeholder="Token"
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: 4,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.inputBg,
+                    color: theme.text,
+                    fontSize: 12,
+                    outline: "none",
+                    width: 100
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeToken(sIdx, tIdx)}
+                  style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addToken(sIdx)}
+              style={{
+                padding: "4px 8px",
+                borderRadius: 4,
+                border: `1px dashed ${theme.border}`,
+                background: 'transparent',
+                color: theme.textSecondary,
+                fontSize: 12,
+                cursor: 'pointer'
+              }}
+            >
+              + Token
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => removeSet(sIdx)}
+            style={{
+              position: 'absolute',
+              top: -8,
+              right: -8,
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: 18,
+              height: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: 10
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addSet}
+        style={{
+          padding: "6px 12px",
+          borderRadius: 8,
+          border: `1px dashed ${theme.border}`,
+          background: 'transparent',
+          color: theme.textSecondary,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: 'pointer',
+          alignSelf: 'flex-start'
+        }}
+      >
+        + Add Pattern Set
+      </button>
+    </div>
+  );
+};
+
+const ColumnMappingEditor = ({ mapping, onChange, theme }) => {
+  const addPair = () => onChange({ ...mapping, "": "" });
+  const removePair = (key) => {
+    const newMapping = { ...mapping };
+    delete newMapping[key];
+    onChange(newMapping);
+  };
+  const updatePair = (oldKey, newKey, newVal) => {
+    const newMapping = { ...mapping };
+    if (oldKey !== newKey) {
+      delete newMapping[oldKey];
+    }
+    newMapping[newKey] = newVal;
+    onChange(newMapping);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: theme.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <ListFilter size={14} /> Column Mapping (Original Header → Canonical Header)
+      </label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {Object.entries(mapping).map(([key, val], idx) => (
+          <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="text"
+              value={key}
+              onChange={(e) => updatePair(key, e.target.value, val)}
+              placeholder="Original Header"
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: `1px solid ${theme.border}`,
+                background: theme.inputBg,
+                color: theme.text,
+                fontSize: 13,
+                outline: "none"
+              }}
+            />
+            <span style={{ color: theme.textSecondary }}>→</span>
+            <input
+              type="text"
+              value={val}
+              onChange={(e) => updatePair(key, key, e.target.value)}
+              placeholder="Canonical Header"
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: `1px solid ${theme.border}`,
+                background: theme.inputBg,
+                color: theme.text,
+                fontSize: 13,
+                outline: "none"
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => removePair(key)}
+              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+            >
+              <Trash size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={addPair}
+        style={{
+          padding: "6px 12px",
+          borderRadius: 8,
+          border: `1px dashed ${theme.border}`,
+          background: 'transparent',
+          color: theme.textSecondary,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: 'pointer',
+          alignSelf: 'flex-start'
+        }}
+      >
+        + Add Mapping
+      </button>
+    </div>
+  );
+};
+
+const KeepColumnsEditor = ({ columns, onChange, theme }) => {
+  const [newCol, setNewCol] = useState("");
+  const addCol = () => {
+    if (newCol && !columns.includes(newCol)) {
+      onChange([...columns, newCol]);
+      setNewCol("");
+    }
+  };
+  const removeCol = (col) => onChange(columns.filter(c => c !== col));
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: theme.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Tag size={14} /> Keep Columns (Canonical Headers to retain)
+      </label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {columns.map((col, idx) => (
+          <div key={idx} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: "4px 10px",
+            background: "rgba(79, 70, 229, 0.1)",
+            color: "#4f46e5",
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 600,
+            border: "1px solid rgba(79, 70, 229, 0.2)"
+          }}>
+            {col}
+            <button
+              type="button"
+              onClick={() => removeCol(col)}
+              style={{ background: 'transparent', border: 'none', color: '#4f46e5', cursor: 'pointer', padding: 0, display: 'flex' }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          type="text"
+          value={newCol}
+          onChange={(e) => setNewCol(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCol())}
+          placeholder="Add canonical header..."
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: `1px solid ${theme.border}`,
+            background: theme.inputBg,
+            color: theme.text,
+            fontSize: 13,
+            outline: "none"
+          }}
+        />
+        <button
+          type="button"
+          onClick={addCol}
+          style={{
+            padding: "8px 16px",
+            background: theme.border,
+            color: theme.text,
+            border: "none",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const BankConfigurationManager = ({ darkMode, apiBase }) => {
+  const [banks, setBanks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingBank, setEditingBank] = useState(null);
+  const [formData, setFormData] = useState({
+    bank_name: "",
+    detection_patterns: [["", ""]],
+    column_mapping: {},
+    keep_columns: []
+  });
+
+  const theme = {
+    bg: darkMode ? "#0f172a" : "#ffffff",
+    cardBg: darkMode ? "#1e293b" : "#ffffff",
+    text: darkMode ? "#f1f5f9" : "#000000",
+    textSecondary: darkMode ? "#94a3b8" : "#666666",
+    border: darkMode ? "#334155" : "#e0e0e0",
+    inputBg: darkMode ? "#0f172a" : "#f8f8f8",
+  };
+
+  const fetchBanks = async () => {
+    try {
+      setLoading(true);
+      const res = await authenticatedFetch(`${apiBase.replace(/\/$/, "")}/api/bank-mappings`);
+      if (res.ok) {
+        const data = await res.json();
+        setBanks(Array.isArray(data) ? data : []);
+      } else {
+        throw new Error("Failed to fetch bank mappings");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load bank mappings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBanks();
+  }, [apiBase]);
+
+  const handleOpenModal = (bank = null) => {
+    if (bank) {
+      setEditingBank(bank);
+      setFormData({
+        bank_name: bank.bank_name,
+        detection_patterns: bank.detection_patterns || [["", ""]],
+        column_mapping: bank.column_mapping || {},
+        keep_columns: bank.keep_columns || []
+      });
+    } else {
+      setEditingBank(null);
+      setFormData({
+        bank_name: "",
+        detection_patterns: [["", ""]],
+        column_mapping: {},
+        keep_columns: []
+      });
+    }
+    setError("");
+    setSuccess("");
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const isEdit = !!editingBank;
+      const url = isEdit
+        ? `${apiBase.replace(/\/$/, "")}/admin/bank_mappings/${editingBank.id}`
+        : `${apiBase.replace(/\/$/, "")}/admin/admin/bank_mappings`;
+
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await authenticatedFetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `Failed to ${isEdit ? "update" : "create"} bank mapping`);
+      }
+
+      setSuccess(`Bank mapping successfully ${isEdit ? "updated" : "created"}!`);
+      setModalOpen(false);
+      fetchBanks();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "An error occurred");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete configuration for ${name}?`)) return;
+
+    setActionLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await authenticatedFetch(`${apiBase.replace(/\/$/, "")}/api/bank-mappings/${id}`, {
+        method: "DELETE"
+      });
+
+      if (!res.ok) throw new Error("Failed to delete bank mapping");
+
+      setSuccess(`Bank mapping for ${name} deleted successfully!`);
+      fetchBanks();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to delete mapping");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 48 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 28, fontWeight: 700, color: theme.text, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Landmark size={32} color={darkMode ? "#a5b4fc" : "#4f46e5"} />
+            Bank Configurations
+          </h2>
+          <p style={{ color: theme.textSecondary, marginTop: 4 }}>
+            Configure auto-detection patterns and column mappings for bank statements.
+          </p>
+        </div>
+        <button
+          onClick={() => handleOpenModal()}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 20px",
+            background: "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: "pointer",
+            boxShadow: darkMode ? "0 4px 12px rgba(79, 70, 229, 0.4)" : "0 4px 12px rgba(79, 70, 229, 0.3)",
+            transition: "transform 0.2s"
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"}
+          onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
+        >
+          <Plus size={18} /> Add New Bank
+        </button>
+      </div>
+
+      {error && !modalOpen && (
+        <div style={{ padding: 16, background: darkMode ? "rgba(239, 68, 68, 0.2)" : "#fee2e2", color: darkMode ? "#fca5a5" : "#b91c1c", borderRadius: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertCircle size={20} /> {error}
+        </div>
+      )}
+
+      {success && !modalOpen && (
+        <div style={{ padding: 16, background: darkMode ? "rgba(34, 197, 94, 0.2)" : "#dcfce7", color: darkMode ? "#86efac" : "#15803d", borderRadius: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Check size={20} /> {success}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ padding: 48, textAlign: 'center', color: theme.textSecondary }}>
+          <div className="animate-spin inline-block w-8 h-8 border-[3px] border-current border-t-transparent text-indigo-600 rounded-full mb-4"></div>
+          <p>Loading bank configurations...</p>
+        </div>
+      ) : (
+        <div style={{
+          background: theme.cardBg,
+          borderRadius: 16,
+          border: `1px solid ${theme.border}`,
+          overflow: "hidden",
+          boxShadow: darkMode ? "0 4px 24px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.05)"
+        }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead>
+                <tr style={{ background: darkMode ? "rgba(255,255,255,0.05)" : "#f8fafc" }}>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}` }}>Bank Name</th>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}` }}>Detection Logic</th>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}` }}>Mappings</th>
+                  <th style={{ padding: "16px 24px", color: theme.textSecondary, fontWeight: 600, fontSize: 13, borderBottom: `1px solid ${theme.border}`, textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {banks.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: 32, textAlign: "center", color: theme.textSecondary }}>
+                      No bank mappings configured. Click "Add New Bank" to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  banks.map((bank) => (
+                    <tr key={bank.id} style={{ borderBottom: `1px solid ${theme.border}`, transition: "background 0.2s" }} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td style={{ padding: "16px 24px", color: theme.text, fontWeight: 600, fontSize: 15 }}>{bank.bank_name}</td>
+                      <td style={{ padding: "16px 24px" }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {bank.detection_patterns?.map((set, idx) => (
+                            <span key={idx} style={{ padding: "2px 8px", background: darkMode ? "rgba(59, 130, 246, 0.1)" : "#eff6ff", color: "#3b82f6", borderRadius: 4, fontSize: 11, fontWeight: 500, border: "1px solid rgba(59, 130, 246, 0.2)" }}>
+                              {set.join(" + ")}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ padding: "16px 24px" }}>
+                        <div style={{ color: theme.textSecondary, fontSize: 12 }}>
+                          {Object.keys(bank.column_mapping || {}).length} rules • {bank.keep_columns?.length || 0} retained
+                        </div>
+                      </td>
+                      <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                          <button
+                            onClick={() => handleOpenModal(bank)}
+                            style={{ background: "transparent", border: "none", cursor: "pointer", color: theme.textSecondary, transition: "color 0.2s" }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = darkMode ? "#a5b4fc" : "#4f46e5"}
+                            onMouseLeave={(e) => e.currentTarget.style.color = theme.textSecondary}
+                            title="Edit"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(bank.id, bank.bank_name)}
+                            disabled={actionLoading}
+                            style={{ background: "transparent", border: "none", cursor: actionLoading ? "not-allowed" : "pointer", color: theme.textSecondary, transition: "color 0.2s", opacity: actionLoading ? 0.5 : 1 }}
+                            onMouseEnter={(e) => { if (!actionLoading) e.currentTarget.style.color = "#ef4444" }}
+                            onMouseLeave={(e) => e.currentTarget.style.color = theme.textSecondary}
+                            title="Delete"
+                          >
+                            <Trash size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Form Modal */}
+      {modalOpen && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1100,
+          padding: 20
+        }}>
+          <div style={{
+            background: theme.cardBg,
+            borderRadius: 16,
+            width: "100%",
+            maxWidth: 650,
+            maxHeight: "90vh",
+            boxShadow: darkMode ? "0 10px 40px rgba(0,0,0,0.5)" : "0 10px 40px rgba(0,0,0,0.1)",
+            overflow: "hidden",
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{ padding: "20px 24px", borderBottom: `1px solid ${theme.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: theme.text }}>
+                {editingBank ? "Edit Bank Configuration" : "Add New Bank"}
+              </h3>
+              <button
+                onClick={() => setModalOpen(false)}
+                style={{ background: "transparent", border: "none", color: theme.textSecondary, cursor: "pointer", padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ overflowY: 'auto', flex: 1 }}>
+              <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+                {error && (
+                  <div style={{ padding: 12, background: darkMode ? "rgba(239, 68, 68, 0.2)" : "#fee2e2", color: darkMode ? "#fca5a5" : "#b91c1c", borderRadius: 8, fontSize: 14 }}>
+                    {error}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: theme.textSecondary }}>Bank Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.bank_name}
+                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      border: `1px solid ${theme.border}`,
+                      background: theme.inputBg,
+                      color: theme.text,
+                      fontSize: 14,
+                      outline: "none"
+                    }}
+                    placeholder="e.g. ICICI BANK"
+                  />
+                </div>
+
+                <DetectionPatternsEditor
+                  patterns={formData.detection_patterns}
+                  onChange={(val) => setFormData({ ...formData, detection_patterns: val })}
+                  darkMode={darkMode}
+                  theme={theme}
+                />
+
+                <ColumnMappingEditor
+                  mapping={formData.column_mapping}
+                  onChange={(val) => setFormData({ ...formData, column_mapping: val })}
+                  theme={theme}
+                />
+
+                <KeepColumnsEditor
+                  columns={formData.keep_columns}
+                  onChange={(val) => setFormData({ ...formData, keep_columns: val })}
+                  theme={theme}
+                />
+              </div>
+
+              <div style={{ padding: "16px 24px", background: darkMode ? "rgba(255,255,255,0.02)" : "#f8fafc", borderTop: `1px solid ${theme.border}`, display: "flex", justifyContent: "flex-end", gap: 12, position: 'sticky', bottom: 0, zIndex: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  style={{
+                    padding: "10px 20px",
+                    background: "transparent",
+                    color: theme.textSecondary,
+                    border: "none",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    borderRadius: 8,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 24px",
+                    background: "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    fontWeight: 600,
+                    cursor: actionLoading ? "not-allowed" : "pointer",
+                    opacity: actionLoading ? 0.7 : 1,
+                  }}
+                >
+                  {actionLoading ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <Check size={18} />}
+                  {editingBank ? "Update" : "Create"} Configuration
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Home() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const router = useRouter();
@@ -1110,6 +1867,30 @@ export default function Home() {
       setPreviewModalOpen(true);
     } catch (e) {
       console.error("Preview failed", e);
+      alert("Failed to load file for preview. " + (e.message || ""));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handlePreviewLocalFile = async (file) => {
+    if (!file) return;
+    setPreviewLoading(true);
+    setPreviewFilename(file.name);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const jsonData = await parseExcelWithWorker(arrayBuffer);
+
+      if (jsonData.length > 0) {
+        setPreviewColumns(Object.keys(jsonData[0]));
+        setPreviewData(jsonData);
+      } else {
+        setPreviewColumns([]);
+        setPreviewData([]);
+      }
+      setPreviewModalOpen(true);
+    } catch (e) {
+      console.error("Local preview failed", e);
       alert("Failed to load file for preview. " + (e.message || ""));
     } finally {
       setPreviewLoading(false);
@@ -1605,7 +2386,7 @@ export default function Home() {
   const handleBulkReconcile = async () => {
     setError("");
     setBulkLoading(true);
-    setBulkResult({ summary: [] }); // Initialize with empty summary for real-time updates
+    setBulkResult({ summary: [], files: {}, bank_file_dates: {} }); // Initialize for real-time updates
     setProcessingStatus("Initializing...");
 
     if (!API_BASE) {
@@ -1689,6 +2470,19 @@ export default function Home() {
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line);
+            
+            // Triple-check capture of bank_file_dates from any part of the event
+            const incomingDates = event.bank_file_dates || 
+                                 (event.data && event.data.bank_file_dates) || 
+                                 (event.summary && event.summary.bank_file_dates);
+
+            if (incomingDates && typeof incomingDates === 'object') {
+              setBulkResult(prev => ({
+                ...prev,
+                bank_file_dates: { ...(prev?.bank_file_dates || {}), ...incomingDates }
+              }));
+            }
+
             console.log("[Bulk] Event:", event);
 
             // Handle Event Types
@@ -1711,7 +2505,8 @@ export default function Home() {
                   return {
                     ...prev,
                     summary: [...currentSummary, event.data],
-                    files: { ...currentFiles, ...newFiles }
+                    files: { ...currentFiles, ...newFiles },
+                    bank_file_dates: { ...(prev?.bank_file_dates || {}), ...(event.bank_file_dates || {}) }
                   };
                 });
               }
@@ -1743,7 +2538,13 @@ export default function Home() {
                     ...prev,
                     summary: finalSummary,
                     files: finalFiles, // Ensure this is not overwritten by empty object
-                    zip_url: event.zip_url || prev?.zip_url
+                    zip_url: event.zip_url || prev?.zip_url,
+                    bank_file_dates: { 
+                      ...(prev?.bank_file_dates || {}), 
+                      ...(event.bank_file_dates || {}),
+                      ...((event.summary && event.summary.bank_file_dates) || {}),
+                      ...((event.data && event.data.bank_file_dates) || {})
+                    }
                   };
                 });
               }, 500);
@@ -1764,7 +2565,13 @@ export default function Home() {
               ...prev,
               summary: event.data,
               files: event.files,
-              zip_url: event.zip_url
+              zip_url: event.zip_url,
+              bank_file_dates: { 
+                ...(prev?.bank_file_dates || {}), 
+                ...(event.bank_file_dates || {}),
+                ...((event.summary && event.summary.bank_file_dates) || {}),
+                ...((event.data && event.data.bank_file_dates) || {})
+              }
             }));
           }
         } catch (e) {
@@ -1967,8 +2774,32 @@ export default function Home() {
           boxSizing: "border-box"
         }}>
 
+          {isAdminUser && (
+            <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 transform hover:scale-[1.01] transition-all duration-300">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-inner">
+                  <ShieldCheck size={32} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Admin Control Center</h2>
+                  <p className="text-indigo-100 font-medium opacity-90 italic">New executive summary, operations review, and system diagnostics are live.</p>
+                </div>
+              </div>
+              <button 
+                  onClick={() => window.location.href = '/admin/summary'}
+                  className="px-8 py-3 bg-white text-indigo-700 font-bold rounded-xl shadow-lg hover:bg-opacity-90 transition-all flex items-center gap-2 group"
+                >
+                Go to Admin Dashboard
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </button>
+            </div>
+          )}
+
           {isAdminUser ? (
-            <TpaConfigurationManager darkMode={darkMode} apiBase={API_BASE} />
+            <>
+              <TpaConfigurationManager darkMode={darkMode} apiBase={API_BASE} />
+              <BankConfigurationManager darkMode={darkMode} apiBase={API_BASE} />
+            </>
           ) : (
             <>          {/* Hero Section with sparkles */}
               <div style={{
@@ -2311,12 +3142,25 @@ export default function Home() {
                                         <span className="text-lg">📄</span>
                                         <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
                                       </div>
-                                      <button
-                                        onClick={() => setBulkBankFiles(prev => prev.filter((_, i) => i !== idx))}
-                                        className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
-                                      >
-                                        ✕
-                                      </button>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() => handlePreviewLocalFile(file)}
+                                          className={`p-1 rounded transition-colors ${darkMode ? "hover:bg-slate-700 text-blue-400" : "hover:bg-blue-50 text-blue-600"}`}
+                                          title="Preview File"
+                                        >
+                                          {previewLoading && previewFilename === file.name ? (
+                                            <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                                          ) : (
+                                            <Eye size={16} />
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => setBulkBankFiles(prev => prev.filter((_, i) => i !== idx))}
+                                          className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -2365,12 +3209,25 @@ export default function Home() {
                                         <span className="text-lg">📊</span>
                                         <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{file.name}</span>
                                       </div>
-                                      <button
-                                        onClick={() => setBulkMisFiles(prev => prev.filter((_, i) => i !== idx))}
-                                        className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
-                                      >
-                                        ✕
-                                      </button>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() => handlePreviewLocalFile(file)}
+                                          className={`p-1 rounded transition-colors ${darkMode ? "hover:bg-slate-700 text-blue-400" : "hover:bg-blue-50 text-blue-600"}`}
+                                          title="Preview File"
+                                        >
+                                          {previewLoading && previewFilename === file.name ? (
+                                            <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                                          ) : (
+                                            <Eye size={16} />
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => setBulkMisFiles(prev => prev.filter((_, i) => i !== idx))}
+                                          className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -2416,12 +3273,25 @@ export default function Home() {
                                     <span className="text-lg">✅</span>
                                     <span className={`text-sm truncate ${darkMode ? "text-white" : "text-gray-700"}`}>{bulkOutstandingFile.name}</span>
                                   </div>
-                                  <button
-                                    onClick={() => setBulkOutstandingFile(null)}
-                                    className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
-                                  >
-                                    ✕
-                                  </button>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => handlePreviewLocalFile(bulkOutstandingFile)}
+                                        className={`p-1 rounded transition-colors ${darkMode ? "hover:bg-slate-700 text-blue-400" : "hover:bg-blue-50 text-blue-600"}`}
+                                        title="Preview File"
+                                      >
+                                        {previewLoading && previewFilename === bulkOutstandingFile.name ? (
+                                          <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                                        ) : (
+                                          <Eye size={16} />
+                                        )}
+                                      </button>
+                                      <button
+                                        onClick={() => setBulkOutstandingFile(null)}
+                                        className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
                                 </div>
                               )}
 
@@ -2637,6 +3507,7 @@ export default function Home() {
                                     );
                                   })()}
                                 </div>
+                                
 
                                 {/* Results Table */}
                                 {bulkResult.summary && (
@@ -2680,8 +3551,13 @@ export default function Home() {
                                             return (
                                               <React.Fragment key={idx}>
                                                 <tr className={`transition-colors ${darkMode ? "hover:bg-slate-700/30" : "hover:bg-gray-50"} ${isExpanded ? (darkMode ? "bg-slate-700/30" : "bg-gray-50") : ""}`}>
-                                                  <td className={`px-6 py-4 font-medium max-w-[200px] truncate ${darkMode ? "text-slate-200" : "text-gray-900"}`} title={row["Bank File"]}>
-                                                    {row["Bank File"]}
+                                                  <td className={`px-6 py-4 font-medium max-w-[200px] ${darkMode ? "text-slate-200" : "text-gray-900"}`} title={row["Bank File"]}>
+                                                    <div className="truncate">{row["Bank File"]}</div>
+                                                    {(bulkResult.bank_file_dates?.[row["Bank File"]] || row.bank_file_dates?.[row["Bank File"]]) && (
+                                                      <div className="text-[10px] text-indigo-500 font-bold mt-1 flex items-center gap-1">
+                                                        <span>📅</span> {bulkResult.bank_file_dates?.[row["Bank File"]] || row.bank_file_dates?.[row["Bank File"]]}
+                                                      </div>
+                                                    )}
                                                   </td>
                                                   <td className={`px-6 py-4 max-w-[200px] truncate ${darkMode ? "text-slate-400" : "text-gray-600"}`} title={row["MIS File"]}>
                                                     {row["MIS File"]}
@@ -2715,18 +3591,41 @@ export default function Home() {
                                                   <td className="px-6 py-4">
                                                     {(() => {
                                                       const status = (row.Status || "").toLowerCase();
-                                                      let badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"; // Default: Error/Fail
+                                                      const errorText = row.Error || "";
+                                                      const errorInfo = status === "failed" || errorText ? categorizeError(errorText) : null;
+                                                      
+                                                      let badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"; 
+                                                      let displayStatus = row.Status || "Unknown";
+                                                      let icon = null;
 
                                                       if (status === "success" || status === "completed") {
                                                         badgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+                                                        displayStatus = "Success";
                                                       } else if (status === "pending" || status === "processing" || status === "generating") {
                                                         badgeClass = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+                                                      } else if (errorInfo) {
+                                                        displayStatus = errorInfo.type === "User Input Error" ? "Input Error" : "System Error";
+                                                        icon = <span>{errorInfo.icon}</span>;
                                                       }
 
                                                       return (
-                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${badgeClass}`}>
-                                                          {row.Status || "Unknown"}
-                                                        </span>
+                                                        <Tooltip 
+                                                          title={errorInfo ? (
+                                                            <div className="p-2 max-w-[250px]">
+                                                              <div className="font-bold mb-1">{errorInfo.title}</div>
+                                                              <div className="text-xs mb-2 opacity-90">{errorInfo.message}</div>
+                                                              <div className="text-[10px] p-2 bg-black/20 rounded border-l-2 border-white/50">
+                                                                <strong>Solution:</strong> {errorInfo.solution}
+                                                              </div>
+                                                            </div>
+                                                          ) : ""}
+                                                          arrow
+                                                        >
+                                                          <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 ${badgeClass} cursor-help`}>
+                                                            {icon}
+                                                            {displayStatus}
+                                                          </span>
+                                                        </Tooltip>
                                                       );
                                                     })()}
                                                   </td>
@@ -2879,8 +3778,16 @@ export default function Home() {
                                 <div className="flex items-center gap-3">
                                   <div className="text-2xl">📊</div>
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                    <p 
+                                      onClick={() => handlePreviewLocalFile(bankFile)}
+                                      className={`text-sm font-medium truncate cursor-pointer hover:underline flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}
+                                    >
                                       {bankFile.name}
+                                      {previewLoading && previewFilename === bankFile.name ? (
+                                        <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                                      ) : (
+                                        <Eye size={14} />
+                                      )}
                                     </p>
                                     <p className="text-xs text-gray-500">
                                       {(bankFile.size / 1024).toFixed(1)} KB
@@ -2934,8 +3841,16 @@ export default function Home() {
                                 <div className="flex items-center gap-3">
                                   <div className="text-2xl">📋</div>
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-sm font-medium truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                    <p 
+                                      onClick={() => handlePreviewLocalFile(advanceFile)}
+                                      className={`text-sm font-medium truncate cursor-pointer hover:underline flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-900"}`}
+                                    >
                                       {advanceFile.name}
+                                      {previewLoading && previewFilename === advanceFile.name ? (
+                                        <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                                      ) : (
+                                        <Eye size={14} />
+                                      )}
                                     </p>
                                     <p className="text-xs text-gray-500">
                                       {(advanceFile.size / 1024).toFixed(1)} KB
@@ -3078,7 +3993,18 @@ export default function Home() {
                               display: "inline-block",
                               border: darkMode ? "1px solid #334155" : "none"
                             }}>
-                              <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                              <div
+                                onClick={() => handlePreviewLocalFile(misFile)}
+                                style={{ fontWeight: 600, color: "#10b981", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                                className="hover:underline"
+                              >
+                                ✓ {misFile.name}
+                                {previewLoading && previewFilename === misFile.name ? (
+                                  <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                                ) : (
+                                  <Eye size={14} />
+                                )}
+                              </div>
                               <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
                                 {(misFile.size / 1024).toFixed(1)} KB
                               </div>
@@ -3197,7 +4123,18 @@ export default function Home() {
                                 display: "inline-block",
                                 border: darkMode ? "1px solid #334155" : "none"
                               }}>
-                                <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {misFile.name}</div>
+                                <div
+                                  onClick={() => handlePreviewLocalFile(misFile)}
+                                  style={{ fontWeight: 600, color: "#10b981", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                                  className="hover:underline"
+                                >
+                                  ✓ {misFile.name}
+                                  {previewLoading && previewFilename === misFile.name ? (
+                                    <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                                  ) : (
+                                    <Eye size={14} />
+                                  )}
+                                </div>
                                 <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
                                   {(misFile.size / 1024).toFixed(1)} KB
                                 </div>
@@ -3285,7 +4222,18 @@ export default function Home() {
                             display: "inline-block",
                             border: darkMode ? "1px solid #334155" : "none"
                           }}>
-                            <div style={{ fontWeight: 600, color: "#10b981", fontSize: "14px" }}>✓ {outstandingFile.name}</div>
+                            <div
+                              onClick={() => handlePreviewLocalFile(outstandingFile)}
+                              style={{ fontWeight: 600, color: "#10b981", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                              className="hover:underline"
+                            >
+                              ✓ {outstandingFile.name}
+                              {previewLoading && previewFilename === outstandingFile.name ? (
+                                <span className="animate-spin h-3 w-3 block border-2 border-current border-t-transparent rounded-full" />
+                              ) : (
+                                <Eye size={14} />
+                              )}
+                            </div>
                             <div style={{ fontSize: "12px", color: theme.textSecondary, marginTop: "4px" }}>
                               {(outstandingFile.size / 1024).toFixed(1)} KB
                             </div>
@@ -3550,65 +4498,167 @@ export default function Home() {
 
               {/* Enhanced Error Display */}
               {
-                error && (
-                  <div style={{
-                    marginTop: 16,
-                    background: darkMode ? "#7f1d1d" : "#fef2f2",
-                    border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
-                    borderRadius: 12,
-                    padding: 20,
-                    display: "flex",
-                    alignItems: "start",
-                    gap: 16
-                  }}>
+                error && (() => {
+                  const errorInfo = categorizeError(error);
+                  return (
                     <div style={{
-                      fontSize: 32,
-                      flexShrink: 0
-                    }}>⚠️</div>
-                    <div style={{ flex: 1 }}>
-                      <Typography variant="h6" component="h3" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 8, fontWeight: 600, fontSize: "16px" }}>
-                        Processing Error
-                      </Typography>
-                      <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 16, fontSize: "14px" }}>
-                        {error}
-                      </Typography>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      marginTop: 16,
+                      background: darkMode ? "#7f1d1d" : "#fef2f2",
+                      border: `2px solid ${darkMode ? "#991b1b" : "#ef4444"}`,
+                      borderRadius: 12,
+                      padding: 24,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 20
+                    }}>
+                      <div style={{ display: "flex", alignItems: "start", gap: 16 }}>
+                        <div style={{
+                          fontSize: 32,
+                          flexShrink: 0,
+                          background: darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
+                          width: 56,
+                          height: 56,
+                          borderRadius: 12,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}>{errorInfo.icon}</div>
+                        <div style={{ flex: 1 }}>
+                          <Typography variant="h6" component="h3" style={{ color: darkMode ? "#fecaca" : "#dc2626", marginBottom: 4, fontWeight: 700, fontSize: "18px" }}>
+                            {errorInfo.type}: {errorInfo.title}
+                          </Typography>
+                          <Typography variant="body2" style={{ color: darkMode ? "#fca5a5" : "#7f1d1d", marginBottom: 0, fontSize: "14px", fontWeight: 500, opacity: 0.9 }}>
+                            {errorInfo.message}
+                          </Typography>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        background: darkMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.5)",
+                        padding: 16,
+                        borderRadius: 8,
+                        borderLeft: `4px solid ${darkMode ? "#fca5a5" : "#dc2626"}`
+                      }}>
+                        <Typography variant="body2" style={{ color: darkMode ? "#f1f5f9" : "#1e293b", fontWeight: 700, marginBottom: 4 }}>
+                          💡 Suggested Solution:
+                        </Typography>
+                        <Typography variant="body2" style={{ color: darkMode ? "#cbd5e1" : "#475569", fontSize: "14px", lineHeight: "1.5" }}>
+                          {errorInfo.solution}
+                        </Typography>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-end" }}>
                         <button
                           onClick={() => setError("")}
                           style={{
-                            padding: "8px 16px",
-                            background: "#dc2626",
-                            color: "white",
+                            padding: "10px 20px",
+                            background: darkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9",
+                            color: darkMode ? "#f1f5f9" : "#475569",
                             border: "none",
-                            borderRadius: 6,
+                            borderRadius: 8,
                             cursor: "pointer",
                             fontWeight: 600,
-                            fontSize: 14
+                            fontSize: 14,
+                            transition: "all 0.2s"
                           }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = darkMode ? "rgba(255,255,255,0.1)" : "#e2e8f0"}
+                          onMouseLeave={(e) => e.currentTarget.style.background = darkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9"}
                         >
                           Dismiss
                         </button>
+                        
+                        {errorInfo.action === "open_tpa_sidebar" && (
+                          <button
+                            onClick={() => {
+                              setError("");
+                              openTpaSidebar();
+                            }}
+                            style={{
+                              padding: "10px 20px",
+                              background: "#3b82f6",
+                              color: "white",
+                              border: "none",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontWeight: 600,
+                              fontSize: 14,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              boxShadow: "0 4px 6px -1px rgba(59, 130, 246, 0.2)",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#2563eb";
+                              e.currentTarget.style.transform = "translateY(-1px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "#3b82f6";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }}
+                          >
+                            <ListFilter size={18} />
+                            Check TPA Mapping
+                          </button>
+                        )}
+
+                        {errorInfo.action === "logout" && (
+                          <button
+                            onClick={handleLogout}
+                            style={{
+                              padding: "10px 20px",
+                              background: "#f43f5e",
+                              color: "white",
+                              border: "none",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontWeight: 600,
+                              fontSize: 14,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            Go to Login
+                          </button>
+                        )}
+
                         <button
                           onClick={handleNext}
                           disabled={!canProceed}
                           style={{
-                            padding: "8px 16px",
-                            background: darkMode ? "#1e293b" : "white",
-                            color: "#dc2626",
-                            border: "2px solid #dc2626",
-                            borderRadius: 6,
+                            padding: "10px 24px",
+                            background: "#dc2626",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 8,
                             cursor: canProceed ? "pointer" : "not-allowed",
-                            fontWeight: 600,
+                            fontWeight: 700,
                             fontSize: 14,
-                            opacity: canProceed ? 1 : 0.5
+                            opacity: canProceed ? 1 : 0.5,
+                            boxShadow: "0 4px 12px rgba(220, 38, 38, 0.2)",
+                            transition: "all 0.2s"
+                          }}
+                          onMouseEnter={(e) => {
+                            if (canProceed) {
+                              e.currentTarget.style.background = "#b91c1c";
+                              e.currentTarget.style.transform = "translateY(-1px)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (canProceed) {
+                              e.currentTarget.style.background = "#dc2626";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }
                           }}
                         >
-                          Retry
+                          Retry Step
                         </button>
                       </div>
                     </div>
-                  </div>
-                )
+                  );
+                })()
               }
 
               {/* Enhanced Results Display with Excel Viewer */}
@@ -3747,7 +4797,7 @@ export default function Home() {
                                 )}
 
                                 {/* Auto-Detected Info (V2) */}
-                                {res.ok && res.data && (res.data.detected_bank_type || res.data.detected_tpa) && (
+                                {res.ok && res.data && (res.data.detected_bank_type || res.data.detected_tpa || res.data.bank_file_dates) && (
                                   <div style={{
                                     marginTop: 12,
                                     padding: "8px 12px",
@@ -3762,6 +4812,17 @@ export default function Home() {
                                     )}
                                     {res.data.detected_tpa && (
                                       <div><strong>Detected TPA:</strong> {res.data.detected_tpa}</div>
+                                    )}
+                                    {res.data.bank_file_dates && Object.keys(res.data.bank_file_dates).length > 0 && (
+                                      <div className="mt-1 space-y-0.5">
+                                        {Object.entries(res.data.bank_file_dates).map(([filename, range]) => (
+                                          <div key={filename} className="flex items-center gap-2">
+                                            <span className="shrink-0">📅</span>
+                                            <span className="font-bold text-indigo-600 dark:text-indigo-400">{range}</span>
+                                            <span className="opacity-70 text-[11px]">({filename})</span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     )}
                                   </div>
                                 )}

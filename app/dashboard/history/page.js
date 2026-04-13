@@ -510,6 +510,17 @@ export default function HistoryPage() {
                                                 🏢 {recon.tpa_name}
                                             </p>
                                         )}
+                                        {recon.summary?.bank_file_dates && Object.keys(recon.summary.bank_file_dates).length > 0 && (
+                                            <div className="mt-3 space-y-1">
+                                                {Object.entries(recon.summary.bank_file_dates).map(([filename, range]) => (
+                                                    <div key={filename} className="text-[10px] flex items-center gap-2 text-slate-500 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-800/50 px-2 py-1 rounded-md border border-slate-200/50 dark:border-slate-700/50 shadow-sm">
+                                                        <span className="font-bold shrink-0 text-indigo-600 dark:text-indigo-400">📅 {range}</span>
+                                                        <span className="truncate opacity-75 font-medium">{filename}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                     </div>
 
                                     {/* Stats Grid */}

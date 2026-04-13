@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    eslint: {
-      ignoreDuringBuilds: true,
-    },
-  };
-  
-  export default nextConfig;
-  
+  transpilePackages: ['lucide-react', 'recharts'],
+};
+
+export default nextConfig;

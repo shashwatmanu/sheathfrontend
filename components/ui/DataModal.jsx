@@ -436,16 +436,20 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
                       {startIdx + rowIdx + 1}
                     </td>
                     {columns.map((col, colIdx) => {
-                      const cellValue = String(row[col] || '');
+                      const rawValue = row[col];
+                      const cellValue = String(rawValue || '');
                       const isHighlighted = searchTerm && 
                         cellValue.toLowerCase().includes(searchTerm.toLowerCase());
+                      
+                      const isErrorCol = col.toLowerCase().includes('error');
+                      const isFailedValue = cellValue.toLowerCase().includes('failed') || cellValue.toLowerCase().includes('error');
 
                       return (
                         <td 
                           key={colIdx}
                           title={cellValue}
                           style={{ 
-                            color: theme.text, 
+                            color: isErrorCol && cellValue ? (darkMode ? '#fca5a5' : '#dc2626') : theme.text, 
                             fontSize: 11,
                             padding: '10px 8px',
                             borderBottom: `1px solid ${theme.border}`,
@@ -455,10 +459,16 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
                             maxWidth: '300px',
                             background: isHighlighted 
                               ? (darkMode ? '#fbbf2433' : '#fef3c7') 
-                              : 'transparent'
+                              : (isErrorCol && cellValue ? (darkMode ? '#7f1d1d22' : '#fef2f2') : 'transparent'),
+                            fontWeight: isErrorCol && cellValue ? 600 : 400
                           }}
                         >
-                          {cellValue}
+                          {isErrorCol && cellValue ? (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span>⚠️</span>
+                              {cellValue}
+                            </span>
+                          ) : cellValue}
                         </td>
                       );
                     })}
