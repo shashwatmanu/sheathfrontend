@@ -41,33 +41,46 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
 
     // Apply sorting
     if (sortColumn) {
-      result.sort((a, b) => {
-        const aVal = String(a[sortColumn] || '');
-        const bVal = String(b[sortColumn] || '');
-        
-        // Try numeric sort first
-        const aNum = parseFloat(aVal.replace(/,/g, ''));
-        const bNum = parseFloat(bVal.replace(/,/g, ''));
-        
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+      // Performance optimization: Schwartzian Transform (map-sort-map)
+      // O(N) regex and float parsing instead of O(N log N) inside sort comparator
+      const mapped = new Array(result.length);
+      for (let i = 0; i < result.length; i++) {
+        const row = result[i];
+        const val = String(row[sortColumn] || '');
+        const num = parseFloat(val.replace(/,/g, ''));
+        mapped[i] = {
+          row,
+          val,
+          num: !isNaN(num) ? num : null
+        };
+      }
+
+      mapped.sort((a, b) => {
+        if (a.num !== null && b.num !== null) {
+          return sortDirection === 'asc' ? a.num - b.num : b.num - a.num;
         }
-        
-        // Fallback to string sort
         return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+          ? a.val.localeCompare(b.val)
+          : b.val.localeCompare(a.val);
       });
+
+      for (let i = 0; i < mapped.length; i++) {
+        result[i] = mapped[i].row;
+      }
     }
 
     return result;
   }, [data, columns, searchTerm, sortColumn, sortDirection]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredAndSortedData.length / rowsPerPage);
-  const startIdx = (currentPage - 1) * rowsPerPage;
-  const endIdx = startIdx + rowsPerPage;
-  const currentData = filteredAndSortedData.slice(startIdx, endIdx);
+  // Performance optimization: Memoize pagination slice to avoid re-slicing on un-related renders
+  const { currentData, totalPages, startIdx, endIdx } = useMemo(() => {
+    const pages = Math.ceil(filteredAndSortedData.length / rowsPerPage);
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const data = filteredAndSortedData.slice(start, end);
+    return { currentData: data, totalPages: pages, startIdx: start, endIdx: end };
+  }, [filteredAndSortedData, currentPage, rowsPerPage]);
 
   // Handle page change
   const handlePageChange = (newPage) => {
@@ -580,12 +593,9 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
                 )}
 
                 {/* Pages around current */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => 
-                    page === currentPage || 
-                    page === currentPage - 1 || 
-                    page === currentPage + 1
-                  )
+                {/* Performance optimization: Avoid Array.from({length: totalPages}) on large data sets */}
+                {[currentPage - 1, currentPage, currentPage + 1]
+                  .filter(page => page >= 1 && page <= totalPages)
                   .map(page => (
                     <button
                       key={page}
