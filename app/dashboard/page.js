@@ -1431,8 +1431,8 @@ const BankConfigurationManager = ({ darkMode, apiBase }) => {
     try {
       const isEdit = !!editingBank;
       const url = isEdit
-        ? `${apiBase.replace(/\/$/, "")}/admin/bank_mappings/${editingBank.id}`
-        : `${apiBase.replace(/\/$/, "")}/admin/admin/bank_mappings`;
+        ? `${apiBase.replace(/\/$/, "")}/admin/bank-mappings/${editingBank.id}`
+        : `${apiBase.replace(/\/$/, "")}/admin/bank-mappings`;
 
       const method = isEdit ? "PUT" : "POST";
 
@@ -1466,7 +1466,7 @@ const BankConfigurationManager = ({ darkMode, apiBase }) => {
     setSuccess("");
 
     try {
-      const res = await authenticatedFetch(`${apiBase.replace(/\/$/, "")}/api/bank-mappings/${id}`, {
+      const res = await authenticatedFetch(`${apiBase.replace(/\/$/, "")}/admin/bank-mappings/${id}`, {
         method: "DELETE"
       });
 

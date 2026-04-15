@@ -64,10 +64,10 @@ export const Navbar = () => {
                 </div>
                 <div className="flex flex-col">
                     <span className="text-xl font-bold text-black dark:text-white leading-none tracking-tight">
-                        RGCIRC
+                        RecoWiz
                     </span>
-                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        RecoWiz Dashboard
+                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 tracking-wider">
+                        RGCIRC Dashboard
                     </span>
                 </div>
             </div>

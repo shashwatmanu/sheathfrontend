@@ -30,7 +30,7 @@ function LoginFormContent() {
   }, []);
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     setError("");
     setSuccessMessage("");
 
@@ -48,13 +48,13 @@ function LoginFormContent() {
       setLoading(false);
 
       if (result.success) {
-        
+
         // Check localStorage
         const token = localStorage.getItem('access_token');
         const savedUsername = localStorage.getItem('username');
-        
+
         // Login successful - use window.location for hard redirect
-        
+
         // Give cookies a moment to be set, then redirect
         setTimeout(() => {
           window.location.href = "/dashboard";
@@ -97,6 +97,10 @@ function LoginFormContent() {
         transition={{ duration: 0.6 }}
         className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-xl p-8 z-10"
       >
+
+        <h2 className="text-xl font-bold text-center text-gray-800 dark:text-gray-100 ">
+          RecoWiz by
+        </h2>
         {/* Logo */}
         <div className="flex justify-center mb-4">
           <img
@@ -106,7 +110,7 @@ function LoginFormContent() {
           />
         </div>
 
-        <h2 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-100 mb-6">
+        <h2 className="text-2xl font-bold text-center text-gray-700 dark:text-gray-100 mb-6">
           Welcome Back
         </h2>
 
