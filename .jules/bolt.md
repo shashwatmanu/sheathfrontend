@@ -1,0 +1,3 @@
+## 2024-03-14 - Optimize History Page Summary Stats
+**Learning:** In `app/dashboard/history/page.js`, calculating aggregate summary statistics (e.g., total amount processed and unique patients) across large datasets like `reconciliations` array using multiple `.reduce()` operations on every render was an identified bottleneck.
+**Action:** When aggregating multiple values from large arrays in React components, replace multiple `O(N)` iterations (like `.reduce()`) with a single pass using a `for` loop, and wrap the entire block in `useMemo` with proper dependencies. This prevents costly re-computation overhead on component re-renders.
