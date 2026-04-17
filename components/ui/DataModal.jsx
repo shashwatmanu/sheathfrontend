@@ -41,23 +41,34 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
 
     // Apply sorting
     if (sortColumn) {
-      result.sort((a, b) => {
-        const aVal = String(a[sortColumn] || '');
-        const bVal = String(b[sortColumn] || '');
-        
-        // Try numeric sort first
-        const aNum = parseFloat(aVal.replace(/,/g, ''));
-        const bNum = parseFloat(bVal.replace(/,/g, ''));
-        
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+      // ⚡ Bolt Optimization: Use Schwartzian transform to avoid O(N log N) string replacements and parses
+      const len = result.length;
+      const mapped = new Array(len);
+      for (let i = 0; i < len; i++) {
+        const item = result[i];
+        const val = item[sortColumn];
+        const strVal = typeof val === 'string' ? val : String(val || '');
+        const numVal = parseFloat(strVal.replace(/,/g, ''));
+        mapped[i] = {
+          value: item,
+          strVal: strVal,
+          numVal: numVal,
+          isNum: !isNaN(numVal)
+        };
+      }
+
+      mapped.sort((a, b) => {
+        if (a.isNum && b.isNum) {
+          return sortDirection === 'asc' ? a.numVal - b.numVal : b.numVal - a.numVal;
         }
-        
-        // Fallback to string sort
         return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+          ? a.strVal.localeCompare(b.strVal)
+          : b.strVal.localeCompare(a.strVal);
       });
+
+      for (let i = 0; i < len; i++) {
+        result[i] = mapped[i].value;
+      }
     }
 
     return result;
