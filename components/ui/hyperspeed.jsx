@@ -49,7 +49,7 @@ const Hyperspeed = ({
     useEffect(() => {
         if (appRef.current) {
             appRef.current.dispose();
-            const container = document.getElementById('lights');
+            const container = hyperspeed.current;
             if (container) {
                 while (container.firstChild) {
                     container.removeChild(container.firstChild);
@@ -414,13 +414,17 @@ const Hyperspeed = ({
                 this.onTouchEnd = this.onTouchEnd.bind(this);
                 this.onContextMenu = this.onContextMenu.bind(this);
 
-                window.addEventListener('resize', this.onWindowResize.bind(this));
+                this.resizeObserver = new ResizeObserver((entries) => {
+                    for (let entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        this.onWindowResize(width, height);
+                    }
+                });
+                this.resizeObserver.observe(this.container);
             }
 
-            onWindowResize() {
-                const width = this.container.offsetWidth;
-                const height = this.container.offsetHeight;
-
+            onWindowResize(width, height) {
+                if (!width || !height) return;
                 this.renderer.setSize(width, height);
                 this.camera.aspect = width / height;
                 this.camera.updateProjectionMatrix();
@@ -589,7 +593,10 @@ const Hyperspeed = ({
                     this.scene.clear();
                 }
 
-                window.removeEventListener('resize', this.onWindowResize.bind(this));
+                if (this.resizeObserver) {
+                    this.resizeObserver.disconnect();
+                }
+
                 if (this.container) {
                     this.container.removeEventListener('mousedown', this.onMouseDown);
                     this.container.removeEventListener('mouseup', this.onMouseUp);
@@ -608,11 +615,6 @@ const Hyperspeed = ({
 
             tick() {
                 if (this.disposed || !this) return;
-                if (resizeRendererToDisplaySize(this.renderer, this.setSize)) {
-                    const canvas = this.renderer.domElement;
-                    this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
-                    this.camera.updateProjectionMatrix();
-                }
                 const delta = this.clock.getDelta();
                 this.render(delta);
                 this.update(delta);
@@ -1089,19 +1091,9 @@ const Hyperspeed = ({
       }
     `;
 
-        function resizeRendererToDisplaySize(renderer, setSize) {
-            const canvas = renderer.domElement;
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-            const needResize = canvas.width !== width || canvas.height !== height;
-            if (needResize) {
-                setSize(width, height, false);
-            }
-            return needResize;
-        }
-
         (function () {
-            const container = document.getElementById('lights');
+            const container = hyperspeed.current;
+            if (!container) return;
             const options = { ...effectOptions };
             options.distortion = distortions[options.distortion];
 
