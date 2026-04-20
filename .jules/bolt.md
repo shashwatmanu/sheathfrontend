@@ -1,0 +1,3 @@
+## 2025-02-21 - [Optimize SVG Path Animations with motion/react]
+**Learning:** Animations using `useTransform` hooked into DOM layout methods like `getPointAtLength()` are highly expensive because they trigger synchronous style recalculations every frame. Using multiple separate `useTransform` hooks to calculate derived values (like `x` and `y`) doubles this cost unnecessarily.
+**Action:** When animating along a path, combine multiple `useTransform` properties into a single hook that performs the DOM layout calculation once per frame and returns the full transform string (e.g. `translateX(...) translateY(...)`). This drastically reduces the render overhead.
