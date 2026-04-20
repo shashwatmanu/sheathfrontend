@@ -1,0 +1,3 @@
+## 2024-05-19 - Optimization of Summary Stats Calculation in History Page
+**Learning:** React component re-renders that iterate over large arrays using multiple `.reduce` callbacks can cause a noticeable performance dip, especially when dealing with hundreds of reconciliation history records. The environment shows that a single `for` loop wrapped in `useMemo` significantly outperforms chained or parallel `.reduce` methods.
+**Action:** Consolidate multiple iterative array methods into single `for` loops inside a `useMemo` block for derived state in rendering cycles when datasets are unbounded or expected to grow large.
