@@ -1779,6 +1779,31 @@ export default function Home() {
   const [bulkResult, setBulkResult] = useState(null);
   const [processingStatus, setProcessingStatus] = useState("");
 
+  // Memoized consolidated extraction of file keys for Summary Cards to prevent redundant iteration
+  const { summaryKey, consolidatedKey } = useMemo(() => {
+    let summary = null;
+    let consolidated = null;
+
+    if (bulkResult?.files) {
+      const keys = Object.keys(bulkResult.files);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        const lowerK = k.toLowerCase();
+
+        if (!summary && lowerK.includes("summary")) {
+          summary = k;
+        }
+        if (!consolidated && (lowerK.includes("consolidated") || lowerK.includes("posting"))) {
+          consolidated = k;
+        }
+
+        if (summary && consolidated) break;
+      }
+    }
+
+    return { summaryKey: summary, consolidatedKey: consolidated };
+  }, [bulkResult?.files]);
+
   // Preview Modal State
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewData, setPreviewData] = useState([]);
@@ -3396,8 +3421,6 @@ export default function Home() {
                                   {/* Overall Summary Report Card */}
                                   {(() => {
                                     const filesObj = bulkResult.files || {};
-                                    // Try to find a file path that resembles the summary report
-                                    const summaryKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("summary"));
                                     // The value in filesObj is the URL. The key is the filename.
                                     const fileUrl = summaryKey ? filesObj[summaryKey] : null;
                                     const fileName = summaryKey || "Overall Summary Report.xlsx";
@@ -3454,7 +3477,6 @@ export default function Home() {
                                   {/* Consolidated Matches Card */}
                                   {(() => {
                                     const filesObj = bulkResult.files || {};
-                                    const consolidatedKey = Object.keys(filesObj).find(k => k.toLowerCase().includes("consolidated") || k.toLowerCase().includes("posting"));
                                     const fileUrl = consolidatedKey ? filesObj[consolidatedKey] : null;
                                     const fileName = consolidatedKey || "Final posting sheet (Consolidated).xlsx";
 
