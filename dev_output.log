@@ -1,0 +1,25 @@
+
+> pdf-recon-frontend@0.1.0 dev
+> next dev
+
+⚠ `eslint` configuration in next.config.mjs is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+⚠ Invalid next.config.mjs options detected:
+⚠     Unrecognized key(s) in object: 'eslint'
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+▲ Next.js 16.1.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 1080ms
+(node:2784) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///app/postcss.config.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /app/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+○ Compiling /auth/login ...
+[auth.js] API_BASE_URL: http://localhost:8000
+ GET /auth/login 200 in 8.5s (compile: 7.9s, proxy.ts: 102ms, render: 510ms)
+ GET /auth/login 200 in 131ms (compile: 7ms, proxy.ts: 9ms, render: 115ms)
+[auth.js] API_BASE_URL: http://localhost:8000
+ GET /auth/login 200 in 897ms (compile: 373ms, proxy.ts: 55ms, render: 469ms)
