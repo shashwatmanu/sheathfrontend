@@ -49,7 +49,7 @@ const Hyperspeed = ({
     useEffect(() => {
         if (appRef.current) {
             appRef.current.dispose();
-            const container = document.getElementById('lights');
+            const container = hyperspeed.current;
             if (container) {
                 while (container.firstChild) {
                     container.removeChild(container.firstChild);
@@ -1101,7 +1101,7 @@ const Hyperspeed = ({
         }
 
         (function () {
-            const container = document.getElementById('lights');
+            const container = hyperspeed.current;
             const options = { ...effectOptions };
             options.distortion = distortions[options.distortion];
 
@@ -1117,7 +1117,7 @@ const Hyperspeed = ({
         };
     }, [effectOptions]);
 
-    return <div id="lights" ref={hyperspeed}></div>;
+    return <div className="hyperspeed-container" ref={hyperspeed}></div>;
 };
 
 export default Hyperspeed;
