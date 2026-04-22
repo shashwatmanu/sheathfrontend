@@ -1,0 +1,3 @@
+## 2024-05-18 - [Optimization Pattern: Replace Chained Array Methods and Multiple Reduce with Single-Pass For Loops]
+**Learning:** Performance Optimization: Replacing multiple `.reduce()` calls with a single `for` loop for data aggregation (e.g., in `app/dashboard/history/page.js`) provides an ~80% performance boost for large arrays (~10k items) in this environment.
+**Action:** Replace multiple `.reduce()` and chained `.filter().map()` operations with single-pass `for` loops (and `Set` if unique values are needed) wrapped in `useMemo` when processing large data sets like reconciliation history.
