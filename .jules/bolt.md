@@ -1,0 +1,3 @@
+## 2024-04-25 - [Pagination Component Optimization]
+**Learning:** In pagination UI components where the dataset might have hundreds or thousands of pages, avoiding `Array.from({ length: totalPages })` inside the render function is crucial. Generating a full array just to filter it down to `[currentPage - 1, currentPage, currentPage + 1]` is O(N) complexity in both memory and CPU, whereas generating the array explicitly via a fixed literal is O(1).
+**Action:** When creating logic to show adjacent page numbers, always use `[currentPage - 1, currentPage, currentPage + 1].filter(p => p >= 1 && p <= totalPages)` to bypass massive array allocations.
