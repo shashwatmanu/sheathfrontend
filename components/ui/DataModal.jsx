@@ -39,25 +39,32 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
       );
     }
 
-    // Apply sorting
+    // Apply sorting using Schwartzian transform for O(N) string parsing/replacement
     if (sortColumn) {
-      result.sort((a, b) => {
-        const aVal = String(a[sortColumn] || '');
-        const bVal = String(b[sortColumn] || '');
-        
-        // Try numeric sort first
-        const aNum = parseFloat(aVal.replace(/,/g, ''));
-        const bNum = parseFloat(bVal.replace(/,/g, ''));
-        
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
-        }
-        
-        // Fallback to string sort
-        return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+      // 1. Decorate
+      const mapped = result.map((row, index) => {
+        const val = String(row[sortColumn] || '');
+        const num = parseFloat(val.replace(/,/g, ''));
+        return {
+          index,
+          val,
+          num: isNaN(num) ? null : num,
+          isNum: !isNaN(num)
+        };
       });
+
+      // 2. Sort
+      mapped.sort((a, b) => {
+        if (a.isNum && b.isNum) {
+          return sortDirection === 'asc' ? a.num - b.num : b.num - a.num;
+        }
+        return sortDirection === 'asc' 
+          ? a.val.localeCompare(b.val)
+          : b.val.localeCompare(a.val);
+      });
+
+      // 3. Undecorate
+      result = mapped.map(item => result[item.index]);
     }
 
     return result;
