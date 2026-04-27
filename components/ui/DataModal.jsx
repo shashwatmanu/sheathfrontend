@@ -27,37 +27,73 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
 
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
-    let result = [...data];
+    // ⚡ Bolt Optimization: Replace slow filter+some closure with a fast single-pass for loop
+    // and replace repetitive sort parsing with a Schwartzian transform
+    let result = [];
+    const search = searchTerm.trim().toLowerCase();
+    const hasSearch = search.length > 0;
+    const numRows = data.length;
+    const numCols = columns.length;
 
     // Apply search filter
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase();
-      result = result.filter(row => 
-        columns.some(col => 
-          String(row[col] || '').toLowerCase().includes(search)
-        )
-      );
+    if (hasSearch) {
+      for (let i = 0; i < numRows; i++) {
+        const row = data[i];
+        let match = false;
+        for (let j = 0; j < numCols; j++) {
+          if (String(row[columns[j]] || '').toLowerCase().includes(search)) {
+            match = true;
+            break;
+          }
+        }
+        if (match) {
+          result.push(row);
+        }
+      }
+    } else {
+      result = [...data];
     }
 
     // Apply sorting
     if (sortColumn) {
-      result.sort((a, b) => {
-        const aVal = String(a[sortColumn] || '');
-        const bVal = String(b[sortColumn] || '');
+      // ⚡ Bolt Optimization: Pre-calculate the numerical values and string conversions
+      // to avoid redundant string allocations and regex replacements during sorting
+      const mapped = new Array(result.length);
+      for (let i = 0; i < result.length; i++) {
+        const row = result[i];
+        const val = String(row[sortColumn] || '');
         
-        // Try numeric sort first
-        const aNum = parseFloat(aVal.replace(/,/g, ''));
-        const bNum = parseFloat(bVal.replace(/,/g, ''));
-        
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+        // Only run replace on string if it might contain comma, avoid unnecessary allocation
+        let numVal = NaN;
+        if (val) {
+          const cleanVal = val.includes(',') ? val.replace(/,/g, '') : val;
+          numVal = parseFloat(cleanVal);
         }
         
-        // Fallback to string sort
+        mapped[i] = {
+          index: i,
+          row: row,
+          value: val,
+          num: numVal,
+          isNum: !isNaN(numVal)
+        };
+      }
+
+      mapped.sort((a, b) => {
+        if (a.isNum && b.isNum) {
+          return sortDirection === 'asc' ? a.num - b.num : b.num - a.num;
+        }
         return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+          ? a.value.localeCompare(b.value)
+          : b.value.localeCompare(a.value);
       });
+
+      // Map back to actual rows
+      const sortedResult = new Array(mapped.length);
+      for (let i = 0; i < mapped.length; i++) {
+        sortedResult[i] = mapped[i].row;
+      }
+      result = sortedResult;
     }
 
     return result;
