@@ -1,0 +1,3 @@
+## 2024-04-28 - [O(1) Pagination Array Generation]
+**Learning:** Found a performance bottleneck in pagination rendering (`components/ui/DataModal.jsx`) where `Array.from({ length: totalPages })` creates a massive temporary array just to map adjacent page numbers, turning an O(1) rendering task into O(N) memory allocation and processing time. For large datasets, this blocks the main thread.
+**Action:** Instead of generating the full range, use a fixed-size array literal of adjacent page indices (e.g., `[cp-1, cp, cp+1]`) filtered for validity (e.g., `page >= 1 && page <= totalPages`). This ensures O(1) time and space complexity regardless of the total page count.
