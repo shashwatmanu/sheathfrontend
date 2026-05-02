@@ -1,0 +1,3 @@
+## 2025-05-02 - Optimize Pagination Rendering in React Next.js Data Grids
+**Learning:** In large datasets paginated in React via standard frontend rendering, using `Array.from({ length: totalPages }, ...).filter(...)` scales $O(N)$ and forces the browser to evaluate a large loop unnecessarily just to map a small slice of data (e.g., `< 5` buttons for jump ranges).
+**Action:** Replace `Array.from({ length: totalPages })` loops for page derivations with explicit $O(1)$ arrays like `[cp-1, cp, cp+1].filter(page => page >= 1 && page <= totalPages)` to eliminate unneeded computations, avoiding rendering lags on Data Grids filtering tens or hundreds of thousands of lines.
