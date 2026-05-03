@@ -1,0 +1,3 @@
+## 2024-05-03 - Optimize pagination array generation for large datasets
+**Learning:** In pagination UI components, using `Array.from({ length: totalPages })` to generate a full array just to filter it down to a few adjacent page numbers is highly inefficient for large datasets, scaling at O(N) where N is the total page count.
+**Action:** Replace `Array.from` with a fixed-size array literal containing the adjacent page indices (e.g., `[cp-1, cp, cp+1]`) filtered for bounds validity (e.g., `page >= 1 && page <= totalPages`). This reduces space and time complexity to O(1) during component re-renders.
