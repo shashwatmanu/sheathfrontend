@@ -39,25 +39,33 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
       );
     }
 
-    // Apply sorting
+    // Apply sorting (Schwartzian Transform)
     if (sortColumn) {
-      result.sort((a, b) => {
-        const aVal = String(a[sortColumn] || '');
-        const bVal = String(b[sortColumn] || '');
-        
-        // Try numeric sort first
-        const aNum = parseFloat(aVal.replace(/,/g, ''));
-        const bNum = parseFloat(bVal.replace(/,/g, ''));
-        
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+      const sortData = new Array(result.length);
+      for (let i = 0; i < result.length; i++) {
+        const row = result[i];
+        const val = String(row[sortColumn] || '');
+        const num = parseFloat(val.replace(/,/g, ''));
+        sortData[i] = {
+          row,
+          val,
+          num,
+          isNum: !isNaN(num)
+        };
+      }
+
+      sortData.sort((a, b) => {
+        if (a.isNum && b.isNum) {
+          return sortDirection === 'asc' ? a.num - b.num : b.num - a.num;
         }
-        
-        // Fallback to string sort
         return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+          ? a.val.localeCompare(b.val)
+          : b.val.localeCompare(a.val);
       });
+
+      for (let i = 0; i < sortData.length; i++) {
+        result[i] = sortData[i].row;
+      }
     }
 
     return result;
