@@ -1,0 +1,3 @@
+## 2025-02-15 - Optimize Pagination Array Generation
+**Learning:** Generating large full-range arrays (like `Array.from({ length: totalPages })`) inside render loops purely to filter out a subset of values creates significant CPU and memory overhead, heavily penalizing UI interactions when data sets are very large (e.g., hundreds of thousands of rows yielding thousands of pages).
+**Action:** Always prefer computing the bounds explicitly into a static array list (e.g., `[cp - 1, cp, cp + 1].filter()`) over dynamically allocating vast ranges for simple slice pagination. This drops generation constraints from $O(N)$ space and time down to $O(1)$.
