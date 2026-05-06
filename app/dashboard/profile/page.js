@@ -119,18 +119,28 @@ export default function ProfilePage() {
         // Get unique usernames
         const usernames = [...new Set(recentData.map(r => r.username || 'Unknown'))];
 
+        // ⚡ Bolt Optimization: Replace O(N * M) nested loops with O(N + M) single-pass hash map
+        // Reduces time complexity for large datasets by pre-aggregating counts.
+        const countsByDateAndUser = {};
+        for (const date of last7Days) {
+             countsByDateAndUser[date] = {};
+             for (const username of usernames) {
+                 countsByDateAndUser[date][username] = 0;
+             }
+        }
+
+        // Single pass through recentData
+        for (const recon of recentData) {
+            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
+            const username = recon.username || 'Unknown';
+            if (countsByDateAndUser[reconDate] && countsByDateAndUser[reconDate][username] !== undefined) {
+                 countsByDateAndUser[reconDate][username]++;
+            }
+        }
+
         // Build stacked chart data: one object per day
         const chartData = last7Days.map(date => {
-          const dayData = { date };
-          usernames.forEach(username => { dayData[username] = 0; });
-          recentData.forEach(recon => {
-            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-            if (reconDate === date) {
-              const username = recon.username || 'Unknown';
-              dayData[username]++;
-            }
-          });
-          return dayData;
+             return { date, ...countsByDateAndUser[date] };
         });
 
         console.log("[Profile] Stacked chart data:", chartData);
