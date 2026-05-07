@@ -109,25 +109,36 @@ export default function ProfilePage() {
           return date.toISOString().split('T')[0];
         });
 
-        // Filter to last 7 days
-        const recentData = data.filter(recon => {
-          if (!recon.created_at) return false;
-          const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-          return last7Days.includes(reconDate);
+        // Pre-initialize day map for single-pass counting
+        const dayDataMap = {};
+        const usernamesSet = new Set();
+        const last7DaysSet = new Set(last7Days);
+
+        last7Days.forEach(date => {
+          dayDataMap[date] = { date };
         });
 
-        // Get unique usernames
-        const usernames = [...new Set(recentData.map(r => r.username || 'Unknown'))];
+        // Single pass to count occurrences
+        data.forEach(recon => {
+          if (!recon.created_at) return;
+          const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
 
-        // Build stacked chart data: one object per day
+          if (last7DaysSet.has(reconDate)) {
+            const username = recon.username || 'Unknown';
+            usernamesSet.add(username);
+            dayDataMap[reconDate][username] = (dayDataMap[reconDate][username] || 0) + 1;
+          }
+        });
+
+        const usernames = Array.from(usernamesSet);
+
+        // Build final stacked chart data
         const chartData = last7Days.map(date => {
-          const dayData = { date };
-          usernames.forEach(username => { dayData[username] = 0; });
-          recentData.forEach(recon => {
-            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-            if (reconDate === date) {
-              const username = recon.username || 'Unknown';
-              dayData[username]++;
+          const dayData = { ...dayDataMap[date] };
+          // Ensure all usernames are initialized to 0 if no data
+          usernames.forEach(username => {
+            if (dayData[username] === undefined) {
+              dayData[username] = 0;
             }
           });
           return dayData;
