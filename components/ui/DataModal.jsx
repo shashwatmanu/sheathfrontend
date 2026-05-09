@@ -441,7 +441,7 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
                       const isHighlighted = searchTerm && 
                         cellValue.toLowerCase().includes(searchTerm.toLowerCase());
                       
-                      const isErrorCol = col.toLowerCase().includes('error');
+                      const isErrorCol = String(col).toLowerCase().includes('error');
                       const isFailedValue = cellValue.toLowerCase().includes('failed') || cellValue.toLowerCase().includes('error');
 
                       return (
@@ -580,12 +580,8 @@ const DataModal = ({ open, onClose, data, columns, filename, darkMode }) => {
                 )}
 
                 {/* Pages around current */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => 
-                    page === currentPage || 
-                    page === currentPage - 1 || 
-                    page === currentPage + 1
-                  )
+                {[currentPage - 1, currentPage, currentPage + 1]
+                  .filter(page => page >= 1 && page <= totalPages)
                   .map(page => (
                     <button
                       key={page}
