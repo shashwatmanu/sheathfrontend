@@ -1,0 +1,3 @@
+## 2026-05-10 - Replace Nested Date Filtering with O(1) Hash Map
+**Learning:** Recharts dashboard visualizations for date ranges (like the last 7 days of reconciliations in `app/dashboard/profile/page.js`) were previously aggregated using a naive $O(N \times D)$ strategy where `data.filter()`, `map()`, and nested `forEach` loops were repeatedly matching identical date strings. This is extremely slow for >1,000 records.
+**Action:** Extract the fixed array of days into an O(1) string-keyed `dayMap` dictionary, allowing a single-pass $O(N)$ iteration over the data to aggregate counts instantly. Avoid instantiating full `Date` objects when parsing static string representations (e.g. `recon.created_at.substring(0, 10)`).

@@ -101,34 +101,44 @@ export default function ProfilePage() {
         const data = await response.json();
         console.log("[Profile] Admin reconciliations fetched:", data.length);
 
-        // Calculate last 7 days
+        // ⚡ Bolt Optimization: Calculate last 7 days and build a lookup map
         const today = new Date();
+        const dayMap = {};
         const last7Days = Array.from({ length: 7 }, (_, i) => {
           const date = new Date(today);
           date.setDate(date.getDate() - (6 - i));
-          return date.toISOString().split('T')[0];
+          const dateStr = date.toISOString().split('T')[0];
+          dayMap[dateStr] = { date: dateStr };
+          return dateStr;
         });
 
-        // Filter to last 7 days
-        const recentData = data.filter(recon => {
-          if (!recon.created_at) return false;
-          const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-          return last7Days.includes(reconDate);
+        // ⚡ Bolt Optimization: Single-pass iteration to aggregate data
+        const usernamesSet = new Set();
+
+        data.forEach(recon => {
+          if (!recon.created_at) return;
+
+          // Fast date string extraction
+          const reconDate = typeof recon.created_at === 'string' && recon.created_at.length >= 10
+            ? recon.created_at.substring(0, 10)
+            : new Date(recon.created_at).toISOString().split('T')[0];
+
+          // If the reconciliation falls within our 7-day window, aggregate it
+          if (dayMap[reconDate]) {
+            const username = recon.username || 'Unknown';
+            usernamesSet.add(username);
+            dayMap[reconDate][username] = (dayMap[reconDate][username] || 0) + 1;
+          }
         });
 
         // Get unique usernames
-        const usernames = [...new Set(recentData.map(r => r.username || 'Unknown'))];
+        const usernames = Array.from(usernamesSet);
 
-        // Build stacked chart data: one object per day
-        const chartData = last7Days.map(date => {
-          const dayData = { date };
-          usernames.forEach(username => { dayData[username] = 0; });
-          recentData.forEach(recon => {
-            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-            if (reconDate === date) {
-              const username = recon.username || 'Unknown';
-              dayData[username]++;
-            }
+        // Build final chart data, ensuring all usernames have a default of 0
+        const chartData = last7Days.map(dateStr => {
+          const dayData = dayMap[dateStr];
+          usernames.forEach(username => {
+            if (dayData[username] === undefined) dayData[username] = 0;
           });
           return dayData;
         });
