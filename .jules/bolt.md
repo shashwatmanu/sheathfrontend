@@ -1,0 +1,3 @@
+## 2024-XX-XX - Pagination Array Generation Optimization
+**Learning:** Generating a full array range using `Array.from({ length: totalPages })` combined with `.filter()` just to display three adjacent page numbers introduces $O(N)$ memory allocation and iteration time proportional to `totalPages`, which can cause significant performance degradation when rendering Data Modals with many records/pages.
+**Action:** When displaying pagination ranges, avoid allocating the full page array. Use a fixed-size literal like `[currentPage - 1, currentPage, currentPage + 1]` and filter bounds using `page >= 1 && page <= totalPages` to achieve $O(1)$ constant time complexity.
