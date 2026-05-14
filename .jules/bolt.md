@@ -1,0 +1,3 @@
+## 2024-05-14 - Optimize Date Parsing and Nested Loops in Chart Aggregation
+**Learning:** Instantiating full `Date` objects inside loops (e.g., `new Date(dateStr).toISOString().split('T')[0]`) to extract "YYYY-MM-DD" from ISO strings creates massive memory allocation and CPU overhead. Combined with nested loops (O(N * M)) to map and filter chart datasets, it creates significant performance bottlenecks as data sizes grow.
+**Action:** Use fast string slicing (`substring(0, 10)`) combined with a single-pass O(N) iteration that pre-calculates counts into a hash map, then map those counts into the required format in a subsequent pass.

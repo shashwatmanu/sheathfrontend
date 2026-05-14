@@ -109,26 +109,38 @@ export default function ProfilePage() {
           return date.toISOString().split('T')[0];
         });
 
-        // Filter to last 7 days
-        const recentData = data.filter(recon => {
-          if (!recon.created_at) return false;
-          const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-          return last7Days.includes(reconDate);
+        // Optimization: Use Set for fast O(1) lookups
+        const last7DaysSet = new Set(last7Days);
+
+        // Optimization: Pre-calculate counts in a single pass (O(N))
+        // and use fast string slicing instead of expensive Date parsing
+        const dateUserCounts = {};
+        const uniqueUsersSet = new Set();
+
+        data.forEach(recon => {
+          if (!recon.created_at) return;
+
+          // Fast string slicing to get "YYYY-MM-DD"
+          const reconDate = recon.created_at.substring(0, 10);
+
+          if (last7DaysSet.has(reconDate)) {
+            const username = recon.username || 'Unknown';
+            uniqueUsersSet.add(username);
+
+            if (!dateUserCounts[reconDate]) {
+              dateUserCounts[reconDate] = {};
+            }
+            dateUserCounts[reconDate][username] = (dateUserCounts[reconDate][username] || 0) + 1;
+          }
         });
 
-        // Get unique usernames
-        const usernames = [...new Set(recentData.map(r => r.username || 'Unknown'))];
+        const usernames = [...uniqueUsersSet];
 
-        // Build stacked chart data: one object per day
+        // Build stacked chart data: map pre-calculated counts back to the final array (O(M))
         const chartData = last7Days.map(date => {
           const dayData = { date };
-          usernames.forEach(username => { dayData[username] = 0; });
-          recentData.forEach(recon => {
-            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-            if (reconDate === date) {
-              const username = recon.username || 'Unknown';
-              dayData[username]++;
-            }
+          usernames.forEach(username => {
+            dayData[username] = (dateUserCounts[date] && dateUserCounts[date][username]) || 0;
           });
           return dayData;
         });
