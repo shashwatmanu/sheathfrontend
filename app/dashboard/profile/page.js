@@ -109,28 +109,44 @@ export default function ProfilePage() {
           return date.toISOString().split('T')[0];
         });
 
-        // Filter to last 7 days
-        const recentData = data.filter(recon => {
-          if (!recon.created_at) return false;
-          const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-          return last7Days.includes(reconDate);
+        // ⚡ Bolt Optimization: Replace O(N*M) filtering and nested loops with O(N) single-pass hash map aggregation.
+        // Also replaces expensive new Date().toISOString() with string slicing.
+        const last7DaysSet = new Set(last7Days);
+        const chartDataMap = new Map();
+        const usernamesSet = new Set();
+
+        // Initialize day data
+        last7Days.forEach(date => {
+            chartDataMap.set(date, { date });
         });
 
-        // Get unique usernames
-        const usernames = [...new Set(recentData.map(r => r.username || 'Unknown'))];
+        // Single pass aggregation
+        data.forEach(recon => {
+            if (!recon.created_at) return;
+            // Safe date extraction preserving Date object support
+            const reconDate = typeof recon.created_at === 'string' && recon.created_at.length >= 10
+                ? recon.created_at.substring(0, 10)
+                : new Date(recon.created_at).toISOString().split('T')[0];
 
-        // Build stacked chart data: one object per day
-        const chartData = last7Days.map(date => {
-          const dayData = { date };
-          usernames.forEach(username => { dayData[username] = 0; });
-          recentData.forEach(recon => {
-            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-            if (reconDate === date) {
-              const username = recon.username || 'Unknown';
-              dayData[username]++;
+            if (last7DaysSet.has(reconDate)) {
+                const username = recon.username || 'Unknown';
+                usernamesSet.add(username);
+                const dayData = chartDataMap.get(reconDate);
+                dayData[username] = (dayData[username] || 0) + 1;
             }
-          });
-          return dayData;
+        });
+
+        const usernames = Array.from(usernamesSet);
+
+        // Ensure all users have a value (0) for all days for stacked chart
+        const chartData = last7Days.map(date => {
+            const dayData = chartDataMap.get(date);
+            usernames.forEach(username => {
+                if (dayData[username] === undefined) {
+                    dayData[username] = 0;
+                }
+            });
+            return dayData;
         });
 
         console.log("[Profile] Stacked chart data:", chartData);
