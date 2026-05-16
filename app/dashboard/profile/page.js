@@ -116,19 +116,33 @@ export default function ProfilePage() {
           return last7Days.includes(reconDate);
         });
 
-        // Get unique usernames
-        const usernames = [...new Set(recentData.map(r => r.username || 'Unknown'))];
+        // ⚡ Bolt: Single-pass O(N + D) hash map aggregation to replace nested loops
+        // Pre-calculate counts by date and username to avoid O(N * D) iteration and repeated Date parsing
+        const countsByDate = {};
+        const uniqueUsers = new Set();
 
-        // Build stacked chart data: one object per day
+        recentData.forEach(recon => {
+          if (!recon.created_at) return;
+          // Fast string slice if available, fallback to Date
+          const createdStr = recon.created_at;
+          const reconDate = (typeof createdStr === 'string' && createdStr.length >= 10)
+            ? createdStr.substring(0, 10)
+            : new Date(createdStr).toISOString().split('T')[0];
+
+          const username = recon.username || 'Unknown';
+          uniqueUsers.add(username);
+
+          if (!countsByDate[reconDate]) countsByDate[reconDate] = {};
+          countsByDate[reconDate][username] = (countsByDate[reconDate][username] || 0) + 1;
+        });
+
+        const usernames = [...uniqueUsers];
+
+        // Build stacked chart data using the pre-calculated hash map
         const chartData = last7Days.map(date => {
           const dayData = { date };
-          usernames.forEach(username => { dayData[username] = 0; });
-          recentData.forEach(recon => {
-            const reconDate = new Date(recon.created_at).toISOString().split('T')[0];
-            if (reconDate === date) {
-              const username = recon.username || 'Unknown';
-              dayData[username]++;
-            }
+          usernames.forEach(username => {
+            dayData[username] = countsByDate[date]?.[username] || 0;
           });
           return dayData;
         });
