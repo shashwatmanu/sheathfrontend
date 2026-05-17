@@ -1,0 +1,3 @@
+## 2025-02-12 - [Profile Admin Chart Aggregation]
+**Learning:** Extracting multiple array method iterations and nested loops (e.g. `Array.map` -> `Array.forEach` inside `Array.map`) used to generate stacked chart data from API payloads into a single-pass `Map`-based iteration reduces time complexity from $O(N \times M)$ to $O(N+M)$. Furthermore, avoiding redundant full `Date` object instantiations inside large loop iterations by extracting string slices yields considerable memory allocation overhead savings.
+**Action:** When parsing dynamic or large API arrays for UI charting (especially in Recharts), replace `.filter().map()` chains with single-pass accumulations into `Map` objects, and handle static timestamps as simple string slices where possible.
